@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kimball Electronics CMMS — Login</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,300..700,0..1,-50..200" />
+  <link rel="stylesheet" href="login.css" />
+</head>
+
+<body>
+  <main class="login-page">
+    <section class="login-card anim-enter" data-enter>
+      <div class="brand-block">
+        <img class="brand-logo" src="./Logo.png" alt="Kimball Electronics logo" />
+      </div>
+
+      <h2 class="panel-title">Sign in</h2>
+      <p class="panel-sub">Use your maintenance account to continue.</p>
+
+      <form id="loginForm" novalidate>
+        <div class="form-group">
+          <label class="form-label" for="user">Employee ID</label>
+          <div class="field-wrap">
+            <span class="field-icon material-symbols-outlined">badge</span>
+            <input class="form-input mono" id="user" name="employeeId" placeholder="2504936" autocomplete="username"
+              required />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="pass">Password</label>
+          <div class="field-wrap has-toggle">
+            <span class="field-icon material-symbols-outlined">lock</span>
+            <input class="form-input" id="pass" name="password" type="password" placeholder="••••••••"
+              autocomplete="current-password" required />
+            <button class="field-toggle" id="togglePassword" type="button" aria-label="Show password"
+              title="Show password">
+              <span class="material-symbols-outlined">visibility</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="alert" id="alert">Please enter Employee ID and Password.</div>
+
+        <button class="btn" type="submit">Sign in</button>
+      </form>
+    </section>
+  </main>
+
+  <script src="../../js/permissions.js"></script>
+  <script src="login.js"></script>
+</body>
+
+</html>

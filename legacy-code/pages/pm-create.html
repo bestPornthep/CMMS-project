@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AssetIntel — Create PM</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+  <style>
+    :root {
+      --font-sans:'Plus Jakarta Sans',sans-serif;
+      --font-mono:'JetBrains Mono',monospace;
+      --sidebar-bg:#00555A;
+      --sidebar-border:rgba(255,255,255,0.10);
+      --sidebar-text:rgba(255,255,255,0.6);
+      --sidebar-text-active:#FFFFFF;
+      --sidebar-hover-bg:rgba(255,255,255,0.10);
+      --sidebar-active-bg:rgba(255,255,255,0.18);
+      --sidebar-active-text:#FFFFFF;
+      --sidebar-width:240px;
+      --bg-page:#ECF0F7;
+      --bg-card:#FFFFFF;
+      --bg-card-alt:#F8FAFC;
+      --border:#E2E8F0;
+      --border-soft:#EEF2F7;
+      --border-strong:#CBD5E1;
+      --text-primary:#0C1523;
+      --text-secondary:#4A5568;
+      --text-muted:#8898AA;
+      --text-caption:#A0AEC0;
+      --blue:#1A56DB;
+      --blue-hover:#1648C0;
+      --blue-light:#EBF2FF;
+      --blue-text:#1648C0;
+      --success:#047857;--success-bg:#ECFDF5;--success-text:#065F46;--success-mid:#10B981;
+      --warning:#B45309;--warning-bg:#FFFBEB;--warning-text:#78350F;--warning-mid:#F59E0B;
+      --error:#B91C1C;--error-bg:#FEF2F2;--error-text:#7F1D1D;--error-mid:#EF4444;
+      --info:#0369A1;--info-bg:#F0F9FF;--info-text:#0C4A6E;--info-mid:#0EA5E9;
+      --r-xs:4px;--r-sm:6px;--r-md:9px;--r-lg:14px;--r-xl:18px;--r-2xl:24px;
+      --shadow-card:0 1px 2px rgba(12,21,35,0.04),0 4px 16px rgba(12,21,35,0.06);
+      --shadow-raise:0 2px 4px rgba(12,21,35,0.06),0 8px 24px rgba(12,21,35,0.08);
+      --shadow-inset:inset 0 1px 0 rgba(255,255,255,0.9),inset 0 -1px 0 rgba(12,21,35,0.04);
+      --ease-out:cubic-bezier(0.16,1,0.3,1);
+      --ease-in-out:cubic-bezier(0.45,0,0.15,1);
+      --ease-spring:cubic-bezier(0.34,1.56,0.64,1);
+      --dur-fast:180ms;--dur-base:260ms;--dur-slow:400ms;--dur-enter:560ms;
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    html,body{height:100%;font-family:var(--font-sans);font-size:14px;color:var(--text-primary);background:var(--bg-page);-webkit-font-smoothing:antialiased;}
+    button,input,select,textarea{font:inherit;cursor:pointer;}
+    a{color:inherit;text-decoration:none;}
+    .material-symbols-outlined{font-variation-settings:'FILL' 0,'wght' 300,'GRAD' 0,'opsz' 20;font-size:18px;line-height:1;display:inline-flex;align-items:center;flex-shrink:0;user-select:none;}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
+    .anim-enter{opacity:0;animation:fadeUp var(--dur-enter) var(--ease-out) forwards;}
+    .app{display:flex;height:100vh;overflow:hidden;}
+    .main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;}
+    .canvas{flex:1;overflow-y:auto;padding:28px 28px 40px;}
+    .canvas::-webkit-scrollbar{width:6px;}
+    .canvas::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+    /* Sidebar */
+    .sidebar{width:var(--sidebar-width);background:var(--sidebar-bg);display:flex;flex-direction:column;flex-shrink:0;border-right:1px solid var(--sidebar-border);overflow-y:auto;overflow-x:hidden;}
+    .sidebar::-webkit-scrollbar{width:3px;}
+    .sidebar::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.15);border-radius:3px;}
+    .sidebar-header{padding:22px 18px 18px;border-bottom:1px solid var(--sidebar-border);flex-shrink:0;}
+    .sidebar-logo{display:flex;align-items:center;gap:11px;}
+    .logo-mark{width:34px;height:34px;background:rgba(255,255,255,0.15);border-radius:var(--r-md);display:grid;place-items:center;flex-shrink:0;border:1px solid rgba(255,255,255,0.2);}
+    .logo-mark .material-symbols-outlined{font-size:17px;color:white;font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 20;line-height:1;}
+    .logo-text{display:flex;flex-direction:column;gap:1px;}
+    .logo-name{font-size:16px;font-weight:800;color:white;letter-spacing:-0.4px;line-height:1.2;}
+    .logo-sub{font-size:11px;font-weight:500;color:rgba(255,255,255,0.5);letter-spacing:0.7px;text-transform:uppercase;}
+    .sidebar-nav{flex:1;padding:10px;display:flex;flex-direction:column;gap:1px;}
+    .nav-label{font-size:11px;font-weight:700;color:rgba(255,255,255,0.35);letter-spacing:0.7px;text-transform:uppercase;padding:14px 12px 4px;white-space:nowrap;overflow:hidden;}
+    .nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--r-md);color:var(--sidebar-text);font-size:15px;font-weight:500;cursor:pointer;transition:background var(--dur-base) var(--ease-out),color var(--dur-base) var(--ease-out);text-decoration:none;white-space:nowrap;overflow:hidden;}
+    .nav-item:hover{background:var(--sidebar-hover-bg);color:var(--sidebar-text-active);}
+    .nav-item.active{background:var(--sidebar-active-bg);color:var(--sidebar-active-text);font-weight:600;}
+    .nav-item .material-symbols-outlined{font-size:20px;flex-shrink:0;}
+    .nav-item-label{flex:1;overflow:hidden;text-overflow:ellipsis;}
+    .nav-divider{height:1px;background:var(--sidebar-border);margin:8px 12px;}
+    .pm-nav-group{padding:0;}
+    .pm-nav-title{font-size:11px;font-weight:700;color:rgba(255,255,255,0.35);letter-spacing:0.7px;text-transform:uppercase;padding:14px 12px 4px;}
+    .pm-subitem{display:flex;align-items:center;gap:9px;padding:9px 12px 9px 16px;border-radius:var(--r-md);color:rgba(255,255,255,0.65);font-size:14px;font-weight:500;text-decoration:none;transition:background var(--dur-base) var(--ease-out),color var(--dur-base) var(--ease-out);}
+    .pm-subitem:hover{background:var(--sidebar-hover-bg);color:rgba(255,255,255,0.9);}
+    .pm-subitem.active{background:var(--sidebar-active-bg);color:white;font-weight:600;}
+    .pm-subitem .material-symbols-outlined{font-size:17px;flex-shrink:0;color:inherit;}
+    .sidebar-footer{padding:10px;border-top:1px solid var(--sidebar-border);flex-shrink:0;}
+    .user-card{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:var(--r-md);cursor:pointer;transition:background var(--dur-base) var(--ease-out);}
+    .user-card:hover{background:var(--sidebar-hover-bg);}
+    .user-avatar{width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.3);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white;flex-shrink:0;}
+    .user-info{flex:1;min-width:0;}
+    .user-name{font-size:14px;font-weight:600;color:white;line-height:1.3;}
+    .user-role{font-size:12px;color:rgba(255,255,255,0.5);}
+    .user-settings{font-size:16px !important;color:rgba(255,255,255,0.4);flex-shrink:0;}
+    /* Topbar */
+    .topbar{height:54px;background:var(--bg-card);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 28px;gap:16px;flex-shrink:0;box-shadow:var(--shadow-inset);}
+    .topbar-breadcrumb{display:inline-flex;align-items:center;gap:7px;height:34px;font-family:var(--font-sans);font-size:12.5px;line-height:1;color:var(--text-muted);letter-spacing:0.1px;}
+    .topbar-breadcrumb span{display:inline-flex;align-items:center;line-height:14px;margin:0;padding:0;}
+    .topbar-breadcrumb .crumb-muted{font-size:12.5px;font-weight:500;color:var(--text-muted);}
+    .topbar-breadcrumb .current{font-size:12.5px;font-weight:700;color:var(--text-primary);}
+    .topbar-sep{font-size:11px;font-weight:500;color:var(--text-muted);opacity:0.35;transform:translateY(-0.5px);}
+    .topbar-right{margin-left:auto;display:flex;align-items:center;gap:6px;}
+    .topbar-btn{width:34px;height:34px;background:none;border:1px solid var(--border);border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-muted);transition:background var(--dur-base) var(--ease-out),color var(--dur-base) var(--ease-out),transform var(--dur-fast) var(--ease-spring);}
+    .topbar-btn:hover{background:var(--bg-card-alt);border-color:var(--border-strong);color:var(--text-primary);}
+    .topbar-btn:active{transform:scale(0.94);}
+    .topbar-btn .material-symbols-outlined{font-size:17px;}
+    .topbar-notif{position:relative;}
+    .notif-dot{position:absolute;top:6px;right:6px;width:6px;height:6px;background:var(--error-mid);border-radius:50%;border:1.5px solid var(--bg-card);}
+    .topbar-search{display:flex;align-items:center;gap:8px;background:var(--bg-card-alt);border:1px solid var(--border);border-radius:var(--r-lg);padding:0 12px;height:34px;transition:border-color var(--dur-base) var(--ease-out),box-shadow var(--dur-base) var(--ease-out);}
+    .topbar-search:focus-within{border-color:var(--blue);background:white;box-shadow:0 0 0 3px rgba(26,86,219,0.08);}
+    .topbar-search .material-symbols-outlined{color:var(--text-muted);font-size:15px;}
+    .topbar-search input{border:none;background:none;outline:none;font-family:var(--font-sans);font-size:13px;color:var(--text-primary);width:clamp(100px,16vw,200px);}
+    .topbar-search input::placeholder{color:var(--text-muted);}
+    /* Page header */
+    .page-header{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:16px;}
+    .page-title{font-size:28px;font-weight:800;color:var(--text-primary);letter-spacing:-1px;line-height:1.1;}
+    .page-sub{font-size:12.5px;color:var(--text-muted);margin-top:4px;}
+    .header-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+    /* Buttons */
+    .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--r-md);font-family:var(--font-sans);font-size:13px;font-weight:600;cursor:pointer;border:none;text-decoration:none;white-space:nowrap;transition:background var(--dur-base) var(--ease-out),box-shadow var(--dur-base) var(--ease-out),transform var(--dur-fast) var(--ease-spring);}
+    .btn:active{transform:scale(0.97);}
+    .btn .material-symbols-outlined{font-size:15px;}
+    .btn-primary{background:var(--blue);color:white;border:1px solid var(--blue);box-shadow:0 1px 2px rgba(26,86,219,0.2),0 3px 8px rgba(26,86,219,0.15);}
+    .btn-primary:hover{background:var(--blue-hover);}
+    .btn-ghost{background:var(--bg-card);color:var(--text-secondary);border:1px solid var(--border);box-shadow:var(--shadow-inset);}
+    .btn-ghost:hover{background:var(--bg-card-alt);color:var(--text-primary);border-color:var(--border-strong);}
+    .btn-danger{background:var(--error-bg);color:var(--error-text);border:1px solid var(--error-bg);}
+    .btn-danger:hover{background:var(--error-mid);color:white;}
+    .btn-success{background:var(--success-bg);color:var(--success-text);border:1px solid var(--success-bg);}
+    .btn-success:hover{background:var(--success-mid);color:white;}
+    /* Badges */
+    .badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;}
+    .badge-success{background:var(--success-bg);color:var(--success-text);}
+    .badge-warning{background:var(--warning-bg);color:var(--warning-text);}
+    .badge-error{background:var(--error-bg);color:var(--error-text);}
+    .badge-info{background:var(--info-bg);color:var(--info-text);}
+    .badge-blue{background:var(--blue-light);color:var(--blue-text);}
+    .badge-neutral{background:var(--bg-card-alt);color:var(--text-secondary);border:1px solid var(--border);}
+    /* Cards */
+    .card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-xl);box-shadow:var(--shadow-inset),var(--shadow-card);}
+    .card-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px 14px;border-bottom:1px solid var(--border-soft);}
+    .card-title{font-size:13.5px;font-weight:700;color:var(--text-primary);letter-spacing:-0.2px;}
+    .card-body{padding:20px;}
+    .card-action{font-size:11.5px;font-weight:600;color:var(--blue);background:none;border:none;cursor:pointer;font-family:var(--font-sans);padding:4px 8px;border-radius:var(--r-sm);transition:background var(--dur-base) var(--ease-out);text-decoration:none;}
+    .card-action:hover{background:var(--blue-light);}
+    /* Table */
+    .data-table{width:100%;border-collapse:collapse;}
+    .data-table th{font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;padding:10px 16px;text-align:left;background:var(--bg-card-alt);border-bottom:1px solid var(--border);}
+    .data-table td{padding:11px 16px;border-bottom:1px solid var(--border-soft);vertical-align:middle;font-size:13px;}
+    .data-table tr:last-child td{border-bottom:none;}
+    .data-table tbody tr{transition:background var(--dur-base) var(--ease-out);cursor:pointer;}
+    .data-table tbody tr:hover td{background:var(--bg-card-alt);}
+    .mono{font-family:var(--font-mono);}
+    /* Forms */
+    .form-group{display:flex;flex-direction:column;gap:5px;}
+    .form-label{font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;}
+    .form-input,.form-select,.form-textarea{width:100%;padding:8px 12px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-md);font-family:var(--font-sans);font-size:13px;color:var(--text-primary);transition:border-color var(--dur-base) var(--ease-out),box-shadow var(--dur-base) var(--ease-out);outline:none;}
+    .form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(26,86,219,0.08);}
+    .form-textarea{resize:vertical;min-height:80px;line-height:1.5;}
+    .form-select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%238898AA' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:30px;}
+    /* Checkbox */
+    .checkbox-row{display:flex;align-items:center;gap:10px;padding:8px 0;cursor:pointer;}
+    .checkbox-row input[type="checkbox"]{width:16px;height:16px;accent-color:var(--blue);cursor:pointer;flex-shrink:0;}
+    .checkbox-label{font-size:13px;color:var(--text-primary);}
+    .checkbox-label.done{text-decoration:line-through;color:var(--text-muted);}
+    /* Progress */
+    .progress-track{height:6px;background:var(--border);border-radius:3px;overflow:hidden;}
+    .progress-fill{height:100%;border-radius:3px;width:0;transition:width 0.7s var(--ease-out);}
+    /* Empty state */
+    .empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;color:var(--text-muted);gap:10px;text-align:center;}
+    .empty-state .material-symbols-outlined{font-size:40px;opacity:0.3;}
+    .empty-state p{font-size:13px;margin:0;}
+    /* Sidebar collapsed tooltip */
+    .sidebar-icon-tip{position:fixed;left:calc(var(--sidebar-width) + 8px);background:var(--text-primary);color:white;font-size:12px;font-weight:600;font-family:var(--font-sans);padding:6px 10px;border-radius:var(--r-md);pointer-events:none;z-index:9999;white-space:nowrap;opacity:0;transform:translateX(-4px);transition:opacity var(--dur-fast) var(--ease-out),transform var(--dur-fast) var(--ease-out);box-shadow:var(--shadow-raise);}
+    .sidebar-icon-tip.show{opacity:1;transform:translateX(0);}
+    /* Responsive */
+    @media(max-width:1023px){:root{--sidebar-width:200px;}.canvas{padding:20px 20px 40px;}}
+    @media(max-width:899px){
+      :root{--sidebar-width:56px;}
+      .logo-name,.logo-sub,.nav-item-label,.pm-nav-title,.nav-label,.user-info{display:none;}
+      .sidebar-header{padding:12px 0;}
+      .sidebar-logo{display:grid;place-items:center;width:56px;}
+      .logo-mark{margin:0;}
+      .sidebar-nav{padding:8px 6px;align-items:stretch;}
+      .nav-item{padding:11px;justify-content:center;}
+      .nav-item .material-symbols-outlined{font-size:22px;margin:0;}
+      .pm-subitem{padding:11px;justify-content:center;}
+      .pm-subitem .material-symbols-outlined{font-size:22px;margin:0;}
+      .pm-subitem span:not(.material-symbols-outlined){display:none;}
+      .nav-divider{margin:6px 8px;}
+      .sidebar-footer{padding:8px 6px;}
+      .user-card{justify-content:center;padding:10px 8px;}
+      .user-avatar{width:34px;height:34px;font-size:12px;}
+      .user-settings{display:none;}
+      .topbar-search{display:none;}
+      .page-title{font-size:22px;}
+    }
+    @media(max-width:767px){.canvas{padding:16px 16px 40px;}}
+
+    .create-grid{display:grid;grid-template-columns:1fr 340px;gap:16px;align-items:start;}
+    .checklist-item{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border-soft);}
+    .checklist-item:last-child{border-bottom:none;}
+    .checklist-item input{flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:var(--r-sm);font-family:var(--font-sans);font-size:13px;outline:none;background:var(--bg-card);}
+    .checklist-item input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(26,86,219,0.08);}
+    .remove-item-btn{width:26px;height:26px;border:none;background:none;color:var(--text-muted);border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:background var(--dur-fast) var(--ease-out),color var(--dur-fast) var(--ease-out);}
+    .remove-item-btn:hover{background:var(--error-bg);color:var(--error-mid);}
+    .remove-item-btn .material-symbols-outlined{font-size:16px;}
+    .preview-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border-soft);font-size:13px;}
+    .preview-row:last-child{border-bottom:none;}
+    .preview-label{color:var(--text-muted);font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.4px;}
+    .preview-val{font-weight:600;color:var(--text-primary);text-align:right;}
+    .tag-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;}
+    .part-tag{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;background:var(--blue-light);color:var(--blue-text);border-radius:20px;font-size:12px;font-weight:600;}
+    .part-tag button{background:none;border:none;cursor:pointer;color:var(--blue-text);display:flex;align-items:center;padding:0;font-size:14px;line-height:1;}
+    .modal-overlay{position:fixed;inset:0;z-index:1000;background:rgba(12,21,35,0.45);opacity:0;pointer-events:none;transition:opacity var(--dur-base) var(--ease-out);}
+    .modal-overlay.open{opacity:1;pointer-events:auto;}
+    .template-modal{position:fixed;top:50%;left:50%;transform:translate(-50%, -50%) scale(0.95);z-index:1001;background:var(--bg-card);border-radius:var(--r-xl);width:90%;max-width:420px;padding:28px 32px;opacity:0;pointer-events:none;transition:opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out);box-shadow:0 10px 40px rgba(12,21,35,0.2), var(--shadow-inset);}
+    .template-modal.open{opacity:1;pointer-events:auto;transform:translate(-50%, -50%) scale(1);}
+    .template-modal .modal-header{margin-bottom:20px;}
+    .template-modal .modal-title{margin:0;font-size:20px;font-weight:800;letter-spacing:-0.5px;color:var(--text-primary);}
+    .template-modal .modal-sub{font-size:12.5px;color:var(--text-muted);margin:4px 0 0;}
+    /* Custom Dropdown */
+    .c-dropdown { position: relative; width: 190px; font-family: var(--font-sans); }
+    .c-dropdown-trigger { display: flex; align-items: center; justify-content: space-between; width: 100%; height: 32px; padding: 6px 10px; background: white; border: 1px solid var(--border); border-radius: var(--r-md); font-size: 12.5px; font-weight: 500; color: var(--text-primary); cursor: pointer; user-select: none; transition: border-color 0.2s, box-shadow 0.2s; }
+    .c-dropdown-trigger:hover { border-color: var(--border-strong); }
+    .c-dropdown.open .c-dropdown-trigger { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(26,86,219,0.08); }
+    .c-dropdown-trigger .material-symbols-outlined { font-size: 16px; color: var(--text-muted); transition: transform 0.2s; }
+    .c-dropdown.open .c-dropdown-trigger .material-symbols-outlined { transform: rotate(180deg); }
+    .c-dropdown-menu { position: absolute; top: calc(100% + 6px); left: 0; width: 100%; background: var(--bg-card); border: 1px solid var(--border-soft); border-radius: var(--r-md); box-shadow: 0 10px 25px rgba(12,21,35,0.1); opacity: 0; pointer-events: none; transform: translateY(-8px); transition: opacity 0.2s, transform 0.2s; z-index: 100; max-height: 200px; overflow-y: auto; padding: 4px 0; }
+    .c-dropdown.open .c-dropdown-menu { opacity: 1; pointer-events: auto; transform: translateY(0); }
+    .c-dropdown-item { padding: 8px 14px; font-size: 12.5px; color: var(--text-primary); cursor: pointer; transition: background 0.15s, color 0.15s; }
+    .c-dropdown-item:hover { background: var(--blue-light); color: var(--blue-text); }
+    .c-dropdown-item.empty { color: var(--text-muted); cursor: default; }
+    .c-dropdown-item.empty:hover { background: none; color: var(--text-muted); }
+    @media(max-width:1023px){.create-grid{grid-template-columns:1fr;}}
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">
+        <div class="logo-mark"><span class="material-symbols-outlined">settings</span></div>
+        <div class="logo-text">
+          <span class="logo-name">AssetIntel</span>
+          <span class="logo-sub">PM Module</span>
+        </div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">Overview</div>
+      <a class="nav-item" href="dashboard.html" data-label="Dashboard" data-permission="pm.dashboard.view" data-permission="pm.dashboard.view">
+        <span class="material-symbols-outlined">dashboard</span>
+        <span class="nav-item-label">Dashboard</span>
+      </a>
+      <div class="nav-divider"></div>
+      <div class="nav-label">PM Work</div>
+      <a class="pm-subitem active" href="pm-create.html" data-label="Create PM" data-permission="pm.create.view" data-permission="pm.create.view">
+        <span class="material-symbols-outlined">add_circle</span>
+        <span>Create PM</span>
+      </a>
+      <a class="pm-subitem " href="pm-assign.html" data-label="Assign PM" data-permission="pm.assign.view" data-permission="pm.assign.view">
+        <span class="material-symbols-outlined">person_add</span>
+        <span>Assign PM</span>
+      </a>
+      <a class="pm-subitem " href="pm-record.html" data-label="Record PM" data-permission="pm.record.view" data-permission="pm.record.view">
+        <span class="material-symbols-outlined">edit_note</span>
+        <span>Record PM</span>
+      </a>
+      <a class="pm-subitem " href="pm-calendar.html" data-label="PM Calendar" data-permission="pm.calendar.view" data-permission="pm.calendar.view">
+        <span class="material-symbols-outlined">calendar_month</span>
+        <span>PM Calendar</span>
+      </a>
+      <a class="pm-subitem " href="pm-reports.html" data-label="PM Reports" data-permission="pm.reports.view" data-permission="pm.reports.view">
+        <span class="material-symbols-outlined">bar_chart</span>
+        <span>PM Reports</span>
+      </a>
+      <div class="nav-divider"></div>
+      <div class="nav-label">Administration</div>
+      <a class="pm-subitem" href="pm-audit.html" data-label="Audit Log" data-permission="pm.audit.view">
+        <span class="material-symbols-outlined">history</span>
+        <span>Audit Log</span>
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-card" data-label="J. Smith · Facility Manager">
+        <div class="user-avatar">JS</div>
+        <div class="user-info">
+          <div class="user-name">J. Smith</div>
+          <div class="user-role">Facility Manager</div>
+        </div>
+        <span class="material-symbols-outlined user-settings">settings</span>
+      </div>
+    </div>
+  </aside>
+  <div class="main">
+    <header class="topbar">
+      <div class="topbar-breadcrumb" aria-label="Breadcrumb">
+        <span class="crumb-muted">PM Work</span>
+        <span class="topbar-sep" aria-hidden="true">›</span>
+        <span class="current">Create PM</span>
+      </div>
+      <div class="topbar-search">
+        <span class="material-symbols-outlined">search</span>
+        <input type="text" placeholder="Search PM work orders…" autocomplete="off"/>
+      </div>
+      <div class="topbar-right">
+        <button class="topbar-btn topbar-notif">
+          <span class="material-symbols-outlined">notifications</span>
+          <div class="notif-dot"></div>
+        </button>
+        <button class="topbar-btn"><span class="material-symbols-outlined">help_outline</span></button>
+        <button class="topbar-btn"><span class="material-symbols-outlined">settings</span></button>
+      </div>
+    </header>
+    <main class="canvas">
+
+      <div class="page-header" data-enter>
+        <div>
+          <h1 class="page-title">Create PM</h1>
+          <p class="page-sub">Define a new preventive maintenance task · <span data-last-updated></span></p>
+        </div>
+      </div>
+
+      <div class="create-grid">
+        <!-- Left: Form -->
+        <div style="display:flex;flex-direction:column;gap:16px;">
+          <div class="card" data-enter>
+            <div class="card-header"><div class="card-title">PM Details</div></div>
+            <div class="card-body" style="display:flex;flex-direction:column;gap:16px;">
+              <div class="form-group">
+                <label class="form-label">Product</label>
+                <select class="form-select" id="productSelect">
+                  <option value="">Select product…</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Department</label>
+                <select class="form-select" id="deptSelect">
+                  <option value="">Select department…</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Asset</label>
+                <select class="form-select" id="assetSelect">
+                  <option value="">Select asset…</option>
+                  <option>HVAC-CH-02 — Chiller #2</option>
+                  <option>ELEC-PNL-A1 — Panel A1</option>
+                  <option>PUMP-CW-04 — CW Pump #4</option>
+                  <option>COMP-AIR-01 — Air Comp #1</option>
+                  <option>CONV-LINE-3 — Conv Line 3</option>
+                  <option>GEN-EM-01 — Emergency Gen</option>
+                  <option>BOIL-STM-02 — Steam Boiler #2</option>
+                  <option>AHU-ZONE-B — AHU Zone B</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">PM Type</label>
+                <select class="form-select" id="typeSelect">
+                  <option value="">Select type…</option>
+                  <option>Daily</option>
+                  <option>Weekly</option>
+                  <option selected>Monthly</option>
+                  <option>Quarterly</option>
+                  <option>Annual</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Description</label>
+                <textarea class="form-textarea" id="descInput" placeholder="Describe the maintenance task…"></textarea>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Estimated Time (hours)</label>
+                <input type="number" class="form-input" id="timeInput" placeholder="e.g. 2.5" min="0.5" step="0.5" style="max-width:160px;"/>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" data-enter>
+            <div class="card-header">
+              <div class="card-title">Checklist</div>
+              <button class="btn btn-ghost" id="addItemBtn" style="padding:5px 10px;font-size:12px;">
+                <span class="material-symbols-outlined">add</span>Add Item
+              </button>
+            </div>
+            <div style="padding:14px 20px; background:var(--blue-light); border-bottom:1px solid var(--border-soft); display:flex; gap:14px; align-items:center;">
+              <div style="width:36px; height:36px; border-radius:50%; background:white; display:flex; align-items:center; justify-content:center; color:var(--blue); flex-shrink:0; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                <span class="material-symbols-outlined" style="font-size:20px;">view_list</span>
+              </div>
+              <div style="flex:1;">
+                 <div style="font-size:12.5px; font-weight:700; color:var(--blue-text); letter-spacing:-0.2px;">Department Templates</div>
+                 <div style="font-size:11.5px; color:var(--text-secondary); margin-top:2px;">Load predefined tasks or save your current list.</div>
+              </div>
+              <div style="display:flex; gap:8px;">
+                <div class="c-dropdown" id="customTemplateDropdown">
+                  <div class="c-dropdown-trigger" id="tplDropdownTrigger">
+                    <span id="tplDropdownLabel">Select template…</span>
+                    <span class="material-symbols-outlined">expand_more</span>
+                  </div>
+                  <div class="c-dropdown-menu" id="tplDropdownMenu">
+                    <div class="c-dropdown-item empty">No templates</div>
+                  </div>
+                </div>
+                <button class="btn btn-ghost" id="manageTplBtn" style="padding:6px 8px; font-size:12.5px; height:32px; background:white; border:1px solid var(--border);" title="Manage Templates">
+                  <span class="material-symbols-outlined" style="font-size:16px;">edit</span>
+                </button>
+                <button class="btn" id="saveTemplateBtn" style="background:white; color:var(--blue-text); border:1px solid rgba(26,86,219,0.2); padding:6px 12px; font-size:12.5px; box-shadow:0 1px 2px rgba(12,21,35,0.04); height:32px;">
+                  <span class="material-symbols-outlined" style="font-size:16px;">bookmark_add</span>Save as New
+                </button>
+              </div>
+            </div>
+            <div class="card-body">
+              <div id="checklistItems" style="display:flex;flex-direction:column;gap:0;">
+                <div class="checklist-item">
+                  <input type="text" placeholder="Checklist item…" value="Inspect bearing assembly"/>
+                  <button class="remove-item-btn"><span class="material-symbols-outlined">close</span></button>
+                </div>
+                <div class="checklist-item">
+                  <input type="text" placeholder="Checklist item…" value="Check lubrication levels"/>
+                  <button class="remove-item-btn"><span class="material-symbols-outlined">close</span></button>
+                </div>
+                <div class="checklist-item">
+                  <input type="text" placeholder="Checklist item…" value="Test pressure relief valve"/>
+                  <button class="remove-item-btn"><span class="material-symbols-outlined">close</span></button>
+                </div>
+              </div>
+              <div id="checklistEmpty" class="empty-state" style="display:none;padding:20px;">
+                <span class="material-symbols-outlined">checklist</span>
+                <p>No checklist items — click Add Item</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" data-enter>
+            <div class="card-header"><div class="card-title">Parts Required</div></div>
+            <div class="card-body" style="display:flex;flex-direction:column;gap:12px;">
+              <div style="display:flex;gap:8px;">
+                <select class="form-select" id="partSelect" style="flex:1;">
+                  <option value="">Select part…</option>
+                  <option>Bearing Assembly 6205</option>
+                  <option>Filter Element HF-04</option>
+                  <option>Seal Kit SK-22</option>
+                  <option>Lubricant SAE-30 (1L)</option>
+                  <option>Drive Belt B-440</option>
+                  <option>O-Ring Set OR-12</option>
+                </select>
+                <button class="btn btn-ghost" id="addPartBtn"><span class="material-symbols-outlined">add</span>Add</button>
+              </div>
+              <div class="tag-list" id="partTags">
+                <span class="part-tag">Filter Element HF-04 <button onclick="this.parentElement.remove();updatePreview()">×</button></span>
+                <span class="part-tag">Seal Kit SK-22 <button onclick="this.parentElement.remove();updatePreview()">×</button></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Preview -->
+        <div class="card" data-enter style="position:sticky;top:16px;">
+          <div class="card-header"><div class="card-title">PM Preview</div></div>
+          <div class="card-body" style="display:flex;flex-direction:column;gap:0;">
+            <div class="preview-row"><span class="preview-label">Product</span><span class="preview-val" id="prev-product" style="color:var(--text-muted);">—</span></div>
+            <div class="preview-row"><span class="preview-label">Dept</span><span class="preview-val" id="prev-dept" style="color:var(--text-muted);">—</span></div>
+            <div class="preview-row"><span class="preview-label">Asset</span><span class="preview-val" id="prev-asset" style="color:var(--text-muted);">—</span></div>
+            <div class="preview-row"><span class="preview-label">Type</span><span class="preview-val" id="prev-type">Monthly</span></div>
+            <div class="preview-row"><span class="preview-label">Tasks</span><span class="preview-val" id="prev-tasks">3 items</span></div>
+            <div class="preview-row"><span class="preview-label">Est. Time</span><span class="preview-val" id="prev-time" style="color:var(--text-muted);">—</span></div>
+            <div class="preview-row"><span class="preview-label">Parts</span><span class="preview-val" id="prev-parts">2 required</span></div>
+            <div style="margin-top:20px;">
+              <button class="btn btn-primary" id="createPmBtn" style="width:100%;">
+                <span class="material-symbols-outlined">add_circle</span>Create PM
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+<div class="modal-overlay" id="templateModalOverlay"></div>
+<div class="template-modal" id="templateModal">
+  <div class="modal-header">
+    <div>
+      <h2 class="modal-title">Save Template</h2>
+      <p class="modal-sub">Save the current checklist as a template for <span id="tplDeptName"></span>.</p>
+    </div>
+  </div>
+  <div class="card-body" style="padding:0; margin-bottom:24px;">
+    <div class="form-group">
+      <label class="form-label">Template Name</label>
+      <input type="text" id="tplNameInput" class="form-input" placeholder="e.g. Weekly Calibration Setup"/>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;">
+    <button class="btn btn-primary" id="confirmSaveTplBtn">Save Template</button>
+    <button class="btn btn-ghost" id="cancelTplBtn">Cancel</button>
+  </div>
+</div>
+
+<div class="template-modal" id="manageModal">
+  <div class="modal-header">
+    <div>
+      <h2 class="modal-title">Manage Templates</h2>
+      <p class="modal-sub">Delete templates for <span id="mngDeptName"></span>.</p>
+    </div>
+  </div>
+  <div class="card-body" style="padding:0; margin-bottom:24px; max-height: 250px; overflow-y: auto;">
+    <div id="manageTplList" style="display:flex;flex-direction:column;gap:8px;">
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;">
+    <button class="btn btn-ghost" id="closeManageBtn" style="width:100%;justify-content:center;">Close</button>
+  </div>
+</div>
+
+<script src="../js/permissions.js"></script>
+<script src="../js/pm-store.js"></script>
+<script src="../js/auth-guard.js"></script>
+<script>
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const currentUser = AssetIntelAuth.init('pm.create.view');
+    if (!currentUser) return;
+    
+    // Set default due date to today + 7 days
+    const nextWeek = new Date();
+    nextWeek.setDate(nextWeek.getDate() + 7);
+    const defaultDue = `${nextWeek.getFullYear()}-${String(nextWeek.getMonth() + 1).padStart(2, '0')}-${String(nextWeek.getDate()).padStart(2, '0')}`;
+    const dueInput = document.getElementById('dueInput');
+    if (dueInput) dueInput.value = defaultDue;
+
+    const isManagerOrAdmin = currentUser.baseRole === 'manager' || currentUser.baseRole === 'admin';
+    const deptSelect = document.getElementById('deptSelect');
+    const productSelect = document.getElementById('productSelect');
+    const assetSelect = document.getElementById('assetSelect');
+
+    // Setup Department Dropdown
+    if (deptSelect) {
+      if (!isManagerOrAdmin) {
+        deptSelect.innerHTML = `<option value="${currentUser.department}">${currentUser.department}</option>`;
+        deptSelect.setAttribute('disabled', 'true');
+        deptSelect.style.backgroundColor = 'var(--bg-page)';
+      } else {
+        const depts = ['Facility', 'Mechanic', 'Manufacturing', 'Maintenance', 'Test'];
+        deptSelect.innerHTML = `<option value="">Select department…</option>` + depts.map(d => `<option value="${d}">${d}</option>`).join('');
+      }
+    }
+
+    // Populate Products
+    const allowedProducts = AssetIntelPermissions.getAccessibleProducts(currentUser, AssetIntelPermissions.KEYS.CREATE_SUBMIT);
+    allowedProducts.forEach(prodId => {
+      const prod = AssetIntelPermissions.PRODUCTS.find(p => p.productId === prodId);
+      if (prod) {
+        const opt = document.createElement('option');
+        opt.value = prodId;
+        opt.textContent = `${prod.productName} (${prodId})`;
+        productSelect.appendChild(opt);
+      }
+    });
+
+    // Cascade Assets
+    function updateAssets() {
+      const prod = productSelect.value;
+      const dept = deptSelect ? deptSelect.value : currentUser.department;
+      assetSelect.innerHTML = '<option value="">Select asset…</option>';
+      if (prod && dept && AssetIntelPMStore && AssetIntelPMStore.ASSET_CATALOG[prod] && AssetIntelPMStore.ASSET_CATALOG[prod][dept]) {
+        const assets = AssetIntelPMStore.ASSET_CATALOG[prod][dept];
+        assets.forEach(a => {
+          const opt = document.createElement('option');
+          opt.value = a.name + '|' + a.code;
+          opt.textContent = `${a.code} — ${a.name}`;
+          assetSelect.appendChild(opt);
+        });
+      }
+      updatePreview();
+    }
+
+    productSelect.addEventListener('change', updateAssets);
+    if(deptSelect) deptSelect.addEventListener('change', updateAssets);
+
+    // Animations & Clock
+    document.querySelectorAll('[data-enter]').forEach((el, i) => {
+      el.style.animationDelay = `${i * 55}ms`;
+      el.classList.add('anim-enter');
+    });
+    const tick = () => {
+      document.querySelectorAll('[data-last-updated]').forEach(el => {
+        const n = new Date();
+        el.textContent = `Updated ${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}`;
+      });
+    };
+    tick(); setInterval(tick, 60000);
+
+    // Preview Logic
+    function updatePreview() {
+      const prodSel = document.getElementById('productSelect');
+      const product = prodSel.options[prodSel.selectedIndex]?.text || '';
+      const dept = deptSelect ? deptSelect.value : currentUser.department;
+      const assetVal = assetSelect.value;
+      const assetName = assetVal ? assetVal.split('|')[0] : '';
+      const type  = document.getElementById('typeSelect').value;
+      const time  = document.getElementById('timeInput').value;
+      
+      let dueStr = '—';
+      let dueValue = '';
+      if (type) {
+        const today = new Date();
+        let daysToAdd = 0;
+        switch(type) {
+          case 'Daily': daysToAdd = 1; break;
+          case 'Weekly': daysToAdd = 7; break;
+          case 'Monthly': daysToAdd = 30; break;
+          case 'Quarterly': daysToAdd = 90; break;
+          case 'Annual': daysToAdd = 365; break;
+        }
+        if (daysToAdd > 0) {
+          today.setDate(today.getDate() + daysToAdd);
+          dueStr = today.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+          dueValue = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        }
+      }
+      
+      let tasks = 0;
+      document.querySelectorAll('#checklistItems .checklist-item input').forEach(inp => {
+        if (inp.value.trim() !== '') tasks++;
+      });
+      const parts = document.querySelectorAll('#partTags .part-tag').length;
+      
+      document.getElementById('prev-product').textContent = prodSel.value ? product : '—';
+      document.getElementById('prev-product').style.color = prodSel.value ? 'var(--text-primary)' : 'var(--text-muted)';
+      document.getElementById('prev-dept').textContent = dept || '—';
+      document.getElementById('prev-dept').style.color = dept ? 'var(--text-primary)' : 'var(--text-muted)';
+      document.getElementById('prev-asset').textContent = assetName || '—';
+      document.getElementById('prev-asset').style.color = assetName ? 'var(--text-primary)' : 'var(--text-muted)';
+      document.getElementById('prev-type').textContent  = type || 'Not set';
+      
+      if(document.getElementById('prev-due')) {
+        document.getElementById('prev-due').textContent = dueStr;
+        document.getElementById('prev-due').style.color = dueValue ? 'var(--text-primary)' : 'var(--text-muted)';
+      }
+      
+      if(document.getElementById('prev-time')) {
+        document.getElementById('prev-time').textContent = time ? time + ' hrs' : '—';
+        document.getElementById('prev-time').style.color = time ? 'var(--text-primary)' : 'var(--text-muted)';
+      }
+      
+      if(document.getElementById('prev-tasks')) {
+        document.getElementById('prev-tasks').textContent = tasks > 0 ? tasks + ' items' : 'None';
+        document.getElementById('prev-tasks').style.color = tasks > 0 ? 'var(--text-primary)' : 'var(--text-muted)';
+      }
+      
+      if(document.getElementById('prev-parts')) {
+        document.getElementById('prev-parts').textContent = parts > 0 ? parts + ' required' : 'None';
+        document.getElementById('prev-parts').style.color = parts > 0 ? 'var(--text-primary)' : 'var(--text-muted)';
+      }
+    }
+
+    // ── Custom Template Dropdown Logic ──
+    const customDropdown = document.getElementById('customTemplateDropdown');
+    const trigger = document.getElementById('tplDropdownTrigger');
+    const menu = document.getElementById('tplDropdownMenu');
+
+    trigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      customDropdown.classList.toggle('open');
+    });
+
+    document.addEventListener('click', () => {
+      customDropdown.classList.remove('open');
+    });
+
+    function loadTemplatesForDept(deptName) {
+      menu.innerHTML = '';
+      if(!deptName) {
+        menu.innerHTML = '<div class="c-dropdown-item empty">No department selected</div>';
+        return;
+      }
+      const tpls = AssetIntelPMStore.getTemplates().filter(t => t.department === deptName);
+      if (tpls.length === 0) {
+        menu.innerHTML = '<div class="c-dropdown-item empty">No templates found</div>';
+      } else {
+        tpls.forEach(t => {
+          const item = document.createElement('div');
+          item.className = 'c-dropdown-item';
+          item.textContent = t.name;
+          
+          item.addEventListener('click', (e) => {
+            e.stopPropagation();
+            customDropdown.classList.remove('open');
+            loadTemplateIntoChecklist(t);
+          });
+          
+          menu.appendChild(item);
+        });
+      }
+    }
+
+    function loadTemplateIntoChecklist(tpl) {
+      if (tpl && tpl.items) {
+        document.getElementById('tplDropdownLabel').textContent = tpl.name;
+        document.getElementById('checklistItems').innerHTML = '';
+        tpl.items.forEach(text => {
+           const div = document.createElement('div');
+           div.className = 'checklist-item';
+           div.innerHTML = `<input type="text" placeholder="Checklist item…" value="${text}"/><button class="remove-item-btn"><span class="material-symbols-outlined">close</span></button>`;
+           document.getElementById('checklistItems').appendChild(div);
+           div.querySelector('.remove-item-btn').addEventListener('click', () => {
+             div.remove();
+             updatePreview();
+           });
+        });
+        document.getElementById('checklistEmpty').style.display = 'none';
+        updatePreview();
+      }
+    }
+
+    const overlay = document.getElementById('templateModalOverlay');
+    const tplModal = document.getElementById('templateModal');
+    
+    document.getElementById('saveTemplateBtn').addEventListener('click', () => {
+      const dept = deptSelect.value;
+      if(!dept) { alert('Please select a Department first.'); return; }
+      
+      const items = Array.from(document.querySelectorAll('.checklist-item input')).map(i => i.value.trim()).filter(v => v);
+      if(items.length === 0) { alert('Please add at least one checklist item before saving a template.'); return; }
+      
+      document.getElementById('tplDeptName').textContent = dept;
+      document.getElementById('tplNameInput').value = '';
+      overlay.classList.add('open');
+      tplModal.classList.add('open');
+    });
+
+    const mngModal = document.getElementById('manageModal');
+    
+    document.getElementById('manageTplBtn').addEventListener('click', () => {
+      const dept = deptSelect.value;
+      if(!dept) { alert('Please select a Department first.'); return; }
+      
+      document.getElementById('mngDeptName').textContent = dept;
+      const list = document.getElementById('manageTplList');
+      list.innerHTML = '';
+      
+      const tpls = AssetIntelPMStore.getTemplates().filter(t => t.department === dept);
+      if(tpls.length === 0) {
+        list.innerHTML = '<div style="font-size:13px;color:var(--text-muted);text-align:center;padding:20px;">No templates found.</div>';
+      } else {
+        tpls.forEach(t => {
+          const div = document.createElement('div');
+          div.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border:1px solid var(--border-soft);border-radius:var(--r-md);background:var(--bg-card-alt);';
+          div.innerHTML = `
+            <div style="font-size:13px;font-weight:600;">${t.name}</div>
+            <button class="remove-item-btn" title="Delete" data-id="${t.id}"><span class="material-symbols-outlined">delete</span></button>
+          `;
+          div.querySelector('.remove-item-btn').addEventListener('click', () => {
+            if(confirm('Delete template "' + t.name + '"?')) {
+              AssetIntelPMStore.deleteTemplate(t.id);
+              div.remove();
+              loadTemplatesForDept(dept);
+            }
+          });
+          list.appendChild(div);
+        });
+      }
+      
+      overlay.classList.add('open');
+      mngModal.classList.add('open');
+    });
+
+    document.getElementById('closeManageBtn').addEventListener('click', () => {
+      overlay.classList.remove('open');
+      mngModal.classList.remove('open');
+    });
+
+    document.getElementById('cancelTplBtn').addEventListener('click', () => {
+      overlay.classList.remove('open');
+      tplModal.classList.remove('open');
+    });
+
+    document.getElementById('confirmSaveTplBtn').addEventListener('click', () => {
+      const name = document.getElementById('tplNameInput').value.trim();
+      if(!name) { alert('Please enter a template name.'); return; }
+      const dept = deptSelect.value;
+      const items = Array.from(document.querySelectorAll('.checklist-item input')).map(i => i.value.trim()).filter(v => v);
+      
+      AssetIntelPMStore.createTemplate({
+         name,
+         department: dept,
+         items,
+         createdBy: currentUser.employeeId
+      });
+      
+      loadTemplatesForDept(dept);
+      overlay.classList.remove('open');
+      tplModal.classList.remove('open');
+      
+      const btn = document.getElementById('saveTemplateBtn');
+      const og = btn.innerHTML;
+      btn.innerHTML = '<span class="material-symbols-outlined">check</span>Saved';
+      btn.style.color = 'var(--success-mid)';
+      setTimeout(() => { btn.innerHTML = og; btn.style.color=''; }, 2000);
+    });
+
+    deptSelect.addEventListener('change', () => {
+      updateAssets();
+      updatePreview();
+      loadTemplatesForDept(deptSelect.value);
+    });
+
+    ['productSelect','assetSelect','typeSelect','timeInput'].forEach(id => {
+      document.getElementById(id).addEventListener('change', updatePreview);
+      document.getElementById(id).addEventListener('input', updatePreview);
+    });
+    if(document.getElementById('dueInput')){
+      document.getElementById('dueInput').addEventListener('change', updatePreview);
+    }
+
+    // Checklist & Parts
+    document.getElementById('addItemBtn').addEventListener('click', () => {
+      const item = document.createElement('div');
+      item.className = 'checklist-item';
+      item.innerHTML = `<input type="text" placeholder="Checklist item…"/><button class="remove-item-btn"><span class="material-symbols-outlined">close</span></button>`;
+      item.querySelector('button').addEventListener('click', () => { item.remove(); updatePreview(); });
+      item.querySelector('input').addEventListener('input', updatePreview);
+      document.getElementById('checklistItems').appendChild(item);
+      item.querySelector('input').focus();
+      updatePreview();
+    });
+
+    document.getElementById('checklistItems').addEventListener('click', e => {
+      if (e.target.closest('.remove-item-btn')) {
+        e.target.closest('.checklist-item').remove();
+        updatePreview();
+      }
+    });
+    document.getElementById('checklistItems').addEventListener('input', e => {
+      if (e.target.tagName === 'INPUT') updatePreview();
+    });
+
+    // Add Part Logic
+    const addPartBtn = document.getElementById('addPartBtn');
+    if (addPartBtn) {
+      addPartBtn.addEventListener('click', () => {
+        const partSelect = document.getElementById('partSelect');
+        const partName = partSelect.value;
+        if (!partName) return;
+        
+        const tagsContainer = document.getElementById('partTags');
+        const span = document.createElement('span');
+        span.className = 'part-tag';
+        span.innerHTML = `${partName} <button type="button" class="remove-part-btn">×</button>`;
+        
+        span.querySelector('.remove-part-btn').addEventListener('click', () => {
+          span.remove();
+          updatePreview();
+        });
+        
+        tagsContainer.appendChild(span);
+        partSelect.value = '';
+        updatePreview();
+      });
+    }
+
+    // Create Submission
+    document.getElementById('createPmBtn').addEventListener('click', () => {
+      const prod = productSelect.value;
+      const dept = deptSelect ? deptSelect.value : currentUser.department;
+      const assetVal = assetSelect.value;
+      const type = document.getElementById('typeSelect').value;
+      
+      if (!prod || !dept || !assetVal || !type) {
+        alert('Please fill out all required fields (Product, Dept, Asset, Type).');
+        return;
+      }
+      
+      let due = '';
+      const today = new Date();
+      let daysToAdd = 0;
+      switch(type) {
+        case 'Daily': daysToAdd = 1; break;
+        case 'Weekly': daysToAdd = 7; break;
+        case 'Monthly': daysToAdd = 30; break;
+        case 'Quarterly': daysToAdd = 90; break;
+        case 'Annual': daysToAdd = 365; break;
+      }
+      if (daysToAdd > 0) {
+        today.setDate(today.getDate() + daysToAdd);
+        due = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      }
+
+      const assetParts = assetVal.split('|');
+      const assetName = assetParts[0];
+      const assetCode = assetParts[1];
+      
+      const checklistItems = Array.from(document.querySelectorAll('.checklist-item input'))
+                                  .map(i => i.value.trim())
+                                  .filter(v => v)
+                                  .map(text => ({ text, done: false }));
+
+      // Create PM using Store
+      const newPM = AssetIntelPMStore.createPM({
+        productId: prod,
+        department: dept,
+        assetName: assetName,
+        assetCode: assetCode,
+        type: type,
+        dueDate: due,
+        createdBy: currentUser.employeeId,
+        checklist: checklistItems
+      });
+
+      if (newPM) {
+        const btn = document.getElementById('createPmBtn');
+        const ogHtml = btn.innerHTML;
+        btn.innerHTML = '<span class="material-symbols-outlined">check_circle</span> PM Created!';
+        btn.style.background = 'var(--success-mid)';
+        
+        setTimeout(() => {
+          btn.innerHTML = ogHtml;
+          btn.style.background = 'var(--blue)';
+          // Reset form somewhat
+          assetSelect.value = '';
+          document.getElementById('descInput').value = '';
+          document.getElementById('timeInput').value = '';
+          updatePreview();
+        }, 2000);
+      }
+    });
+  });
+
+</script>

@@ -1,0 +1,86 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  /* ── Typography ─────────────────────────────────── */
+  --font-sans: 'Plus Jakarta Sans', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* ── Sidebar ─────────────────────────────────────── */
+  --sidebar-bg:          #00555A;
+  --sidebar-border:      rgba(255, 255, 255, 0.10);
+  --sidebar-text:        rgba(255, 255, 255, 0.6);
+  --sidebar-text-active: #FFFFFF;
+  --sidebar-hover-bg:    rgba(255, 255, 255, 0.10);
+  --sidebar-active-bg:   rgba(255, 255, 255, 0.18);
+  --sidebar-active-text: #FFFFFF;
+  --sidebar-width:       260px;
+
+  /* ── Surface ─────────────────────────────────────── */
+  --bg-page:     #ECF0F7;
+  --bg-card:     #FFFFFF;
+  --bg-card-alt: #F8FAFC;
+  --border:      #E2E8F0;
+  --border-soft: #EEF2F7;
+
+  /* ── Text ────────────────────────────────────────── */
+  --text-primary:   #0C1523;
+  --text-secondary: #4A5568;
+  --text-muted:     #8898AA;
+  --text-caption:   #A0AEC0;
+
+  /* ── Brand ───────────────────────────────────────── */
+  --blue:       #1A56DB;
+  --blue-hover: #1648C0;
+  --blue-light: #EBF2FF;
+  --blue-text:  #1648C0;
+
+  /* ── Semantic ────────────────────────────────────── */
+  --success:      #047857;
+  --success-bg:   #ECFDF5;
+  --success-text: #065F46;
+  --success-mid:  #10B981;
+
+  --warning:      #B45309;
+  --warning-bg:   #FFFBEB;
+  --warning-text: #78350F;
+  --warning-mid:  #F59E0B;
+
+  --error:      #B91C1C;
+  --error-bg:   #FEF2F2;
+  --error-text: #7F1D1D;
+  --error-mid:  #EF4444;
+
+  --info:      #0369A1;
+  --info-bg:   #F0F9FF;
+  --info-text: #0C4A6E;
+  --info-mid:  #0EA5E9;
+
+  /* ── Radius ──────────────────────────────────────── */
+  --r-xs: 4px;
+  --r-sm: 6px;
+  --r-md: 9px;
+  --r-lg: 14px;
+  --r-xl: 18px;
+  --r-2xl: 24px;
+
+  /* ── Shadow (physical depth, not decorative) ─────── */
+  --shadow-card:  0 1px 2px rgba(12,21,35,0.04), 0 4px 16px rgba(12,21,35,0.06);
+  --shadow-raise: 0 2px 4px rgba(12,21,35,0.06), 0 8px 24px rgba(12,21,35,0.08);
+  --shadow-inset: inset 0 1px 0 rgba(255,255,255,0.9), inset 0 -1px 0 rgba(12,21,35,0.04);
+
+  /* ── Motion (Lexus: nothing snaps, everything arrives) */
+  --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.45, 0, 0.15, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast:    180ms;
+  --dur-base:    260ms;
+  --dur-slow:    400ms;
+  --dur-enter:   560ms;
+
+  /* ── Spacing ─────────────────────────────────────── */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+}

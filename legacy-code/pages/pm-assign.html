@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AssetIntel — Assign PM</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+  <style>
+    :root {
+      --font-sans:'Plus Jakarta Sans',sans-serif;
+      --font-mono:'JetBrains Mono',monospace;
+      --sidebar-bg:#00555A;
+      --sidebar-border:rgba(255,255,255,0.10);
+      --sidebar-text:rgba(255,255,255,0.6);
+      --sidebar-text-active:#FFFFFF;
+      --sidebar-hover-bg:rgba(255,255,255,0.10);
+      --sidebar-active-bg:rgba(255,255,255,0.18);
+      --sidebar-active-text:#FFFFFF;
+      --sidebar-width:240px;
+      --bg-page:#ECF0F7;
+      --bg-card:#FFFFFF;
+      --bg-card-alt:#F8FAFC;
+      --border:#E2E8F0;
+      --border-soft:#EEF2F7;
+      --border-strong:#CBD5E1;
+      --text-primary:#0C1523;
+      --text-secondary:#4A5568;
+      --text-muted:#8898AA;
+      --text-caption:#A0AEC0;
+      --blue:#1A56DB;
+      --blue-hover:#1648C0;
+      --blue-light:#EBF2FF;
+      --blue-text:#1648C0;
+      --success:#047857;--success-bg:#ECFDF5;--success-text:#065F46;--success-mid:#10B981;
+      --warning:#B45309;--warning-bg:#FFFBEB;--warning-text:#78350F;--warning-mid:#F59E0B;
+      --error:#B91C1C;--error-bg:#FEF2F2;--error-text:#7F1D1D;--error-mid:#EF4444;
+      --info:#0369A1;--info-bg:#F0F9FF;--info-text:#0C4A6E;--info-mid:#0EA5E9;
+      --r-xs:4px;--r-sm:6px;--r-md:9px;--r-lg:14px;--r-xl:18px;--r-2xl:24px;
+      --shadow-card:0 1px 2px rgba(12,21,35,0.04),0 4px 16px rgba(12,21,35,0.06);
+      --shadow-raise:0 2px 4px rgba(12,21,35,0.06),0 8px 24px rgba(12,21,35,0.08);
+      --shadow-inset:inset 0 1px 0 rgba(255,255,255,0.9),inset 0 -1px 0 rgba(12,21,35,0.04);
+      --ease-out:cubic-bezier(0.16,1,0.3,1);
+      --ease-in-out:cubic-bezier(0.45,0,0.15,1);
+      --ease-spring:cubic-bezier(0.34,1.56,0.64,1);
+      --dur-fast:180ms;--dur-base:260ms;--dur-slow:400ms;--dur-enter:560ms;
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    html,body{height:100%;font-family:var(--font-sans);font-size:14px;color:var(--text-primary);background:var(--bg-page);-webkit-font-smoothing:antialiased;}
+    button,input,select,textarea{font:inherit;cursor:pointer;}
+    a{color:inherit;text-decoration:none;}
+    .material-symbols-outlined{font-variation-settings:'FILL' 0,'wght' 300,'GRAD' 0,'opsz' 20;font-size:18px;line-height:1;display:inline-flex;align-items:center;flex-shrink:0;user-select:none;}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
+    .anim-enter{opacity:0;animation:fadeUp var(--dur-enter) var(--ease-out) forwards;}
+    .app{display:flex;height:100vh;overflow:hidden;}
+    .main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;}
+    .canvas{flex:1;overflow-y:auto;padding:28px 28px 40px;}
+    .canvas::-webkit-scrollbar{width:6px;}
+    .canvas::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+    /* Sidebar */
+    .sidebar{width:var(--sidebar-width);background:var(--sidebar-bg);display:flex;flex-direction:column;flex-shrink:0;border-right:1px solid var(--sidebar-border);overflow-y:auto;overflow-x:hidden;}
+    .sidebar::-webkit-scrollbar{width:3px;}
+    .sidebar::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.15);border-radius:3px;}
+    .sidebar-header{padding:22px 18px 18px;border-bottom:1px solid var(--sidebar-border);flex-shrink:0;}
+    .sidebar-logo{display:flex;align-items:center;gap:11px;}
+    .logo-mark{width:34px;height:34px;background:rgba(255,255,255,0.15);border-radius:var(--r-md);display:grid;place-items:center;flex-shrink:0;border:1px solid rgba(255,255,255,0.2);}
+    .logo-mark .material-symbols-outlined{font-size:17px;color:white;font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 20;line-height:1;}
+    .logo-text{display:flex;flex-direction:column;gap:1px;}
+    .logo-name{font-size:16px;font-weight:800;color:white;letter-spacing:-0.4px;line-height:1.2;}
+    .logo-sub{font-size:11px;font-weight:500;color:rgba(255,255,255,0.5);letter-spacing:0.7px;text-transform:uppercase;}
+    .sidebar-nav{flex:1;padding:10px;display:flex;flex-direction:column;gap:1px;}
+    .nav-label{font-size:11px;font-weight:700;color:rgba(255,255,255,0.35);letter-spacing:0.7px;text-transform:uppercase;padding:14px 12px 4px;white-space:nowrap;overflow:hidden;}
+    .nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--r-md);color:var(--sidebar-text);font-size:15px;font-weight:500;cursor:pointer;transition:background var(--dur-base) var(--ease-out),color var(--dur-base) var(--ease-out);text-decoration:none;white-space:nowrap;overflow:hidden;}
+    .nav-item:hover{background:var(--sidebar-hover-bg);color:var(--sidebar-text-active);}
+    .nav-item.active{background:var(--sidebar-active-bg);color:var(--sidebar-active-text);font-weight:600;}
+    .nav-item .material-symbols-outlined{font-size:20px;flex-shrink:0;}
+    .nav-item-label{flex:1;overflow:hidden;text-overflow:ellipsis;}
+    .nav-divider{height:1px;background:var(--sidebar-border);margin:8px 12px;}
+    .pm-nav-group{padding:0;}
+    .pm-nav-title{font-size:11px;font-weight:700;color:rgba(255,255,255,0.35);letter-spacing:0.7px;text-transform:uppercase;padding:14px 12px 4px;}
+    .pm-subitem{display:flex;align-items:center;gap:9px;padding:9px 12px 9px 16px;border-radius:var(--r-md);color:rgba(255,255,255,0.65);font-size:14px;font-weight:500;text-decoration:none;transition:background var(--dur-base) var(--ease-out),color var(--dur-base) var(--ease-out);}
+    .pm-subitem:hover{background:var(--sidebar-hover-bg);color:rgba(255,255,255,0.9);}
+    .pm-subitem.active{background:var(--sidebar-active-bg);color:white;font-weight:600;}
+    .pm-subitem .material-symbols-outlined{font-size:17px;flex-shrink:0;color:inherit;}
+    .sidebar-footer{padding:10px;border-top:1px solid var(--sidebar-border);flex-shrink:0;}
+    .user-card{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:var(--r-md);cursor:pointer;transition:background var(--dur-base) var(--ease-out);}
+    .user-card:hover{background:var(--sidebar-hover-bg);}
+    .user-avatar{width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.3);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white;flex-shrink:0;}
+    .user-info{flex:1;min-width:0;}
+    .user-name{font-size:14px;font-weight:600;color:white;line-height:1.3;}
+    .user-role{font-size:12px;color:rgba(255,255,255,0.5);}
+    .user-settings{font-size:16px !important;color:rgba(255,255,255,0.4);flex-shrink:0;}
+    /* Topbar */
+    .topbar{height:54px;background:var(--bg-card);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 28px;gap:16px;flex-shrink:0;box-shadow:var(--shadow-inset);}
+    .topbar-breadcrumb{display:inline-flex;align-items:center;gap:7px;height:34px;font-family:var(--font-sans);font-size:12.5px;line-height:1;color:var(--text-muted);letter-spacing:0.1px;}
+    .topbar-breadcrumb span{display:inline-flex;align-items:center;line-height:14px;margin:0;padding:0;}
+    .topbar-breadcrumb .crumb-muted{font-size:12.5px;font-weight:500;color:var(--text-muted);}
+    .topbar-breadcrumb .current{font-size:12.5px;font-weight:700;color:var(--text-primary);}
+    .topbar-sep{font-size:11px;font-weight:500;color:var(--text-muted);opacity:0.35;transform:translateY(-0.5px);}
+    .topbar-right{margin-left:auto;display:flex;align-items:center;gap:6px;}
+    .topbar-btn{width:34px;height:34px;background:none;border:1px solid var(--border);border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-muted);transition:background var(--dur-base) var(--ease-out),color var(--dur-base) var(--ease-out),transform var(--dur-fast) var(--ease-spring);}
+    .topbar-btn:hover{background:var(--bg-card-alt);border-color:var(--border-strong);color:var(--text-primary);}
+    .topbar-btn:active{transform:scale(0.94);}
+    .topbar-btn .material-symbols-outlined{font-size:17px;}
+    .topbar-notif{position:relative;}
+    .notif-dot{position:absolute;top:6px;right:6px;width:6px;height:6px;background:var(--error-mid);border-radius:50%;border:1.5px solid var(--bg-card);}
+    .topbar-search{display:flex;align-items:center;gap:8px;background:var(--bg-card-alt);border:1px solid var(--border);border-radius:var(--r-lg);padding:0 12px;height:34px;transition:border-color var(--dur-base) var(--ease-out),box-shadow var(--dur-base) var(--ease-out);}
+    .topbar-search:focus-within{border-color:var(--blue);background:white;box-shadow:0 0 0 3px rgba(26,86,219,0.08);}
+    .topbar-search .material-symbols-outlined{color:var(--text-muted);font-size:15px;}
+    .topbar-search input{border:none;background:none;outline:none;font-family:var(--font-sans);font-size:13px;color:var(--text-primary);width:clamp(100px,16vw,200px);}
+    .topbar-search input::placeholder{color:var(--text-muted);}
+    /* Page header */
+    .page-header{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:16px;}
+    .page-title{font-size:28px;font-weight:800;color:var(--text-primary);letter-spacing:-1px;line-height:1.1;}
+    .page-sub{font-size:12.5px;color:var(--text-muted);margin-top:4px;}
+    .header-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+    /* Buttons */
+    .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--r-md);font-family:var(--font-sans);font-size:13px;font-weight:600;cursor:pointer;border:none;text-decoration:none;white-space:nowrap;transition:background var(--dur-base) var(--ease-out),box-shadow var(--dur-base) var(--ease-out),transform var(--dur-fast) var(--ease-spring);}
+    .btn:active{transform:scale(0.97);}
+    .btn .material-symbols-outlined{font-size:15px;}
+    .btn-primary{background:var(--blue);color:white;border:1px solid var(--blue);box-shadow:0 1px 2px rgba(26,86,219,0.2),0 3px 8px rgba(26,86,219,0.15);}
+    .btn-primary:hover{background:var(--blue-hover);}
+    .btn-ghost{background:var(--bg-card);color:var(--text-secondary);border:1px solid var(--border);box-shadow:var(--shadow-inset);}
+    .btn-ghost:hover{background:var(--bg-card-alt);color:var(--text-primary);border-color:var(--border-strong);}
+    .btn-danger{background:var(--error-bg);color:var(--error-text);border:1px solid var(--error-bg);}
+    .btn-danger:hover{background:var(--error-mid);color:white;}
+    .btn-success{background:var(--success-bg);color:var(--success-text);border:1px solid var(--success-bg);}
+    .btn-success:hover{background:var(--success-mid);color:white;}
+    /* Badges */
+    .badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;}
+    .badge-success{background:var(--success-bg);color:var(--success-text);}
+    .badge-warning{background:var(--warning-bg);color:var(--warning-text);}
+    .badge-error{background:var(--error-bg);color:var(--error-text);}
+    .badge-info{background:var(--info-bg);color:var(--info-text);}
+    .badge-blue{background:var(--blue-light);color:var(--blue-text);}
+    .badge-neutral{background:var(--bg-card-alt);color:var(--text-secondary);border:1px solid var(--border);}
+    /* Cards */
+    .card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-xl);box-shadow:var(--shadow-inset),var(--shadow-card);}
+    .card-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px 14px;border-bottom:1px solid var(--border-soft);}
+    .card-title{font-size:13.5px;font-weight:700;color:var(--text-primary);letter-spacing:-0.2px;}
+    .card-body{padding:20px;}
+    .card-action{font-size:11.5px;font-weight:600;color:var(--blue);background:none;border:none;cursor:pointer;font-family:var(--font-sans);padding:4px 8px;border-radius:var(--r-sm);transition:background var(--dur-base) var(--ease-out);text-decoration:none;}
+    .card-action:hover{background:var(--blue-light);}
+    /* Table */
+    .data-table{width:100%;border-collapse:collapse;}
+    .data-table th{font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;padding:10px 16px;text-align:left;background:var(--bg-card-alt);border-bottom:1px solid var(--border);}
+    .data-table td{padding:11px 16px;border-bottom:1px solid var(--border-soft);vertical-align:middle;font-size:13px;}
+    .data-table tr:last-child td{border-bottom:none;}
+    .data-table tbody tr{transition:background var(--dur-base) var(--ease-out);cursor:pointer;}
+    .data-table tbody tr:hover td{background:var(--bg-card-alt);}
+    .mono{font-family:var(--font-mono);}
+    /* Forms */
+    .form-group{display:flex;flex-direction:column;gap:5px;}
+    .form-label{font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;}
+    .form-input,.form-select,.form-textarea{width:100%;padding:8px 12px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-md);font-family:var(--font-sans);font-size:13px;color:var(--text-primary);transition:border-color var(--dur-base) var(--ease-out),box-shadow var(--dur-base) var(--ease-out);outline:none;}
+    .form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(26,86,219,0.08);}
+    .form-textarea{resize:vertical;min-height:80px;line-height:1.5;}
+    .form-select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%238898AA' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:30px;}
+    /* Checkbox */
+    .checkbox-row{display:flex;align-items:center;gap:10px;padding:8px 0;cursor:pointer;}
+    .checkbox-row input[type="checkbox"]{width:16px;height:16px;accent-color:var(--blue);cursor:pointer;flex-shrink:0;}
+    .checkbox-label{font-size:13px;color:var(--text-primary);}
+    .checkbox-label.done{text-decoration:line-through;color:var(--text-muted);}
+    /* Sidebar collapsed tooltip */
+    .sidebar-icon-tip{position:fixed;left:calc(var(--sidebar-width) + 8px);background:var(--text-primary);color:white;font-size:12px;font-weight:600;font-family:var(--font-sans);padding:6px 10px;border-radius:var(--r-md);pointer-events:none;z-index:9999;white-space:nowrap;opacity:0;transform:translateX(-4px);transition:opacity var(--dur-fast) var(--ease-out),transform var(--dur-fast) var(--ease-out);box-shadow:var(--shadow-raise);}
+    .sidebar-icon-tip.show{opacity:1;transform:translateX(0);}
+    /* Responsive */
+    @media(max-width:1023px){:root{--sidebar-width:200px;}.canvas{padding:20px 20px 40px;}}
+    @media(max-width:899px){
+      :root{--sidebar-width:56px;}
+      .logo-name,.logo-sub,.nav-item-label,.pm-nav-title,.nav-label,.user-info{display:none;}
+      .sidebar-header{padding:12px 0;}
+      .sidebar-logo{display:grid;place-items:center;width:56px;}
+      .logo-mark{margin:0;}
+      .sidebar-nav{padding:8px 6px;align-items:stretch;}
+      .nav-item{padding:11px;justify-content:center;}
+      .nav-item .material-symbols-outlined{font-size:22px;margin:0;}
+      .pm-subitem{padding:11px;justify-content:center;}
+      .pm-subitem .material-symbols-outlined{font-size:22px;margin:0;}
+      .pm-subitem span:not(.material-symbols-outlined){display:none;}
+      .nav-divider{margin:6px 8px;}
+      .sidebar-footer{padding:8px 6px;}
+      .user-card{justify-content:center;padding:10px 8px;}
+      .user-avatar{width:34px;height:34px;font-size:12px;}
+      .user-settings{display:none;}
+      .topbar-search{display:none;}
+      .page-title{font-size:22px;}
+    }
+    @media(max-width:767px){.canvas{padding:16px 16px 40px;}}
+
+    .assign-toolbar{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
+    .assign-toolbar .topbar-search{flex:1;max-width:320px;}
+    .assign-checkbox{width:16px;height:16px;accent-color:var(--blue);cursor:pointer;}
+    .assignee-select{padding:6px 28px 6px 10px;border:1px solid var(--border);border-radius:var(--r-md);font-family:var(--font-sans);font-size:12px;color:var(--text-primary);background:var(--bg-card);outline:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24'%3E%3Cpath fill='%238898AA' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;min-width:130px;transition:border-color var(--dur-base) var(--ease-out);}
+    .assignee-select:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(26,86,219,0.08);}
+    .bulk-bar{display:none;align-items:center;gap:10px;padding:12px 16px;background:var(--blue-light);border:1px solid rgba(26,86,219,0.15);border-radius:var(--r-md);margin-bottom:12px;}
+    .bulk-bar.show{display:flex;animation: fadeUp var(--dur-fast) var(--ease-out) forwards;}
+    .bulk-bar span{font-size:13px;font-weight:600;color:var(--blue-text);flex:1;}
+
+    /* Tab Styles */
+    .tabs { display: flex; gap: 24px; border-bottom: 1px solid var(--border-soft); margin-bottom: 24px; }
+    .tab-btn { background: none; border: none; font-family: var(--font-sans); font-size: 14px; font-weight: 600; color: var(--text-muted); padding: 0 0 12px 0; cursor: pointer; position: relative; transition: color var(--dur-fast) var(--ease-out); }
+    .tab-btn:hover { color: var(--text-primary); }
+    .tab-btn.active { color: var(--blue); }
+    .tab-btn.active::after { content: ''; position: absolute; bottom: -1px; left: 0; right: 0; height: 2px; background: var(--blue); border-radius: 2px 2px 0 0; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; animation: fadeUp 300ms var(--ease-out) forwards; }
+    .create-grid { display: grid; grid-template-columns: 360px 1fr; gap: 16px; align-items: start; }
+    @media(max-width:1023px){.create-grid{grid-template-columns:1fr;}}
+
+    /* Multi-select Dropdown */
+    .multi-select-wrap { position: relative; width: 100%; }
+    .multi-select-btn { width: 100%; padding: 8px 12px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-md); font-family: var(--font-sans); font-size: 13px; color: var(--text-primary); text-align: left; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: border-color var(--dur-base); }
+    .multi-select-btn:hover { border-color: var(--border-strong); }
+    .multi-select-btn::after { content: "▼"; font-size: 10px; color: var(--text-muted); }
+    .multi-select-panel { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-md); box-shadow: var(--shadow-raise); z-index: 100; max-height: 250px; overflow-y: auto; display: none; padding: 4px; }
+    .multi-select-panel.open { display: block; }
+    .multi-select-option { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: var(--r-xs); cursor: pointer; }
+    .multi-select-option:hover { background: var(--bg-card-alt); }
+    .multi-select-option input[type="checkbox"] { width: 14px; height: 14px; accent-color: var(--blue); pointer-events: none; }
+    .multi-select-option span { font-size: 13px; color: var(--text-primary); pointer-events: none; }
+    .multi-select-actions { display: flex; justify-content: space-between; padding: 4px 8px; border-bottom: 1px solid var(--border-soft); margin-bottom: 4px; }
+    .multi-select-action-btn { font-size: 11px; color: var(--blue); background: none; border: none; cursor: pointer; font-weight: 600; padding: 4px 8px; border-radius: var(--r-xs); transition: background var(--dur-fast); }
+    .multi-select-action-btn:hover { background: var(--blue-light); }
+  
+    /* Lexus-style Clean Button (Matches Action column tone) */
+    .btn-lexus {
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 6px 16px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
+      background: var(--error-bg); color: var(--error-text); 
+      border: 1px solid var(--error-bg); border-radius: var(--r-md);
+      transition: all var(--dur-fast) var(--ease-out);
+      cursor: pointer;
+    }
+    .btn-lexus:hover {
+      background: var(--error-mid); color: white;
+      border-color: var(--error-mid);
+    }
+    .btn-lexus span.count {
+      font-size: 12px; font-weight: 700; margin: 0 4px;
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">
+        <div class="logo-mark"><span class="material-symbols-outlined">settings</span></div>
+        <div class="logo-text">
+          <span class="logo-name">AssetIntel</span>
+          <span class="logo-sub">PM Module</span>
+        </div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">Overview</div>
+      <a class="nav-item" href="dashboard.html" data-label="Dashboard" data-permission="pm.dashboard.view">
+        <span class="material-symbols-outlined">dashboard</span>
+        <span class="nav-item-label">Dashboard</span>
+      </a>
+      <div class="nav-divider"></div>
+      <div class="nav-label">PM Work</div>
+      <a class="pm-subitem" href="pm-create.html" data-label="Create PM" data-permission="pm.create.view">
+        <span class="material-symbols-outlined">add_circle</span>
+        <span>Create PM</span>
+      </a>
+      <a class="pm-subitem active" href="pm-assign.html" data-label="Assign PM" data-permission="pm.assign.view">
+        <span class="material-symbols-outlined">person_add</span>
+        <span>Assign PM</span>
+      </a>
+      <a class="pm-subitem" href="pm-record.html" data-label="Record PM" data-permission="pm.record.view">
+        <span class="material-symbols-outlined">edit_note</span>
+        <span>Record PM</span>
+      </a>
+      <a class="pm-subitem" href="pm-calendar.html" data-label="PM Calendar" data-permission="pm.calendar.view">
+        <span class="material-symbols-outlined">calendar_month</span>
+        <span>PM Calendar</span>
+      </a>
+      <a class="pm-subitem" href="pm-reports.html" data-label="PM Reports" data-permission="pm.reports.view">
+        <span class="material-symbols-outlined">bar_chart</span>
+        <span>PM Reports</span>
+      </a>
+      <div class="nav-divider"></div>
+      <div class="nav-label">Administration</div>
+      <a class="pm-subitem" href="pm-audit.html" data-label="Audit Log" data-permission="pm.audit.view">
+        <span class="material-symbols-outlined">history</span>
+        <span>Audit Log</span>
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-card" data-label="Loading...">
+        <div class="user-avatar">?</div>
+        <div class="user-info">
+          <div class="user-name">Loading...</div>
+          <div class="user-role">...</div>
+        </div>
+        <span class="material-symbols-outlined user-settings">settings</span>
+      </div>
+    </div>
+  </aside>
+  <div class="main">
+    <header class="topbar">
+      <div class="topbar-breadcrumb" aria-label="Breadcrumb">
+        <span class="crumb-muted">PM Work</span>
+        <span class="topbar-sep" aria-hidden="true">›</span>
+        <span class="current">Assign PM</span>
+      </div>
+      <div class="topbar-search">
+        <span class="material-symbols-outlined">search</span>
+        <input type="text" placeholder="Search PM work orders…" autocomplete="off"/>
+      </div>
+      <div class="topbar-right">
+        <button class="topbar-btn topbar-notif">
+          <span class="material-symbols-outlined">notifications</span>
+          <div class="notif-dot"></div>
+        </button>
+        <button class="topbar-btn"><span class="material-symbols-outlined">help_outline</span></button>
+        <button class="topbar-btn"><span class="material-symbols-outlined">settings</span></button>
+      </div>
+    </header>
+    <main class="canvas">
+
+      <div class="page-header" data-enter>
+        <div>
+          <h1 class="page-title">Assign PM</h1>
+          <p class="page-sub">Assign work orders and manage temporary permissions · <span data-last-updated></span></p>
+        </div>
+      </div>
+
+      <div class="tabs" data-enter>
+        <button class="tab-btn active" data-tab="unassigned">Unassigned PMs</button>
+        <button class="tab-btn" data-tab="assigned">Assigned PMs</button>
+        <button class="tab-btn" data-tab="delegation" data-require-permission="pm.permission.delegate">Temporary Permissions</button>
+      </div>
+
+      <!-- TAB: UNASSIGNED PMS -->
+      <div class="tab-content active" id="tab-unassigned">
+        <div class="bulk-bar" id="bulkBar">
+          <span class="material-symbols-outlined" style="color:var(--blue);">checklist</span>
+          <span id="bulkCount">0 selected</span>
+          <select class="assignee-select" id="bulkAssignee">
+            <option value="">Assign all to…</option>
+          </select>
+          <button class="btn btn-primary" id="bulkAssignBtn" style="padding:6px 14px;font-size:12px;">
+            <span class="material-symbols-outlined">person_add</span>Assign Selected
+          </button>
+        </div>
+
+        <div class="assign-toolbar" id="mgrToolbar" style="display:none; align-items:center; justify-content:space-between; margin-top:20px;">
+          <div style="font-size:13px; font-weight:600; color:var(--text-secondary);">Department View (Manager Only)</div>
+          <select class="form-select" id="deptFilter" style="width:200px; background-color:white;">
+            <option value="All">All Departments</option>
+            <option value="Facility">Facility</option>
+            <option value="Mechanic">Mechanic</option>
+            <option value="Manufacturing">Manufacturing</option>
+            <option value="Maintenance">Maintenance</option>
+            <option value="Test">Test</option>
+          </select>
+        </div>
+
+        <div class="card" data-enter>
+          <div class="card-header">
+            <div class="card-title">Unassigned PM Work Orders</div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <input type="checkbox" class="assign-checkbox" id="selectAll" title="Select all"/>
+              <span style="font-size:12px;color:var(--text-muted);">Select all</span>
+            </div>
+          </div>
+          <div style="overflow:hidden;border-radius:0 0 var(--r-xl) var(--r-xl);">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th style="width:40px;"></th>
+                  <th>PM ID</th>
+                  <th>Product & Dept</th>
+
+                  <th>Asset</th>
+                  <th>Type</th>
+                  <th>Due Date</th>
+                  <th>Assign To</th>
+                </tr>
+              </thead>
+              <tbody id="assignTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: ASSIGNED PMS -->
+      <div class="tab-content" id="tab-assigned">
+        <div class="assign-toolbar" id="assignedToolbar" style="display:none; align-items:center; justify-content:space-between; margin-bottom:20px;">
+          <div style="font-size:13px; font-weight:600; color:var(--text-secondary);">Department View (Manager Only)</div>
+          <select class="form-select" id="assignedDeptFilter" style="width:200px; background-color:white;">
+            <option value="All">All Departments</option>
+            <option value="Facility">Facility</option>
+            <option value="Mechanic">Mechanic</option>
+            <option value="Manufacturing">Manufacturing</option>
+            <option value="Maintenance">Maintenance</option>
+            <option value="Test">Test</option>
+          </select>
+        </div>
+
+        <div class="card" data-enter>
+          <div class="card-header">
+            <div class="card-title">Assigned PM Work Orders</div>
+          </div>
+          <div style="overflow:hidden;border-radius:0 0 var(--r-xl) var(--r-xl);">
+            <table class="data-table">
+              <thead>
+                <tr id="assignedHeaderRow">
+                  <th>PM ID</th>
+                  <th>Product & Dept</th>
+                  <th>Asset</th>
+                  <th>Type</th>
+                  <th>Due Date</th>
+                  <th>Assigned To</th>
+                  <th>Assigned By</th>
+                </tr>
+              </thead>
+              <tbody id="assignedTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: TEMPORARY PERMISSIONS -->
+      <div class="tab-content" id="tab-delegation">
+        <div class="create-grid">
+          <!-- Left: Form -->
+          <div class="card" data-enter>
+            <div class="card-header"><div class="card-title">Grant Temporary Access</div></div>
+            <div class="card-body" style="display:flex;flex-direction:column;gap:16px;">
+              
+              <!-- Multi-select Users -->
+              <div class="form-group">
+                <label class="form-label">Target User(s)</label>
+                <div class="multi-select-wrap">
+                  <button type="button" class="multi-select-btn" id="userMultiBtn">Select users...</button>
+                  <div class="multi-select-panel" id="userMultiPanel">
+                    <div class="multi-select-actions">
+                      <button type="button" class="multi-select-action-btn" onclick="selectAll('userMultiPanel', true, 'userMultiBtn', 'users')">Select All</button>
+                      <button type="button" class="multi-select-action-btn" onclick="selectAll('userMultiPanel', false, 'userMultiBtn', 'users')">Clear</button>
+                    </div>
+                    <div id="userMultiOptions"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Multi-select Products -->
+              <div class="form-group">
+                <label class="form-label">Product(s) / Asset Scope</label>
+                <div class="multi-select-wrap">
+                  <button type="button" class="multi-select-btn" id="prodMultiBtn">Select products...</button>
+                  <div class="multi-select-panel" id="prodMultiPanel">
+                    <div class="multi-select-actions">
+                      <button type="button" class="multi-select-action-btn" onclick="selectAll('prodMultiPanel', true, 'prodMultiBtn', 'products')">Select All</button>
+                      <button type="button" class="multi-select-action-btn" onclick="selectAll('prodMultiPanel', false, 'prodMultiBtn', 'products')">Clear</button>
+                    </div>
+                    <div id="prodMultiOptions"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Duration (Days)</label>
+                <input type="number" class="form-input" id="delDuration" value="30" min="1" max="365" />
+              </div>
+              <button class="btn btn-primary" id="grantBtn" style="margin-top:8px;">
+                <span class="material-symbols-outlined">key</span>Grant Access
+              </button>
+            </div>
+          </div>
+          
+          <!-- Right: Active delegations table -->
+          <div class="card" data-enter>
+            <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+              <div class="card-title">Active Delegations</div>
+              <button class="btn-lexus" id="bulkRevokeBtn" style="display:none;">REVOKE <span class="count" id="bulkRevokeCount">0</span> SELECTED</button>
+            </div>
+            <div style="overflow:auto;border-radius:0 0 var(--r-xl) var(--r-xl);max-height:400px;">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th style="width:40px;"><input type="checkbox" class="assign-checkbox" id="selectAllDelegations" title="Select all" /></th>
+                    <th>User</th>
+                    <th>Product</th>
+                    <th>Valid Until</th>
+                    <th style="text-align:right;">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="delegationsTable">
+                  <!-- Populated by JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+<script src="../js/permissions.js"></script>
+<script src="../js/pm-store.js"></script>
+<script src="../js/auth-guard.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const currentUser = AssetIntelAuth.init('pm.assign.view');
+    if (!currentUser) return;
+
+    // Entrance animations
+    document.querySelectorAll('[data-enter]').forEach((el, i) => {
+      el.style.animationDelay = `${i * 55}ms`;
+      el.classList.add('anim-enter');
+    });
+
+    // Live clock
+    const tick = () => {
+      document.querySelectorAll('[data-last-updated]').forEach(el => {
+        const n = new Date();
+        el.textContent = `Updated ${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}`;
+      });
+    };
+    tick(); setInterval(tick, 60000);
+
+    // Tab switching logic
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
+      });
+    });
+
+    // ── 1. Data Filtering Logic ─────────────────────────────────
+    const allUsers = Object.values(AssetIntelPermissions.DEMO_USERS);
+    const isManagerOrAdmin = currentUser.baseRole === 'manager' || currentUser.baseRole === 'admin';
+
+    // TAB 1 (Work Assignment): Techs only. Engineers see only own dept, Managers see all depts.
+    const assignTechs = allUsers.filter(u => {
+      if (u.baseRole !== 'technician') return false;
+      if (isManagerOrAdmin) return true;
+      return u.department === currentUser.department;
+    });
+
+    // TAB 2 (Delegation): Engs see only Techs in own dept. Managers see Techs and Engs from all depts.
+    const delegateTargets = allUsers.filter(u => {
+      if (currentUser.baseRole === 'engineer') {
+        return u.baseRole === 'technician' && u.department === currentUser.department;
+      }
+      if (isManagerOrAdmin) {
+        return u.baseRole === 'technician' || u.baseRole === 'engineer';
+      }
+      return false;
+    });
+
+    
+    // ── 1.5. Render Dynamic PM Work Orders ──────────────────────
+    function getMockWorkOrders(status = 'pending') {
+      return AssetIntelPMStore.getPMs().filter(pm => pm.status === status);
+    }
+
+    const allowedProdsForAssign = AssetIntelPermissions.getAccessibleProducts(currentUser, AssetIntelPermissions.KEYS.ASSIGN_VIEW);
+    
+
+    window.individualAssign = function(pmId, techId) {
+      if(!techId) return;
+      AssetIntelPMStore.assignPM(pmId, techId, currentUser.employeeId);
+      renderAssignWork();
+    };
+
+    window.deletePM = function(pmId) {
+      if(confirm('Are you sure you want to delete this PM? This cannot be undone.')) {
+        AssetIntelPMStore.deletePM(pmId, currentUser);
+        renderAssignWork();
+      }
+    };
+
+    function renderAssignWork() {
+      const deptFilterEl = document.getElementById('deptFilter');
+      const dept = deptFilterEl ? deptFilterEl.value : 'All';
+      
+      let visibleOrders = getMockWorkOrders('pending').filter(wo => {
+        if (!allowedProdsForAssign.includes(wo.productId)) return false;
+        
+        // Engineers and Technicians are restricted to their own department
+        if (currentUser.baseRole === 'engineer' || currentUser.baseRole === 'technician') {
+          return wo.department === currentUser.department;
+        }
+        
+        // Managers/Admins check dropdown filter
+        if (isManagerOrAdmin && dept !== 'All' && wo.department !== dept) {
+          return false;
+        }
+        
+        return true;
+      });
+
+      const assignTable = document.getElementById('assignTable');
+      
+      const headerRow = document.querySelector('#tab-unassigned table thead tr');
+      if (headerRow && isManagerOrAdmin && !document.getElementById('thCreatedBy')) {
+        const thAction = document.createElement('th');
+        thAction.id = 'thAdminAction';
+        if (currentUser.baseRole === 'admin') {
+           thAction.textContent = 'Actions';
+           headerRow.appendChild(thAction);
+        }
+        const th = document.createElement('th');
+        th.id = 'thCreatedBy';
+        th.textContent = 'Created By';
+        headerRow.insertBefore(th, headerRow.lastElementChild);
+      }
+
+      if (visibleOrders.length === 0) {
+        assignTable.innerHTML = `<tr><td colspan="${isManagerOrAdmin ? 8 : 7}" style="text-align:center;padding:30px;color:var(--text-muted);">No unassigned PMs found.</td></tr>`;
+      } else {
+        assignTable.innerHTML = visibleOrders.map(wo => {
+          const creator = AssetIntelPermissions.DEMO_USERS[wo.createdBy];
+          const creatorName = creator ? creator.name : (wo.createdBy || '-');
+          
+          let dateStr = '-';
+          if(wo.createdAt) {
+             const d = new Date(wo.createdAt);
+             dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+          }
+          const creatorHtml = isManagerOrAdmin ? `<td><div style="font-weight:600;">${creatorName}</div><div class="mono" style="font-size:11px;color:var(--text-muted);">${dateStr}</div></td>` : '';
+          
+          const adminDel = currentUser.baseRole === 'admin' ? `<td><button class="btn btn-icon" style="color:var(--error-mid);" onclick="window.deletePM('${wo.id}')"><span class="material-symbols-outlined">delete</span></button></td>` : '';
+
+          return `
+          <tr data-pmid="${wo.id}">
+            <td><input type="checkbox" class="assign-checkbox row-check"/></td>
+            <td><span class="mono" style="color:var(--blue);font-weight:600;">${wo.id}</span></td>
+            <td><div style="font-weight:600;">${AssetIntelPermissions.PRODUCTS.find(p => p.productId === wo.productId)?.productName || wo.productId}</div><div class="mono" style="font-size:11px;color:var(--text-muted);">${wo.department} Dept.</div></td>
+            <td><div style="font-weight:600;">${wo.asset}</div><div class="mono" style="font-size:11px;color:var(--text-muted);">${wo.code}</div></td>
+            <td><span class="badge badge-info">${wo.type}</span></td>
+            <td class="mono" style="color:var(--text-secondary);">${wo.due}</td>
+            ${creatorHtml}
+            <td><select class="assignee-select dyn-assignee" data-dept="${wo.department}" onchange="window.individualAssign('${wo.id}', this.value)"></select></td>
+            ${adminDel}
+          </tr>
+          `;
+        }).join('');
+      }
+
+      // ── Render Assigned PMs ──
+      const assignedDeptFilterEl = document.getElementById('assignedDeptFilter');
+      const assignedDept = assignedDeptFilterEl ? assignedDeptFilterEl.value : 'All';
+
+      const assignedTable = document.getElementById('assignedTable');
+      const assignedHeaderRow = document.getElementById('assignedHeaderRow');
+      let assignedOrders = getMockWorkOrders('assigned').filter(wo => {
+        if (!allowedProdsForAssign.includes(wo.productId)) return false;
+        
+        if (currentUser.baseRole === 'engineer') {
+          // Eng only sees what THEY assigned
+          return wo.createdBy === currentUser.employeeId;
+        } else if (currentUser.baseRole === 'technician') {
+          // Tech shouldn't assign things
+          return false;
+        }
+        
+        // Managers/Admins check dropdown filter
+        if (isManagerOrAdmin && assignedDept !== 'All' && wo.department !== assignedDept) {
+          return false;
+        }
+        
+        return true;
+      });
+      
+      // If Admin, append Actions column if not present
+      if (currentUser.baseRole === 'admin' && !document.getElementById('thAssignedAdminAction')) {
+        const thAction = document.createElement('th');
+        thAction.id = 'thAssignedAdminAction';
+        thAction.textContent = 'Actions';
+        assignedHeaderRow.appendChild(thAction);
+      }
+
+      if (assignedOrders.length === 0) {
+        assignedTable.innerHTML = `<tr><td colspan="${currentUser.baseRole === 'admin' ? 8 : 7}" style="text-align:center;padding:30px;color:var(--text-muted);">No assigned PMs found for this view.</td></tr>`;
+      } else {
+        assignedTable.innerHTML = assignedOrders.map(wo => {
+          const creator = AssetIntelPermissions.DEMO_USERS[wo.createdBy];
+          const creatorName = creator ? creator.name : (wo.createdBy || '-');
+          
+          const assignee = AssetIntelPermissions.DEMO_USERS[wo.assignee];
+          const assigneeName = assignee ? assignee.name : (wo.assignee || '-');
+          
+          let dateStr = '-';
+          if(wo.createdAt) {
+             const d = new Date(wo.createdAt);
+             dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+          }
+          
+          const adminDel = currentUser.baseRole === 'admin' ? `<td><button class="btn btn-icon" style="color:var(--error-mid);" onclick="window.deletePM('${wo.id}')"><span class="material-symbols-outlined">delete</span></button></td>` : '';
+
+          return `
+          <tr data-pmid="${wo.id}">
+            <td><span class="mono" style="color:var(--blue);font-weight:600;">${wo.id}</span></td>
+            <td><div style="font-weight:600;">${AssetIntelPermissions.PRODUCTS.find(p => p.productId === wo.productId)?.productName || wo.productId}</div><div class="mono" style="font-size:11px;color:var(--text-muted);">${wo.department} Dept.</div></td>
+            <td><div style="font-weight:600;">${wo.asset}</div><div class="mono" style="font-size:11px;color:var(--text-muted);">${wo.code}</div></td>
+            <td><span class="badge badge-info">${wo.type}</span></td>
+            <td class="mono" style="color:var(--text-secondary);">${wo.due}</td>
+            <td><div style="font-weight:600;">${assigneeName}</div><div class="mono" style="font-size:11px;color:var(--success-text);">Assigned</div></td>
+            <td><div style="font-weight:600;">${creatorName}</div><div class="mono" style="font-size:11px;color:var(--text-muted);">${dateStr}</div></td>
+            ${adminDel}
+          </tr>
+          `;
+        }).join('');
+      }
+
+      // Populate individual row dropdowns strictly based on the PM's department
+      document.querySelectorAll('.dyn-assignee').forEach(sel => {
+        const rowDept = sel.getAttribute('data-dept');
+        const rowTechs = assignTechs.filter(u => u.department === rowDept);
+        sel.innerHTML = `<option value="">Unassigned…</option>` + 
+          rowTechs.map(u => `<option value="${u.employeeId}">${u.name}</option>`).join('');
+      });
+
+      // Populate Bulk Assign dropdown
+      const bulkAssigneeEl = document.getElementById('bulkAssignee');
+      if (bulkAssigneeEl) {
+        let bulkTechs = assignTechs;
+        if (isManagerOrAdmin && dept !== 'All') {
+          bulkTechs = assignTechs.filter(u => u.department === dept);
+        }
+        
+        let bulkHtml = `<option value="">Assign all to…</option>`;
+        if (dept === 'All' && isManagerOrAdmin) {
+          // Group by department if 'All' is selected
+          const depts = [...new Set(bulkTechs.map(t => t.department))];
+          depts.forEach(d => {
+            const dTechs = bulkTechs.filter(t => t.department === d);
+            if (dTechs.length > 0) {
+              bulkHtml += `<optgroup label="${d} Dept.">`;
+              bulkHtml += dTechs.map(u => `<option value="${u.employeeId}">${u.name}</option>`).join('');
+              bulkHtml += `</optgroup>`;
+            }
+          });
+        } else {
+          // Flat list
+          bulkHtml += bulkTechs.map(u => `<option value="${u.employeeId}">${u.name} (Tech - ${u.department})</option>`).join('');
+        }
+        bulkAssigneeEl.innerHTML = bulkHtml;
+      }
+    }
+
+    if (isManagerOrAdmin) {
+      const mgrTb = document.getElementById('mgrToolbar');
+      if(mgrTb) mgrTb.style.display = 'flex';
+      
+      const asgTb = document.getElementById('assignedToolbar');
+      if(asgTb) asgTb.style.display = 'flex';
+      
+      const deptFilter = document.getElementById('deptFilter');
+      if(deptFilter) {
+        deptFilter.addEventListener('change', renderAssignWork);
+      }
+      
+      const asgDeptFilter = document.getElementById('assignedDeptFilter');
+      if(asgDeptFilter) {
+        asgDeptFilter.addEventListener('change', renderAssignWork);
+      }
+    }
+    
+    renderAssignWork();
+
+    // TAB 2: Multi-select Dropdowns
+    
+    // Target Users
+    const userMultiOpts = document.getElementById('userMultiOptions');
+    userMultiOpts.innerHTML = delegateTargets.map(u => `
+      <div class="multi-select-option" data-val="${u.employeeId}">
+        <input type="checkbox" value="${u.employeeId}" id="u_${u.employeeId}" />
+        <span>${u.name} (${u.baseRole} - ${u.department})</span>
+      </div>
+    `).join('');
+
+    // Products
+    const accessibleProducts = AssetIntelPermissions.getAccessibleProducts(currentUser, AssetIntelPermissions.KEYS.PERMISSION_DELEGATE);
+    const prodMultiOpts = document.getElementById('prodMultiOptions');
+    prodMultiOpts.innerHTML = accessibleProducts.map(p => {
+      const meta = AssetIntelPermissions.PRODUCTS.find(x => x.productId === p);
+      return `
+        <div class="multi-select-option" data-val="${p}">
+          <input type="checkbox" value="${p}" id="p_${p}" />
+          <span>${meta ? meta.productName : p}</span>
+        </div>
+      `;
+    }).join('');
+
+    // Multi-select Interaction Logic
+    function updateMultiBtnText(btnId, panelId, itemType) {
+      const btn = document.getElementById(btnId);
+      const checked = document.querySelectorAll(`#${panelId} input[type="checkbox"]:checked`).length;
+      if (checked === 0) {
+        btn.textContent = `Select ${itemType}...`;
+      } else if (checked === 1) {
+        const firstCheckedLabel = document.querySelector(`#${panelId} input[type="checkbox"]:checked`).nextElementSibling.textContent;
+        btn.textContent = firstCheckedLabel;
+      } else {
+        btn.textContent = `${checked} ${itemType} selected`;
+      }
+    }
+
+    document.querySelectorAll('.multi-select-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const panel = btn.nextElementSibling;
+        const isOpen = panel.classList.contains('open');
+        document.querySelectorAll('.multi-select-panel').forEach(p => p.classList.remove('open'));
+        if (!isOpen) panel.classList.add('open');
+      });
+    });
+
+    document.querySelectorAll('.multi-select-option').forEach(opt => {
+      opt.addEventListener('click', (e) => {
+        if (e.target.tagName !== 'INPUT') {
+          const cb = opt.querySelector('input');
+          cb.checked = !cb.checked;
+        }
+        const panelId = opt.closest('.multi-select-panel').id;
+        const btnId = panelId === 'userMultiPanel' ? 'userMultiBtn' : 'prodMultiBtn';
+        const typeStr = panelId === 'userMultiPanel' ? 'users' : 'products';
+        updateMultiBtnText(btnId, panelId, typeStr);
+      });
+    });
+
+    window.selectAll = function(panelId, checked, btnId, typeStr) {
+      document.querySelectorAll(`#${panelId} input[type="checkbox"]`).forEach(cb => cb.checked = checked);
+      updateMultiBtnText(btnId, panelId, typeStr);
+    };
+
+    document.addEventListener('click', () => {
+      document.querySelectorAll('.multi-select-panel').forEach(p => p.classList.remove('open'));
+    });
+    document.querySelectorAll('.multi-select-panel').forEach(p => {
+      p.addEventListener('click', e => e.stopPropagation());
+    });
+
+    // ── 3. Render Delegations Table ─────────────────────────────
+    function renderDelegations() {
+      const tbody = document.getElementById('delegationsTable');
+      const allDel = AssetIntelPermissions.loadDelegations().filter(d => d.status === 'active');
+      
+      // Sort by newest first
+      allDel.reverse();
+
+      const visible = allDel.filter(d => 
+        d.delegatedBy === currentUser.employeeId || 
+        isManagerOrAdmin
+      );
+
+      if (visible.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:30px;">No active delegations found</td></tr>`;
+        return;
+      }
+
+      document.getElementById('selectAllDelegations').checked = false; document.getElementById('bulkRevokeBtn').style.display = 'none';
+      tbody.innerHTML = visible.map(d => {
+        const u = AssetIntelPermissions.DEMO_USERS[d.targetId];
+        const pMeta = AssetIntelPermissions.PRODUCTS.find(p => p.productId === d.productId);
+        const pName = pMeta ? pMeta.productName : d.productId;
+        return `
+          <tr>
+            <td><input type="checkbox" class="assign-checkbox revoke-check" value="${d.id}" /></td>
+            <td><div style="font-weight:600;">${u ? u.name : d.targetId}</div><div style="font-size:11px;color:var(--text-muted);">${u ? u.department : 'Unknown'} Dept</div></td>
+            <td><span class="badge badge-neutral">${pName}</span></td>
+            <td class="mono" style="color:var(--text-secondary);">${d.validTo}</td>
+            <td style="text-align:right;">
+               <button class="btn btn-danger" style="padding:4px 8px;font-size:11px;" onclick="revokeDel('${d.id}')">Revoke</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // Expose revoke function globally for inline handlers
+    window.revokeDel = function(id) {
+      if (!confirm('Revoke this access?')) return;
+      const res = AssetIntelPermissions.revokePermission(currentUser, id);
+      if (res.success) {
+        renderDelegations();
+      } else {
+        alert(res.error);
+      }
+    };
+
+    // Grant Logic (Multi-select handler)
+    document.getElementById('grantBtn').addEventListener('click', () => {
+      const selectedUsers = Array.from(document.querySelectorAll('#userMultiOptions input:checked')).map(cb => cb.value);
+      const selectedProds = Array.from(document.querySelectorAll('#prodMultiOptions input:checked')).map(cb => cb.value);
+      
+      if (selectedUsers.length === 0 || selectedProds.length === 0) {
+        alert('Please select at least one Target User and one Product.');
+        return;
+      }
+      
+      let successCount = 0;
+      let errors = [];
+      
+      // Loop through every combination
+      for (const u of selectedUsers) {
+        for (const p of selectedProds) {
+          const res = AssetIntelPermissions.delegatePermission(currentUser, u, p);
+          if (res.success) {
+            successCount++;
+          } else {
+            const uName = AssetIntelPermissions.DEMO_USERS[u]?.name || u;
+            errors.push(`- ${uName} on ${p}: ${res.error}`);
+          }
+        }
+      }
+      
+      if (errors.length > 0) {
+        alert(`Granted ${successCount} permissions, but encountered ${errors.length} errors:\n\n${errors.join('\n')}`);
+      } else {
+        alert(`Successfully granted ${successCount} permissions!`);
+      }
+      
+      // Clear selections
+      selectAll('userMultiPanel', false, 'userMultiBtn', 'users');
+      selectAll('prodMultiPanel', false, 'prodMultiBtn', 'products');
+      
+      renderDelegations();
+    // Bulk Revoke Logic
+    function updateBulkRevokeBtn() {
+      const checked = document.querySelectorAll('.revoke-check:checked');
+      const btn = document.getElementById('bulkRevokeBtn');
+      const count = document.getElementById('bulkRevokeCount');
+      if (checked.length > 0) {
+        count.textContent = checked.length;
+        btn.style.display = 'inline-flex';
+      } else {
+        btn.style.display = 'none';
+      }
+    }
+
+    document.getElementById('selectAllDelegations').addEventListener('change', (e) => {
+      document.querySelectorAll('.revoke-check').forEach(cb => cb.checked = e.target.checked);
+      updateBulkRevokeBtn();
+    });
+
+    document.getElementById('delegationsTable').addEventListener('change', (e) => {
+      if (e.target.classList.contains('revoke-check')) {
+        updateBulkRevokeBtn();
+      }
+    });
+
+    document.getElementById('bulkRevokeBtn').addEventListener('click', () => {
+      const checked = document.querySelectorAll('.revoke-check:checked');
+      if (checked.length === 0) return;
+      
+      if (!confirm(`Revoke ${checked.length} selected access permissions?`)) return;
+      
+      let successCount = 0;
+      let errors = [];
+      
+      checked.forEach(cb => {
+        const id = cb.value;
+        const res = AssetIntelPermissions.revokePermission(currentUser, id);
+        if (res.success) {
+          successCount++;
+        } else {
+          errors.push(res.error);
+        }
+      });
+      
+      if (errors.length > 0) {
+        alert(`Revoked ${successCount} items, but encountered errors:\n${errors.join('\n')}`);
+      }
+      
+      document.getElementById('selectAllDelegations').checked = false;
+      document.getElementById('bulkRevokeBtn').style.display = 'none';
+      renderDelegations();
+    });
+
+    });
+
+    renderDelegations();
+
+    // ── 4. Bulk Assign Logic (Original) ─────────────────────────
+    const selectAllAssign  = document.getElementById('selectAll');
+    const bulkBar    = document.getElementById('bulkBar');
+    const bulkCount  = document.getElementById('bulkCount');
+    const bulkBtn    = document.getElementById('bulkAssignBtn');
+    const bulkSel    = document.getElementById('bulkAssignee');
+
+    function updateBulkBar() {
+      const checked = document.querySelectorAll('.row-check:checked').length;
+      bulkCount.textContent = checked + ' selected';
+      if (checked > 0) bulkBar.classList.add('show');
+      else bulkBar.classList.remove('show');
+    }
+
+    selectAllAssign.addEventListener('change', () => {
+      document.querySelectorAll('.row-check').forEach(c => c.checked = selectAllAssign.checked);
+      updateBulkBar();
+    });
+
+    document.querySelectorAll('.row-check').forEach(c => {
+      c.addEventListener('change', updateBulkBar);
+    });
+
+    bulkBtn.addEventListener('click', () => {
+      const tech = bulkSel.value; if (!tech) return;
+      const techUser = AssetIntelPermissions.DEMO_USERS[tech];
+      let mismatchCount = 0;
+      let assignCount = 0;
+
+      document.querySelectorAll('.row-check:checked').forEach(c => {
+        const tr = c.closest('tr');
+        const pmId = tr.getAttribute('data-pmid');
+        const rowDept = tr.querySelector('.dyn-assignee').getAttribute('data-dept');
+        
+        // Prevent assigning cross-department
+        if (techUser && techUser.department === rowDept) {
+          AssetIntelPMStore.assignPM(pmId, tech, currentUser.employeeId);
+          assignCount++;
+          c.checked = false;
+        } else {
+          mismatchCount++;
+          c.checked = false;
+        }
+      });
+      
+      if (mismatchCount > 0) {
+        alert(`Warning: Skipped ${mismatchCount} PM(s) because the selected technician is from a different department.`);
+      }
+      
+      selectAllAssign.checked = false;
+      updateBulkBar();
+      bulkBtn.innerHTML = '<span class="material-symbols-outlined">check</span>Assigned!';
+      setTimeout(() => { 
+        bulkBtn.innerHTML = '<span class="material-symbols-outlined">person_add</span>Assign Selected'; 
+        renderAssignWork(); // Re-render to remove assigned items
+      }, 1000);
+    });
+
+  });
+</script>
+</body>
+</html>
