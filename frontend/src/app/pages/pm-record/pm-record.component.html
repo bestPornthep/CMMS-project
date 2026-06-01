@@ -1,0 +1,36 @@
+<div class="pm-record-page overflow-y-auto h-full">
+
+
+      <div class="page-header" data-enter>
+        <div>
+          <h1 class="page-title">Record PM</h1>
+          <p class="page-sub">Record completion of assigned preventive maintenance · <span data-last-updated></span></p>
+        </div>
+        <div class="header-actions">
+          <span class="badge badge-neutral" id="pendingCount">5 pending</span>
+        </div>
+      </div>
+
+      <div class="card" data-enter>
+        <div class="card-header">
+          <div class="card-title">Assigned PM Work Orders</div>
+          <a class="card-action" href="pm-assign.html">Assign More</a>
+        </div>
+        <div style="overflow:hidden;border-radius:0 0 var(--r-xl) var(--r-xl);">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>PM ID</th>
+                <th>Asset</th>
+                <th>Assigned To</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="recordTable">
+            </tbody>
+          </table>
+        </div>
+      </div>
+    
+</div>

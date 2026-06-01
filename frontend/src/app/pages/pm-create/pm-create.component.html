@@ -1,0 +1,225 @@
+<div class="create-page">
+  <div class="page-header" data-enter>
+    <div>
+      <h1 class="page-title">Create PM</h1>
+      <p class="page-sub">Define a new preventive maintenance task</p>
+    </div>
+  </div>
+
+  <div class="create-grid">
+    <!-- Left: Form -->
+    <div style="display:flex;flex-direction:column;gap:16px;">
+      <div class="card" data-enter>
+        <div class="card-header"><div class="card-title">PM Details</div></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:16px;">
+          <div class="form-group">
+            <label class="form-label">Product</label>
+            <div class="c-dropdown form-dropdown" [class.open]="openDropdown === 'product'" (click)="toggleCustomDropdown('product', $event)">
+              <div class="c-dropdown-trigger">
+                <span>{{ productId || 'Select product...' }}</span>
+                <span class="material-symbols-outlined">expand_more</span>
+              </div>
+              <div class="c-dropdown-menu">
+                <div class="c-dropdown-item" (click)="selectProduct('')">Select product...</div>
+                <div class="c-dropdown-item" *ngFor="let p of products" (click)="selectProduct(p)">{{ p }}</div>
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Department</label>
+            <div class="c-dropdown form-dropdown" [class.open]="openDropdown === 'department'" (click)="toggleCustomDropdown('department', $event)">
+              <div class="c-dropdown-trigger">
+                <span>{{ department || 'Select department...' }}</span>
+                <span class="material-symbols-outlined">expand_more</span>
+              </div>
+              <div class="c-dropdown-menu">
+                <div class="c-dropdown-item" (click)="selectDept('')">Select department...</div>
+                <div class="c-dropdown-item" *ngFor="let d of departments" (click)="selectDept(d)">{{ d }}</div>
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Asset</label>
+            <div class="c-dropdown form-dropdown" [class.open]="openDropdown === 'asset'" (click)="toggleCustomDropdown('asset', $event)">
+              <div class="c-dropdown-trigger">
+                <span>{{ assetId || 'Select asset...' }}</span>
+                <span class="material-symbols-outlined">expand_more</span>
+              </div>
+              <div class="c-dropdown-menu">
+                <div class="c-dropdown-item" (click)="selectAsset('')">Select asset...</div>
+                <div class="c-dropdown-item" *ngFor="let a of availableAssets()" (click)="selectAsset(a.id)">{{ a.id }} — {{ a.name }}</div>
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">PM Type</label>
+            <div class="c-dropdown form-dropdown" [class.open]="openDropdown === 'type'" (click)="toggleCustomDropdown('type', $event)">
+              <div class="c-dropdown-trigger">
+                <span>{{ pmType || 'Select type...' }}</span>
+                <span class="material-symbols-outlined">expand_more</span>
+              </div>
+              <div class="c-dropdown-menu">
+                <div class="c-dropdown-item" (click)="selectType('')">Select type...</div>
+                <div class="c-dropdown-item" (click)="selectType('Daily')">Daily</div>
+                <div class="c-dropdown-item" (click)="selectType('Weekly')">Weekly</div>
+                <div class="c-dropdown-item" (click)="selectType('Monthly')">Monthly</div>
+                <div class="c-dropdown-item" (click)="selectType('Quarterly')">Quarterly</div>
+                <div class="c-dropdown-item" (click)="selectType('Annual')">Annual</div>
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Due Date</label>
+            <input type="date" class="form-input" [(ngModel)]="dueDate" style="max-width: 160px;"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Description</label>
+            <textarea class="form-textarea" [(ngModel)]="description" placeholder="Describe the maintenance task…"></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Estimated Time (hours)</label>
+            <input type="number" class="form-input" [(ngModel)]="estimatedHours" placeholder="e.g. 2.5" min="0.5" step="0.5" style="max-width:160px;"/>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" data-enter>
+        <div class="card-header">
+          <div class="card-title">Checklist</div>
+          <div style="display: flex; gap: 8px;">
+            <input type="text" class="form-input" style="width:150px; padding: 4px 8px;" placeholder="New item..." [(ngModel)]="newChecklistItem" (keyup.enter)="addChecklistItem()"/>
+            <button class="btn btn-ghost" (click)="addChecklistItem()" style="padding:5px 10px;font-size:12px;">
+              <span class="material-symbols-outlined">add</span>Add
+            </button>
+          </div>
+        </div>
+        <div style="padding:14px 20px; background:var(--blue-light); border-bottom:1px solid var(--border-soft); display:flex; gap:14px; align-items:center;">
+          <div style="width:36px; height:36px; border-radius:50%; background:white; display:flex; align-items:center; justify-content:center; color:var(--blue); flex-shrink:0; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+            <span class="material-symbols-outlined" style="font-size:20px;">view_list</span>
+          </div>
+          <div style="flex:1;">
+             <div style="font-size:12.5px; font-weight:700; color:var(--blue-text); letter-spacing:-0.2px;">Department Templates</div>
+             <div style="font-size:11.5px; color:var(--text-secondary); margin-top:2px;">Load predefined tasks or save your current list.</div>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <div class="c-dropdown" [class.open]="dropdownOpen" (click)="toggleDropdown()">
+              <div class="c-dropdown-trigger">
+                <span>Select template…</span>
+                <span class="material-symbols-outlined">expand_more</span>
+              </div>
+              <div class="c-dropdown-menu" *ngIf="dropdownOpen">
+                <div class="c-dropdown-item empty" *ngIf="templates().length === 0">No templates</div>
+                <div class="c-dropdown-item" *ngFor="let t of templates()" (click)="loadTemplate(t); $event.stopPropagation()">{{ t.name }}</div>
+              </div>
+            </div>
+            <button class="btn btn-ghost" (click)="showManageTemplateModal = true" style="padding:6px 8px; font-size:12.5px; height:32px; background:white; border:1px solid var(--border);" title="Manage Templates">
+              <span class="material-symbols-outlined" style="font-size:16px;">edit</span>
+            </button>
+            <button class="btn" (click)="showSaveTemplateModal = true" style="background:white; color:var(--blue-text); border:1px solid rgba(26,86,219,0.2); padding:6px 12px; font-size:12.5px; box-shadow:0 1px 2px rgba(12,21,35,0.04); height:32px;">
+              <span class="material-symbols-outlined" style="font-size:16px;">bookmark_add</span>Save as New
+            </button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div style="display:flex;flex-direction:column;gap:0;">
+            <div class="checklist-item" *ngFor="let item of checklist(); let i = index">
+              <input type="text" [ngModel]="item" (ngModelChange)="updateChecklistItem(i, $event)"/>
+              <button class="remove-item-btn" (click)="removeChecklistItem(i)"><span class="material-symbols-outlined">close</span></button>
+            </div>
+          </div>
+          <div class="empty-state" *ngIf="checklist().length === 0" style="padding:20px;">
+            <span class="material-symbols-outlined">checklist</span>
+            <p>No checklist items — click Add Item</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" data-enter>
+        <div class="card-header"><div class="card-title">Parts Required</div></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:12px;">
+          <div style="display:flex;gap:8px;">
+            <div class="c-dropdown form-dropdown" [class.open]="openDropdown === 'part'" (click)="toggleCustomDropdown('part', $event)" style="flex:1;">
+              <div class="c-dropdown-trigger">
+                <span>{{ selectedPart || 'Select part...' }}</span>
+                <span class="material-symbols-outlined">expand_more</span>
+              </div>
+              <div class="c-dropdown-menu">
+                <div class="c-dropdown-item" (click)="selectPart('')">Select part...</div>
+                <div class="c-dropdown-item" *ngFor="let part of availableParts" (click)="selectPart(part)">{{ part }}</div>
+              </div>
+            </div>
+            <button class="btn btn-ghost" (click)="addPart()">
+              <span class="material-symbols-outlined">add</span>Add
+            </button>
+          </div>
+          <div class="tag-list">
+            <span class="part-tag" *ngFor="let p of parts(); let i = index">
+              {{ p }} <button (click)="removePart(i)">×</button>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Preview -->
+    <div class="card" data-enter style="position:sticky;top:16px;">
+      <div class="card-header"><div class="card-title">PM Preview</div></div>
+      <div class="card-body" style="display:flex;flex-direction:column;gap:0;">
+        <div class="preview-row"><span class="preview-label">Product</span><span class="preview-val" [style.color]="productId ? 'var(--text-primary)' : 'var(--text-muted)'">{{ productId || '—' }}</span></div>
+        <div class="preview-row"><span class="preview-label">Dept</span><span class="preview-val" [style.color]="department ? 'var(--text-primary)' : 'var(--text-muted)'">{{ department || '—' }}</span></div>
+        <div class="preview-row"><span class="preview-label">Asset</span><span class="preview-val" [style.color]="assetId ? 'var(--text-primary)' : 'var(--text-muted)'">{{ assetId || '—' }}</span></div>
+        <div class="preview-row"><span class="preview-label">Type</span><span class="preview-val">{{ pmType || '—' }}</span></div>
+        <div class="preview-row"><span class="preview-label">Tasks</span><span class="preview-val">{{ checklist().length }} items</span></div>
+        <div class="preview-row"><span class="preview-label">Est. Time</span><span class="preview-val">{{ estimatedHours }} hrs</span></div>
+        <div class="preview-row"><span class="preview-label">Parts</span><span class="preview-val">{{ parts().length }} required</span></div>
+        <div style="margin-top:20px;">
+          <button class="btn btn-primary" (click)="submitForm()" style="width:100%;">
+            <span class="material-symbols-outlined">add_circle</span>Create PM
+          </button>
+        </div>
+  </div>
+
+  <!-- Modals -->
+  <div class="modal-overlay" [class.open]="showSaveTemplateModal || showManageTemplateModal"></div>
+
+  <div class="template-modal" [class.open]="showSaveTemplateModal">
+    <div class="modal-header">
+      <div>
+        <h2 class="modal-title">Save Template</h2>
+        <p class="modal-sub">Save the current checklist as a template.</p>
+      </div>
+    </div>
+    <div class="card-body" style="padding:0; margin-bottom:24px;">
+      <div class="form-group">
+        <label class="form-label">Template Name</label>
+        <input type="text" [(ngModel)]="newTemplateName" class="form-input" placeholder="e.g. Weekly Calibration Setup"/>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-primary" (click)="saveTemplate()">Save Template</button>
+      <button class="btn btn-ghost" (click)="showSaveTemplateModal = false">Cancel</button>
+    </div>
+  </div>
+
+  <div class="template-modal" [class.open]="showManageTemplateModal">
+    <div class="modal-header">
+      <div>
+        <h2 class="modal-title">Manage Templates</h2>
+        <p class="modal-sub">Delete saved templates.</p>
+      </div>
+    </div>
+    <div class="card-body" style="padding:0; margin-bottom:24px; max-height:200px; overflow-y:auto;">
+      <div class="empty-state" *ngIf="templates().length === 0" style="padding:20px 0;">No templates saved.</div>
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--border-soft);" *ngFor="let t of templates(); let i = index">
+        <div>
+          <div style="font-weight:600; font-size:13px;">{{ t.name }}</div>
+          <div style="font-size:11px; color:var(--text-muted);">{{ t.checklist.length }} items</div>
+        </div>
+        <button class="btn btn-ghost" (click)="deleteTemplate(i)" style="color:var(--error-mid); padding:4px 8px;">Delete</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn btn-ghost" (click)="showManageTemplateModal = false">Close</button>
+    </div>
+  </div>
+</div>

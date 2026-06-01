@@ -1,0 +1,33 @@
+<div class="pm-audit-page overflow-y-auto h-full">
+
+
+            <div class="page-header" data-enter>
+        <div>
+          <h1 class="page-title">Audit Log</h1>
+          <p class="page-sub">View system activity and security logs · <span data-last-updated></span></p>
+        </div>
+      </div>
+
+      <div class="card" data-enter style="margin-top:20px;">
+        <div class="card-header">
+          <div class="card-title">System Activity Log</div>
+        </div>
+        <div style="overflow:auto; max-height:600px;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width:160px;">Timestamp</th>
+                <th>Action</th>
+                <th>Actor</th>
+                <th>Target User</th>
+                <th>Product</th>
+              </tr>
+            </thead>
+            <tbody id="auditTableBody">
+              <!-- JS Populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+</div>

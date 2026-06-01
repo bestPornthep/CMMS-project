@@ -1,0 +1,49 @@
+/* pm-reports.component.scss */
+
+.report-cards-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.report-card-body { text-align: center; padding: 40px 28px; cursor: pointer; display: flex; flex-direction: column; align-items: center; min-height: 240px; justify-content: center; }
+.report-icon { font-size: 44px; color: var(--color-blue); font-variation-settings: 'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 48; margin-bottom: 16px; display: block; }
+.report-card-title { font-size: 17px; font-weight: 700; color: var(--color-text-primary); letter-spacing: -0.3px; margin-bottom: 8px; }
+.report-card-desc { max-width: 260px; margin: 0; font-size: 13px; color: var(--color-text-muted); line-height: 1.6; }
+.report-card.card { transition: box-shadow var(--duration-slow) var(--ease-out), transform var(--duration-slow) var(--ease-out); cursor: pointer; }
+.report-card.card:hover { box-shadow: var(--shadow-inset), var(--shadow-raise); transform: translateY(-2px); }
+
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 1000; background: rgba(12,21,35,0.45); opacity: 0; pointer-events: none;
+  transition: opacity var(--duration-base) var(--ease-out);
+}
+.modal-overlay.open { opacity: 1; pointer-events: auto; }
+
+.report-modal {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 1001; background: var(--color-bg-card);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0; max-height: 82vh; overflow-y: auto;
+  padding: 32px 36px 40px; transform: translateY(100%); transition: transform var(--duration-slow) var(--ease-out);
+  box-shadow: 0 -4px 32px rgba(12,21,35,0.12);
+}
+.report-modal.open { transform: translateY(0); }
+
+.modal-header {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 28px;
+  padding-bottom: 20px; border-bottom: 1px solid var(--color-border-soft);
+}
+.modal-title { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.6px; color: var(--color-text-primary); }
+.modal-sub { font-size: 12.5px; color: var(--color-text-muted); margin: 4px 0 0; }
+
+.stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; }
+.stat-box { text-align: center; padding: 16px; background: var(--color-bg-card-alt); border-radius: var(--radius-lg); border: 1px solid var(--color-border-soft); }
+.stat-label { font-size: 11px; font-weight: 700; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.stat-value { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; margin-top: 6px; }
+
+/* Injected progress bar styles for Adherence report */
+.progress-track { height: 6px; background: var(--color-border); border-radius: 3px; overflow: hidden; }
+
+@media(max-width:767px) {
+  .report-cards-grid { gap: 10px; }
+  .report-card-body { padding: 28px 12px; min-height: 200px; }
+  .report-icon { font-size: 36px; }
+  .report-card-title { font-size: 14px; }
+  .modal-header { flex-direction: column; gap: 12px; }
+  .modal-header > div:last-child { width: 100%; display: flex; gap: 8px; }
+  .modal-header .btn { flex: 1; justify-content: center; }
+  .stat-row { grid-template-columns: repeat(2, 1fr); }
+}

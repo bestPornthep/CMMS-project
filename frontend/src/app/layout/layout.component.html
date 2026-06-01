@@ -1,0 +1,109 @@
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">
+        <div class="logo-mark">
+          <span class="material-symbols-outlined">settings</span>
+        </div>
+        <div class="logo-text">
+          <span class="logo-name">AssetIntel</span>
+          <span class="logo-sub">PM Module</span>
+        </div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-label">Overview</div>
+
+      <a class="nav-item" routerLink="/dashboard" routerLinkActive="active" *ngIf="hasPermission('pm.dashboard.view')">
+        <span class="material-symbols-outlined">dashboard</span>
+        <span class="nav-item-label">Dashboard</span>
+      </a>
+
+      <div class="nav-divider"></div>
+
+      <div class="nav-label">PM Work</div>
+
+      <a class="pm-subitem" routerLink="/pm-create" routerLinkActive="active" *ngIf="hasPermission('pm.create.view')">
+        <span class="material-symbols-outlined">add_circle</span>
+        <span>Create PM</span>
+      </a>
+
+      <a class="pm-subitem" routerLink="/pm-assign" routerLinkActive="active" *ngIf="hasPermission('pm.assign.view')">
+        <span class="material-symbols-outlined">person_add</span>
+        <span>Assign PM</span>
+      </a>
+
+      <a class="pm-subitem" routerLink="/pm-record" routerLinkActive="active" *ngIf="hasPermission('pm.record.view')">
+        <span class="material-symbols-outlined">edit_note</span>
+        <span>Record PM</span>
+      </a>
+
+      <a class="pm-subitem" routerLink="/pm-calendar" routerLinkActive="active" *ngIf="hasPermission('pm.calendar.view')">
+        <span class="material-symbols-outlined">calendar_month</span>
+        <span>PM Calendar</span>
+      </a>
+
+      <a class="pm-subitem" routerLink="/pm-reports" routerLinkActive="active" *ngIf="hasPermission('pm.reports.view')">
+        <span class="material-symbols-outlined">bar_chart</span>
+        <span>PM Reports</span>
+      </a>
+
+      <div class="nav-divider"></div>
+      
+      <div class="nav-label">Administration</div>
+      
+      <a class="pm-subitem" routerLink="/pm-audit" routerLinkActive="active" *ngIf="hasPermission('pm.audit.view')">
+        <span class="material-symbols-outlined">history</span>
+        <span>Audit Log</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="user-card" *ngIf="user() as u">
+        <div class="user-avatar">{{ u.initials }}</div>
+        <div class="user-info">
+          <div class="user-name">{{ u.name }}</div>
+          <div class="user-role">{{ u.roleLabel }}</div>
+        </div>
+        <span class="material-symbols-outlined user-settings">settings</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <div class="main">
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="topbar-breadcrumb" aria-label="Breadcrumb">
+        <span class="crumb-muted">Overview</span>
+        <span class="topbar-sep" aria-hidden="true">›</span>
+        <span class="current">Dashboard</span>
+      </div>
+
+      <div class="topbar-search">
+        <span class="material-symbols-outlined">search</span>
+        <input type="text" placeholder="Search PM work orders…" autocomplete="off" />
+      </div>
+
+      <div class="topbar-right">
+        <button class="topbar-btn topbar-notif" title="Notifications">
+          <span class="material-symbols-outlined">notifications</span>
+          <div class="notif-dot"></div>
+        </button>
+        <button class="topbar-btn" title="Help">
+          <span class="material-symbols-outlined">help_outline</span>
+        </button>
+        <button class="topbar-btn" title="Settings">
+          <span class="material-symbols-outlined">settings</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Canvas (Routed Content) -->
+    <main class="canvas">
+      <router-outlet></router-outlet>
+    </main>
+  </div>
+</div>

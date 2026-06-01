@@ -1,0 +1,76 @@
+<main class="canvas">
+  <div class="page-header anim-enter">
+    <div>
+      <h1 class="page-title">PM Reports</h1>
+      <p class="page-sub">Compliance, adherence, and parts usage across all PM activities</p>
+    </div>
+    <div class="header-actions">
+      <select class="form-select" style="width:160px;" (change)="onPeriodChange($event)">
+        <option *ngFor="let p of periods" [value]="p" [selected]="p === selectedPeriod()">{{ p }}</option>
+      </select>
+      
+      <button class="btn" [ngClass]="exportState() === 'done' ? 'btn-success' : 'btn-ghost'" [disabled]="exportState() === 'exporting'" (click)="exportPdf()">
+        <span class="material-symbols-outlined" *ngIf="exportState() === 'idle'">download</span>
+        <span class="material-symbols-outlined" *ngIf="exportState() === 'exporting'">sync</span>
+        <span class="material-symbols-outlined" *ngIf="exportState() === 'done'">done</span>
+        {{ exportState() === 'idle' ? 'Export PDF' : (exportState() === 'exporting' ? 'Exporting...' : 'Exported!') }}
+      </button>
+    </div>
+  </div>
+
+  <div class="report-cards-grid">
+    <div class="card report-card anim-enter" (click)="openModal('compliance')">
+      <div class="card-body report-card-body">
+        <span class="material-symbols-outlined report-icon">verified</span>
+        <div class="report-card-title">PM Compliance</div>
+        <p class="report-card-desc">Scheduled vs completed PM ratio across all assets</p>
+        <span class="badge badge-success" style="margin-top:14px;">This month</span>
+      </div>
+    </div>
+    <div class="card report-card anim-enter" (click)="openModal('adherence')" style="animation-delay: 55ms;">
+      <div class="card-body report-card-body">
+        <span class="material-symbols-outlined report-icon">schedule</span>
+        <div class="report-card-title">Schedule Adherence</div>
+        <p class="report-card-desc">Percentage of PMs completed on or before due date</p>
+        <span class="badge badge-info" style="margin-top:14px;">On-time rate</span>
+      </div>
+    </div>
+    <div class="card report-card anim-enter" (click)="openModal('checklist')" style="animation-delay: 110ms;">
+      <div class="card-body report-card-body">
+        <span class="material-symbols-outlined report-icon">checklist</span>
+        <div class="report-card-title">Checklist Completion</div>
+        <p class="report-card-desc">Individual task completion rates per PM type</p>
+        <span class="badge badge-blue" style="margin-top:14px;">Task level</span>
+      </div>
+    </div>
+    <div class="card report-card anim-enter" (click)="openModal('parts')" style="animation-delay: 165ms;">
+      <div class="card-body report-card-body">
+        <span class="material-symbols-outlined report-icon">inventory_2</span>
+        <div class="report-card-title">Parts Usage</div>
+        <p class="report-card-desc">Parts consumed per PM type with cost summary</p>
+        <span class="badge badge-neutral" style="margin-top:14px;">Consumption</span>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div class="modal-overlay" [class.open]="modalOpen()" (click)="closeModal()"></div>
+<div class="report-modal" [class.open]="modalOpen()">
+  <div class="modal-header">
+    <div>
+      <h2 class="modal-title">{{ reportTitles[activeReport()] }}</h2>
+      <p class="modal-sub">Period: {{ selectedPeriod() }}</p>
+    </div>
+    <div style="display:flex;gap:8px;flex-shrink:0;">
+      <button class="btn btn-ghost" (click)="downloadModalPdf()">
+        <span class="material-symbols-outlined" *ngIf="downloadState() === 'idle'">download</span>
+        <span class="material-symbols-outlined" *ngIf="downloadState() === 'done'">done</span>
+        {{ downloadState() === 'idle' ? 'Download PDF' : 'Downloaded' }}
+      </button>
+      <button class="btn btn-ghost" (click)="closeModal()">
+        <span class="material-symbols-outlined">close</span>Close
+      </button>
+    </div>
+  </div>
+  <div [innerHTML]="activeReport() ? getSafeHtml(reportContents[activeReport()]) : ''"></div>
+</div>

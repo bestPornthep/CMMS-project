@@ -1,0 +1,232 @@
+<div class="pm-assign-page overflow-y-auto h-full">
+
+
+      <div class="page-header" data-enter>
+        <div>
+          <h1 class="page-title">Assign PM</h1>
+          <p class="page-sub">Assign work orders and manage temporary permissions · <span data-last-updated></span></p>
+        </div>
+      </div>
+
+      <div class="tabs" data-enter>
+        <button class="tab-btn" [class.active]="activeTab === 'unassigned'" (click)="activeTab = 'unassigned'">Unassigned PMs</button>
+        <button class="tab-btn" [class.active]="activeTab === 'assigned'" (click)="activeTab = 'assigned'">Assigned PMs</button>
+        <button class="tab-btn" [class.active]="activeTab === 'delegation'" (click)="activeTab = 'delegation'">Temporary Permissions</button>
+      </div>
+
+      <!-- TAB: UNASSIGNED PMS -->
+      <div class="tab-content" [class.active]="activeTab === 'unassigned'">
+        <div class="bulk-bar" id="bulkBar">
+          <span class="material-symbols-outlined" style="color:var(--blue);">checklist</span>
+          <span id="bulkCount">0 selected</span>
+          <select class="assignee-select" id="bulkAssignee">
+            <option value="">Assign all to…</option>
+          </select>
+          <button class="btn btn-primary" id="bulkAssignBtn" style="padding:6px 14px;font-size:12px;">
+            <span class="material-symbols-outlined">person_add</span>Assign Selected
+          </button>
+        </div>
+
+        <div class="assign-toolbar" id="mgrToolbar" style="display:none; align-items:center; justify-content:space-between; margin-top:20px;">
+          <div style="font-size:13px; font-weight:600; color:var(--text-secondary);">Department View (Manager Only)</div>
+          <select class="form-select" id="deptFilter" style="width:200px; background-color:white;">
+            <option value="All">All Departments</option>
+            <option value="Facility">Facility</option>
+            <option value="Mechanic">Mechanic</option>
+            <option value="Manufacturing">Manufacturing</option>
+            <option value="Maintenance">Maintenance</option>
+            <option value="Test">Test</option>
+          </select>
+        </div>
+
+        <div class="card" data-enter>
+          <div class="card-header">
+            <div class="card-title">Unassigned PM Work Orders</div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <input type="checkbox" class="assign-checkbox" id="selectAll" title="Select all"/>
+              <span style="font-size:12px;color:var(--text-muted);">Select all</span>
+            </div>
+          </div>
+          <div style="overflow:hidden;border-radius:0 0 var(--r-xl) var(--r-xl);">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th style="width:40px;"></th>
+                  <th>PM ID</th>
+                  <th>Product & Dept</th>
+
+                  <th>Asset</th>
+                  <th>Type</th>
+                  <th>Due Date</th>
+                  <th>Assign To</th>
+                </tr>
+              </thead>
+              <tbody>
+    <tr *ngFor="let task of pendingTasks()">
+      <td><input type="checkbox" class="assign-checkbox"/></td>
+      <td><span class="mono" style="color:var(--blue);font-weight:600;">{{ task.id }}</span></td>
+      <td>
+        <div style="font-weight:600;color:var(--text-primary);">{{ task.productId }}</div>
+        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;">{{ task.department }}</div>
+      </td>
+      <td>
+        <div style="font-weight:500;">{{ task.title }}</div>
+        <div style="font-size:11px;color:var(--text-muted);">{{ task.assetId }}</div>
+      </td>
+      <td><span class="badge badge-info">{{ task.frequency }}</span></td>
+      <td style="color:var(--error-mid);font-weight:600;font-size:12px;">{{ task.nextDueDate | date:'MMM d, yyyy' }}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <select class="assignee-select" [(ngModel)]="selectedTech[task.id]">
+            <option value="">Select Tech…</option>
+            <option *ngFor="let tech of technicians" [value]="tech">{{ tech }}</option>
+          </select>
+          <button class="btn btn-primary" style="padding:4px 8px;font-size:11px;" (click)="assignTask(task)">Assign</button>
+        </div>
+      </td>
+    </tr>
+    <tr *ngIf="pendingTasks().length === 0">
+      <td colspan="7" style="text-align:center;padding:20px;color:var(--text-muted);">No unassigned tasks found.</td>
+    </tr>
+    </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: ASSIGNED PMS -->
+      <div class="tab-content" [class.active]="activeTab === 'assigned'">
+        <div class="assign-toolbar" id="assignedToolbar" style="display:none; align-items:center; justify-content:space-between; margin-bottom:20px;">
+          <div style="font-size:13px; font-weight:600; color:var(--text-secondary);">Department View (Manager Only)</div>
+          <select class="form-select" id="assignedDeptFilter" style="width:200px; background-color:white;">
+            <option value="All">All Departments</option>
+            <option value="Facility">Facility</option>
+            <option value="Mechanic">Mechanic</option>
+            <option value="Manufacturing">Manufacturing</option>
+            <option value="Maintenance">Maintenance</option>
+            <option value="Test">Test</option>
+          </select>
+        </div>
+
+        <div class="card" data-enter>
+          <div class="card-header">
+            <div class="card-title">Assigned PM Work Orders</div>
+          </div>
+          <div style="overflow:hidden;border-radius:0 0 var(--r-xl) var(--r-xl);">
+            <table class="data-table">
+              <thead>
+                <tr id="assignedHeaderRow">
+                  <th>PM ID</th>
+                  <th>Product & Dept</th>
+                  <th>Asset</th>
+                  <th>Type</th>
+                  <th>Due Date</th>
+                  <th>Assigned To</th>
+                  <th>Assigned By</th>
+                </tr>
+              </thead>
+              <tbody>
+    <tr *ngFor="let task of allTasks()">
+      <ng-container *ngIf="task.status !== 'Pending'">
+        <td><span class="mono" style="color:var(--blue);font-weight:600;">{{ task.id }}</span></td>
+        <td>
+          <div style="font-weight:600;color:var(--text-primary);">{{ task.productId }}</div>
+          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;">{{ task.department }}</div>
+        </td>
+        <td>
+          <div style="font-weight:500;">{{ task.title }}</div>
+          <div style="font-size:11px;color:var(--text-muted);">{{ task.assetId }}</div>
+        </td>
+        <td><span class="badge badge-info">{{ task.frequency }}</span></td>
+        <td style="color:var(--text-secondary);font-weight:500;font-size:12px;">{{ task.nextDueDate | date:'MMM d, yyyy' }}</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="width:24px;height:24px;border-radius:50%;background:var(--blue-light);color:var(--blue-text);display:grid;place-items:center;font-size:10px;font-weight:700;">{{ task.assignedTo?.substring(0,1) || 'U' }}</div>
+            <span style="font-weight:600;color:var(--text-primary);">{{ task.assignedTo || 'Unassigned' }}</span>
+          </div>
+        </td>
+        <td style="color:var(--text-muted);font-size:12px;">System</td>
+      </ng-container>
+    </tr>
+    </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: TEMPORARY PERMISSIONS -->
+      <div class="tab-content" [class.active]="activeTab === 'delegation'">
+        <div class="create-grid">
+          <!-- Left: Form -->
+          <div class="card" data-enter>
+            <div class="card-header"><div class="card-title">Grant Temporary Access</div></div>
+            <div class="card-body" style="display:flex;flex-direction:column;gap:16px;">
+              
+              <!-- Multi-select Users -->
+              <div class="form-group">
+                <label class="form-label">Target User(s)</label>
+                <div class="multi-select-wrap">
+                  <button type="button" class="multi-select-btn" id="userMultiBtn">Select users...</button>
+                  <div class="multi-select-panel" id="userMultiPanel">
+                    <div class="multi-select-actions">
+                      <button type="button" class="multi-select-action-btn" onclick="selectAll('userMultiPanel', true, 'userMultiBtn', 'users')">Select All</button>
+                      <button type="button" class="multi-select-action-btn" onclick="selectAll('userMultiPanel', false, 'userMultiBtn', 'users')">Clear</button>
+                    </div>
+                    <div id="userMultiOptions"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Multi-select Products -->
+              <div class="form-group">
+                <label class="form-label">Product(s) / Asset Scope</label>
+                <div class="multi-select-wrap">
+                  <button type="button" class="multi-select-btn" id="prodMultiBtn">Select products...</button>
+                  <div class="multi-select-panel" id="prodMultiPanel">
+                    <div class="multi-select-actions">
+                      <button type="button" class="multi-select-action-btn" onclick="selectAll('prodMultiPanel', true, 'prodMultiBtn', 'products')">Select All</button>
+                      <button type="button" class="multi-select-action-btn" onclick="selectAll('prodMultiPanel', false, 'prodMultiBtn', 'products')">Clear</button>
+                    </div>
+                    <div id="prodMultiOptions"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Duration (Days)</label>
+                <input type="number" class="form-input" id="delDuration" value="30" min="1" max="365" />
+              </div>
+              <button class="btn btn-primary" id="grantBtn" style="margin-top:8px;">
+                <span class="material-symbols-outlined">key</span>Grant Access
+              </button>
+            </div>
+          </div>
+          
+          <!-- Right: Active delegations table -->
+          <div class="card" data-enter>
+            <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+              <div class="card-title">Active Delegations</div>
+              <button class="btn-lexus" id="bulkRevokeBtn" style="display:none;">REVOKE <span class="count" id="bulkRevokeCount">0</span> SELECTED</button>
+            </div>
+            <div style="overflow:auto;border-radius:0 0 var(--r-xl) var(--r-xl);max-height:400px;">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th style="width:40px;"><input type="checkbox" class="assign-checkbox" id="selectAllDelegations" title="Select all" /></th>
+                    <th>User</th>
+                    <th>Product</th>
+                    <th>Valid Until</th>
+                    <th style="text-align:right;">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="delegationsTable">
+                  <!-- Populated by JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    
+</div>

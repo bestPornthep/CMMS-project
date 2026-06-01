@@ -1,0 +1,125 @@
+<div class="pm-calendar-page overflow-y-auto h-full">
+
+
+      <div class="page-header" data-enter>
+        <div>
+          <h1 class="page-title">PM Calendar</h1>
+          <p class="page-sub">Monthly view of all scheduled preventive maintenance · <span data-last-updated></span></p>
+        </div>
+      </div>
+
+      <div class="cal-layout">
+        <!-- Calendar -->
+        <div data-enter>
+          <div class="cal-nav">
+            <button class="topbar-btn" id="prevMonth"><span class="material-symbols-outlined">chevron_left</span></button>
+            <span class="cal-month-label" id="calLabel">October 2023</span>
+            <button class="topbar-btn" id="nextMonth"><span class="material-symbols-outlined">chevron_right</span></button>
+            <button class="btn btn-ghost" id="todayBtn" style="margin-left:4px;">
+              <span class="material-symbols-outlined">today</span>Today
+            </button>
+            <div style="margin-left:auto;display:flex;align-items:center;gap:12px;flex-wrap:wrap;" id="calFilters">
+              <!-- Department Filter (Custom Dropdown) -->
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="font-size:12px;color:var(--text-muted);font-weight:600;">Dept:</span>
+                <div class="custom-dropdown" id="deptFilterDropdown">
+                  <button class="dropdown-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
+                    <span class="material-symbols-outlined trigger-icon">domain</span>
+                    <span class="trigger-text">All Departments</span>
+                    <span class="material-symbols-outlined trigger-arrow">expand_more</span>
+                  </button>
+                  <div class="dropdown-menu" role="listbox">
+                    <div class="dropdown-item active" data-value="All" role="option">
+                      <span class="material-symbols-outlined">domain</span>
+                      <span class="item-text">All Departments</span>
+                    </div>
+                    <div class="dropdown-item" data-value="Facility" role="option">
+                      <span class="material-symbols-outlined">hvac</span>
+                      <span class="item-text">Facility</span>
+                    </div>
+                    <div class="dropdown-item" data-value="Mechanic" role="option">
+                      <span class="material-symbols-outlined">build</span>
+                      <span class="item-text">Mechanic</span>
+                    </div>
+                    <div class="dropdown-item" data-value="Manufacturing" role="option">
+                      <span class="material-symbols-outlined">precision_manufacturing</span>
+                      <span class="item-text">Manufacturing</span>
+                    </div>
+                    <div class="dropdown-item" data-value="Maintenance" role="option">
+                      <span class="material-symbols-outlined">handyman</span>
+                      <span class="item-text">Maintenance</span>
+                    </div>
+                    <div class="dropdown-item" data-value="Test" role="option">
+                      <span class="material-symbols-outlined">biotech</span>
+                      <span class="item-text">Test</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);cursor:pointer;">
+                <input type="checkbox" id="filterScheduled" checked style="accent-color:var(--blue);cursor:pointer;">
+                <span style="width:8px;height:8px;border-radius:50%;background:var(--blue);display:inline-block;"></span> Scheduled
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);cursor:pointer;">
+                <input type="checkbox" id="filterDone" checked style="accent-color:var(--success-mid);cursor:pointer;">
+                <span style="width:8px;height:8px;border-radius:50%;background:var(--success-mid);display:inline-block;"></span> Done
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);cursor:pointer;">
+                <input type="checkbox" id="filterOverdue" checked style="accent-color:var(--error-mid);cursor:pointer;">
+                <span style="width:8px;height:8px;border-radius:50%;background:var(--error-mid);display:inline-block;"></span> Overdue
+              </label>
+            </div>
+          </div>
+          <div class="card" style="overflow:hidden;">
+            <div class="cal-grid" id="calGrid">
+              <div class="cal-dow">Mon</div><div class="cal-dow">Tue</div><div class="cal-dow">Wed</div>
+              <div class="cal-dow">Thu</div><div class="cal-dow">Fri</div><div class="cal-dow">Sat</div><div class="cal-dow">Sun</div>
+              <!-- Dynamic Days will be injected here -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Right sidebar -->
+        <div class="side-card" data-enter>
+          <div class="card" style="border-left:3px solid var(--error-mid);">
+            <div class="card-header"><div class="card-title" style="color:var(--error);">⚠ Overdue PMs</div></div>
+            <div class="card-body" style="padding-top:8px;padding-bottom:8px;" id="overdueList">
+              <!-- Dynamic Overdue PMs -->
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><div class="card-title">Today's Schedule</div><span style="font-size:12px;color:var(--text-muted);" class="mono" id="todayDateLabel"></span></div>
+            <div class="card-body" style="padding-top:8px;padding-bottom:8px;" id="todaySchedule">
+              <!-- Dynamic Today PMs -->
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><div class="card-title">Month Summary</div></div>
+            <div class="card-body">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <div style="text-align:center;padding:12px;background:var(--blue-light);border-radius:var(--r-md);">
+                  <div class="mono" id="statScheduled" style="font-size:22px;font-weight:700;color:var(--blue);">0</div>
+                  <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Scheduled</div>
+                </div>
+                <div style="text-align:center;padding:12px;background:var(--success-bg);border-radius:var(--r-md);">
+                  <div class="mono" id="statCompleted" style="font-size:22px;font-weight:700;color:var(--success);">0</div>
+                  <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Completed</div>
+                </div>
+                <div style="text-align:center;padding:12px;background:var(--error-bg);border-radius:var(--r-md);">
+                  <div class="mono" id="statOverdue" style="font-size:22px;font-weight:700;color:var(--error);">0</div>
+                  <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Overdue</div>
+                </div>
+                <div style="text-align:center;padding:12px;background:var(--bg-card-alt);border-radius:var(--r-md);border:1px solid var(--border);">
+                  <div class="mono" id="statPending" style="font-size:22px;font-weight:700;color:var(--text-secondary);">0</div>
+                  <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Pending</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    
+</div>
