@@ -1,14 +1,16 @@
-import { Injectable, signal, computed } from '@angular/core';
+import { Injectable, signal, computed, inject } from '@angular/core';
 import { Asset, PMTask, PMTaskFrequency, PMTaskStatus, Template } from '../models/pm.model';
+import { AuthService } from './auth.service';
 
 const DB_KEY = 'assetintel_pm_db_v_ng';
-const SEED_FLAG = 'assetintel_pm_seeded_v_ng';
+const SEED_FLAG = 'assetintel_pm_seeded_v_ng_run_num_abbrev';
 const TEMPLATE_DB_KEY = 'assetintel_pm_templates_v_ng';
 
 @Injectable({
   providedIn: 'root'
 })
 export class PmService {
+  private authService = inject(AuthService);
   private assetsSignal = signal<Asset[]>(this.initializeAssets());
   private pmTasksSignal = signal<PMTask[]>([]);
   private templatesSignal = signal<Template[]>([]);
@@ -122,11 +124,17 @@ export class PmService {
       { p:'CUST-005', dept:'Manufacturing', a:'CNC Router R-500',     c:'CNC-P5-01', type:'Weekly',     due: d(-2), by:'ENG-MFG-3', tech:'TECH-MFG-2', done: d(-1), est: 3 },
     ];
 
+    const deptCounters: Record<string, number> = {};
+    
     const pms = seeds.map((s, i) => {
+      const deptName = (s.dept || 'General').substring(0, 3).toUpperCase();
+      deptCounters[deptName] = (deptCounters[deptName] || 0) + 1;
+      const runNum = deptCounters[deptName].toString().padStart(4, '0');
+
       // Parse dates, we must convert ISO strings to timestamp numbers for local storage to parse correctly or just strings.
       // But PMTask model expects Date objects at runtime. We will store ISO strings in LocalStorage.
       return {
-        id: `PM-${1000 + i}`,
+        id: `PM-${deptName}-${runNum}`,
         productId: s.p,
         department: s.dept,
         assetId: s.c,
@@ -189,9 +197,39 @@ export class PmService {
   }
 
   addPmTask(task: Partial<PMTask>) {
+    const user = this.authService.currentUser();
+    if (!user || !this.authService.hasPermission('pm.create.submit')) {
+      alert("API ERROR: Unauthorized to create PM tasks.");
+      throw new Error("Unauthorized to create PM tasks.");
+    }
+    const accessibleProducts = this.authService.getAccessibleProducts('pm.create.submit');
+    if (!accessibleProducts.includes(task.productId || '')) {
+      alert("API ERROR: Product access denied.");
+      throw new Error("Product access denied.");
+    }
+    const asset = this.assets().find(a => a.id === task.assetId);
+    if (!asset || asset.location !== task.productId || asset.type !== task.department) {
+      alert("API ERROR: Invalid Product-Asset combination.");
+      throw new Error("Invalid Product-Asset combination.");
+    }
+
+    const deptName = (task.department || 'General').substring(0, 3).toUpperCase();
+    
+    // Determine the next run number for the department
+    const deptTasks = this.pmTasksSignal().filter(t => t.id.startsWith(`PM-${deptName}-`));
+    let maxRun = 0;
+    for (const t of deptTasks) {
+      const parts = t.id.split('-');
+      if (parts.length >= 3) {
+        const num = parseInt(parts[2], 10);
+        if (!isNaN(num) && num > maxRun) maxRun = num;
+      }
+    }
+    const nextRun = (maxRun + 1).toString().padStart(4, '0');
+
     const newTask = {
       ...task,
-      id: `PM-${Math.floor(1000 + Math.random() * 9000)}`,
+      id: `PM-${deptName}-${nextRun}`,
       createdAt: new Date(),
     } as PMTask;
     
@@ -200,6 +238,17 @@ export class PmService {
   }
 
   updateTask(updatedTask: PMTask) {
+    const user = this.authService.currentUser();
+    if (!user) throw new Error("Unauthorized.");
+
+    if (user.baseRole === 'engineer' || user.baseRole === 'technician') {
+      const allowedProducts = this.authService.getAccessibleProducts('pm.assign.submit');
+      if (!allowedProducts.includes(updatedTask.productId || '') && updatedTask.assignedTo !== user.employeeId) {
+         alert("API ERROR: Unauthorized to update this task.");
+         throw new Error("Unauthorized to update this task.");
+      }
+    }
+
     this.pmTasksSignal.update(tasks => tasks.map(t => t.id === updatedTask.id ? updatedTask : t));
     this.saveToStorage();
   }
@@ -210,11 +259,41 @@ export class PmService {
   }
 
   saveTemplate(tpl: Template) {
+    const user = this.authService.currentUser();
+    if (!user) throw new Error("Unauthorized.");
+
+    if (user.baseRole === 'engineer') {
+      if (tpl.department !== user.department) {
+        alert("API ERROR: Engineers can only save templates for their own department.");
+        throw new Error("Scope error");
+      }
+    } else if (user.baseRole === 'technician') {
+      if (tpl.department !== user.department) {
+        alert("API ERROR: Tech can only save templates within their granted department scope.");
+        throw new Error("Scope error");
+      }
+    }
+
     this.templatesSignal.update(t => [...t, tpl]);
     localStorage.setItem(TEMPLATE_DB_KEY, JSON.stringify(this.templatesSignal()));
   }
 
   deleteTemplate(tpl: Template) {
+    const user = this.authService.currentUser();
+    if (!user) throw new Error("Unauthorized.");
+
+    if (user.baseRole === 'engineer') {
+      if (tpl.department !== user.department) {
+        alert("API ERROR: Engineers can only delete templates for their own department.");
+        throw new Error("Scope error");
+      }
+    } else if (user.baseRole === 'technician') {
+      if (tpl.department !== user.department) {
+        alert("API ERROR: Tech can only delete templates within their granted department scope.");
+        throw new Error("Scope error");
+      }
+    }
+
     this.templatesSignal.update(t => t.filter(x => !(x.name === tpl.name && x.department === tpl.department)));
     localStorage.setItem(TEMPLATE_DB_KEY, JSON.stringify(this.templatesSignal()));
   }

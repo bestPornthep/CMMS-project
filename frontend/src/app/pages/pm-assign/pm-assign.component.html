@@ -46,12 +46,12 @@
           <span style="font-weight:600; color:var(--blue-text); font-size:13px; white-space:nowrap; flex-shrink:0;">{{ selectedTasks().size }} selected</span>
           <div class="c-dropdown" [class.open]="bulkDropdownOpen" (click)="toggleDropdown('bulk', $event)" style="flex-shrink:0;">
             <div class="c-dropdown-trigger" style="height:32px; width:180px; background:white; flex-shrink:0; display:flex; align-items:center;">
-              <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:left; max-width:130px; display:inline-block;">{{ bulkAssignee() || 'Assign all to...' }}</span>
+              <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:left; max-width:130px; display:inline-block;">{{ bulkAssignee()?.name || 'Assign all to...' }}</span>
               <span class="material-symbols-outlined" style="flex-shrink:0; margin-left:auto;">expand_more</span>
             </div>
             <div class="c-dropdown-menu" *ngIf="bulkDropdownOpen">
               <div class="c-dropdown-item" (click)="bulkAssignee.set('')">Select technician...</div>
-              <div class="c-dropdown-item" *ngFor="let t of technicians()" (click)="bulkAssignee.set(t)">{{ t }}</div>
+              <div class="c-dropdown-item" *ngFor="let t of technicians()" (click)="bulkAssignee.set(t)">{{ t.name }}</div>
             </div>
           </div>
           <button class="btn btn-primary" style="padding:0 16px; height:32px; white-space:nowrap; flex-shrink:0; display:inline-flex; align-items:center; justify-content:center; gap:6px;" (click)="openBulkAssignModal()">
@@ -97,12 +97,12 @@
                 <div style="display:flex;align-items:center;gap:6px;">
                   <div class="c-dropdown form-dropdown" [class.open]="techDropdownOpen[task.id]" (click)="techDropdownOpen[task.id] = !techDropdownOpen[task.id]; $event.stopPropagation();" style="width:140px;">
                     <div class="c-dropdown-trigger" style="height:32px; width:100%; background:white; display:flex; align-items:center; padding:6px 10px;">
-                      <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100px; display:inline-block; text-align:left;">{{ selectedTech[task.id] || 'Select Tech...' }}</span>
+                      <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100px; display:inline-block; text-align:left;">{{ getTechName(selectedTech[task.id]) || 'Select Tech...' }}</span>
                       <span class="material-symbols-outlined" style="margin-left:auto; flex-shrink:0;">expand_more</span>
                     </div>
                     <div class="c-dropdown-menu" *ngIf="techDropdownOpen[task.id]">
                       <div class="c-dropdown-item" (click)="selectedTech[task.id] = ''">Select Tech...</div>
-                      <div class="c-dropdown-item" *ngFor="let tech of technicians()" (click)="selectedTech[task.id] = tech">{{ tech }}</div>
+                      <div class="c-dropdown-item" *ngFor="let tech of technicians()" (click)="selectedTech[task.id] = tech.employeeId!">{{ tech.name }}</div>
                     </div>
                   </div>
                   <button class="btn btn-primary" style="padding:4px 8px;font-size:11px; height:32px;" (click)="assignTask(task)">Assign</button>
@@ -140,7 +140,7 @@
               <th>Type</th>
               <th>Due Date</th>
               <th>Assigned To</th>
-              <th>Assigned By</th>
+              <th>Time Stamp</th>
             </tr>
           </thead>
           <tbody>
@@ -158,11 +158,11 @@
               <td style="color:var(--text-secondary);font-weight:500;font-size:12px;">{{ task.nextDueDate | date:'MMM d, yyyy' }}</td>
               <td>
                 <div style="display:flex;align-items:center;gap:8px;">
-                  <div style="width:24px;height:24px;border-radius:50%;background:var(--blue-light);color:var(--blue-text);display:grid;place-items:center;font-size:10px;font-weight:700;">{{ task.assignedTo?.substring(0,1) || 'U' }}</div>
-                  <span style="font-weight:600;color:var(--text-primary);">{{ task.assignedTo || 'Unassigned' }}</span>
+                  <div style="width:24px;height:24px;border-radius:50%;background:var(--blue-light);color:var(--blue-text);display:grid;place-items:center;font-size:10px;font-weight:700;">{{ getTechName(task.assignedTo).substring(0,1) || 'U' }}</div>
+                  <span style="font-weight:600;color:var(--text-primary);">{{ getTechName(task.assignedTo) }}</span>
                 </div>
               </td>
-              <td style="color:var(--text-muted);font-size:12px;">System</td>
+              <td style="color:var(--text-muted);font-size:12px;">{{ (task.assignedAt || task.createdAt) | date:'MMM d, y, h:mm a' }}</td>
             </tr>
             <tr *ngIf="assignedTasks().length === 0">
               <td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted);">
@@ -199,15 +199,15 @@
                   <input type="checkbox" [checked]="newDelegationUsers().length === technicians().length" style="pointer-events:none; accent-color:var(--blue); width:14px; height:14px; margin:0;">
                   <span style="font-family:var(--font-sans); font-size:13px; font-weight:600;">Select All</span>
                 </div>
-                <div class="c-dropdown-item" *ngFor="let t of technicians()" (click)="toggleDelegationUser(t)" style="display:flex; align-items:center; gap:8px;">
-                  <input type="checkbox" [checked]="newDelegationUsers().includes(t)" style="pointer-events:none; accent-color:var(--blue); width:14px; height:14px; margin:0;">
-                  <span style="font-family:var(--font-sans); font-size:13px;">{{ t }}</span>
+                <div class="c-dropdown-item" *ngFor="let t of technicians()" (click)="toggleDelegationUser(t.employeeId!)" style="display:flex; align-items:center; gap:8px;">
+                  <input type="checkbox" [checked]="newDelegationUsers().includes(t.employeeId!)" style="pointer-events:none; accent-color:var(--blue); width:14px; height:14px; margin:0;">
+                  <span style="font-family:var(--font-sans); font-size:13px;">{{ t.name }}</span>
                 </div>
               </div>
             </div>
             <div class="tag-list" style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;" *ngIf="newDelegationUsers().length > 0">
               <span class="part-tag" style="display:inline-flex; align-items:center; gap:4px; padding:4px 10px; background:var(--blue-light); color:var(--blue-text); border-radius:20px; font-size:12px; font-weight:600;" *ngFor="let u of newDelegationUsers(); let i = index">
-                {{ u }} <button style="background:none; border:none; cursor:pointer; color:var(--blue-text); display:flex; align-items:center; padding:0; font-size:14px; line-height:1;" (click)="removeDelegationUser(i)">×</button>
+                {{ getTechName(u) }} <button style="background:none; border:none; cursor:pointer; color:var(--blue-text); display:flex; align-items:center; padding:0; font-size:14px; line-height:1;" (click)="removeDelegationUser(i)">×</button>
               </span>
             </div>
           </div>
@@ -264,7 +264,7 @@
             </thead>
             <tbody>
               <tr *ngFor="let del of delegations()">
-                <td><span style="font-weight:600;color:var(--text-primary);">{{ del.user }}</span></td>
+                <td><span style="font-weight:600;color:var(--text-primary);">{{ getTechName(del.user) }}</span></td>
                 <td>
               <div style="display:flex; gap:4px; flex-wrap:wrap;">
                 <span class="badge badge-neutral" *ngFor="let p of del.products">{{ p }}</span>
@@ -296,7 +296,7 @@
     <div class="modal-header">
       <div>
         <h2 class="modal-title">Confirm Assignment</h2>
-        <p class="modal-sub">You are assigning {{ selectedTasks().size }} tasks to <strong style="color:var(--text-primary);">{{ bulkAssignee() }}</strong>.</p>
+        <p class="modal-sub">You are assigning {{ selectedTasks().size }} tasks to <strong style="color:var(--text-primary);">{{ bulkAssignee()?.name }}</strong>.</p>
       </div>
     </div>
     <div style="display:flex;gap:8px; margin-top:24px;">

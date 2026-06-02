@@ -5,7 +5,7 @@ export interface Asset {
     location: string;
 }
 
-export type PMTaskStatus = 'Pending' | 'In Progress' | 'Done' | 'Overdue';
+export type PMTaskStatus = 'Pending' | 'In Progress' | 'Pending Approval' | 'Done' | 'Overdue';
 export type PMTaskFrequency = 'Daily' | 'Weekly' | 'Monthly' | 'Quarterly' | 'Yearly';
 
 export interface Template {
@@ -22,6 +22,7 @@ export interface PMTask {
     assetId: string;
     nextDueDate: Date;
     estimatedHours: number;
+    actualHours?: number;
     status: PMTaskStatus;
     
     productId?: string;
@@ -31,10 +32,15 @@ export interface PMTask {
     
     // Execution details (merged from legacy WorkOrder)
     assignedTo?: string; // employeeId of assignee
+    assignedAt?: Date;
+    assignedBy?: string; // employeeId of assigner
     completedBy?: string; // employeeId of person who completed it
     completedAt?: Date;
     recordNotes?: string;
     partsUsed?: string[];
+    
+    approvedBy?: string;
+    approvedAt?: Date;
     
     createdBy?: string;
     createdAt?: Date;
@@ -47,9 +53,11 @@ export interface Permission {
 }
 
 export interface DelegatedProduct {
+    id?: string;
     productId: string;
     status: 'active' | 'revoked';
     permissions: string[];
+    validUntil?: Date;
 }
 
 export interface User {

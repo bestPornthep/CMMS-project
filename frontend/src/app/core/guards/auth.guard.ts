@@ -1,5 +1,5 @@
 import { inject } from '@angular/core';
-import { Router, CanActivateFn } from '@angular/router';
+import { Router, CanActivateFn, CanActivateChildFn } from '@angular/router';
 import { AuthService } from '../services/auth.service';
 
 export const authGuard: CanActivateFn = (route, state) => {
@@ -10,11 +10,15 @@ export const authGuard: CanActivateFn = (route, state) => {
     // Check specific permission if provided in route data
     const requiredPermission = route.data?.['permission'];
     if (requiredPermission && !authService.hasPermission(requiredPermission)) {
-      return router.parseUrl('/'); // Redirect to dashboard if no permission
+      return router.parseUrl('/unauthorized');
     }
     return true;
   }
 
   // Not logged in, redirect to login
   return router.parseUrl('/login');
+};
+
+export const authGuardChild: CanActivateChildFn = (childRoute, state) => {
+  return authGuard(childRoute, state);
 };

@@ -36,7 +36,7 @@ export class PmAssignComponent {
 
   // Computed assigned tasks filtered by department
   assignedTasks = computed(() => {
-    let tasks = this.allTasks().filter(t => t.status !== 'Pending');
+    let tasks = this.allTasks().filter(t => t.status !== 'Pending' && this.canManageTask(t));
     const dept = this.deptFilter();
     if (dept !== 'All') {
       tasks = tasks.filter(t => t.department === dept);
@@ -46,7 +46,7 @@ export class PmAssignComponent {
 
   // Get only pending tasks to assign, filtered by department
   pendingTasks = computed(() => {
-    let tasks = this.allTasks().filter(t => t.status === 'Pending');
+    let tasks = this.allTasks().filter(t => t.status === 'Pending' && this.canManageTask(t));
     const dept = this.deptFilter();
     if (dept !== 'All') {
       tasks = tasks.filter(t => t.department === dept);
@@ -57,9 +57,14 @@ export class PmAssignComponent {
   // Dynamically populated technicians based on delegation rules
   technicians = computed(() => {
     return this.authService.getAllUsers()
-      .filter(u => u.employeeId && this.authService.canDelegate(u.employeeId))
-      .map(u => u.name!);
+      .filter(u => u.employeeId && this.authService.canDelegate(u.employeeId));
   });
+
+  getTechName(employeeId?: string): string {
+    if (!employeeId) return 'Unassigned';
+    const tech = this.authService.getAllUsers().find(u => u.employeeId === employeeId);
+    return tech?.name || employeeId;
+  }
 
   // Dynamically populated products based on access rules
   products = computed(() => {
@@ -116,10 +121,36 @@ export class PmAssignComponent {
 
   // Track selected tasks for bulk actions
   selectedTasks = signal<Set<string>>(new Set());
-  bulkAssignee = signal<string>('');
+  bulkAssignee = signal<any>(null);
   showBulkModal = signal<boolean>(false);
 
+  canManageTask(task: PMTask): boolean {
+    const user = this.currentUser;
+    if (!user) return false;
+    if (user.baseRole === 'admin' || user.baseRole === 'manager') return true;
+    
+    if (user.baseRole === 'engineer') {
+      // Must be within their owned products
+      if (user.ownedProducts && !(user.ownedProducts.includes('*') || user.ownedProducts.includes(task.productId!))) {
+         return false;
+      }
+      // Cannot take over work owned by another Engineer
+      if (task.createdBy && task.createdBy !== user.employeeId) {
+         const creator = this.authService.getUser(task.createdBy);
+         if (creator && creator.baseRole === 'engineer') {
+            return false;
+         }
+      }
+    }
+    return true;
+  }
+
   toggleSelection(taskId: string) {
+    const task = this.allTasks().find(t => t.id === taskId);
+    if (task && !this.canManageTask(task)) {
+      alert('You cannot manage or reassign work owned by another Engineer or outside your responsibility.');
+      return;
+    }
     this.selectedTasks.update(set => {
       const newSet = new Set(set);
       if (newSet.has(taskId)) {
@@ -134,8 +165,10 @@ export class PmAssignComponent {
   toggleAllSelection(event: any) {
     const checked = event.target.checked;
     if (checked) {
-      const allIds = this.pendingTasks().map(t => t.id);
-      this.selectedTasks.set(new Set(allIds));
+      const manageableIds = this.pendingTasks()
+        .filter(t => this.canManageTask(t))
+        .map(t => t.id);
+      this.selectedTasks.set(new Set(manageableIds));
     } else {
       this.selectedTasks.set(new Set());
     }
@@ -161,10 +194,19 @@ export class PmAssignComponent {
     const tasks = this.allTasks();
     for (const task of tasks) {
       if (taskIds.has(task.id)) {
+        // Validate Product-Asset match before assignment
+        const asset = this.pmService.assets().find(a => a.id === task.assetId);
+        if (!asset || asset.location !== task.productId) {
+           alert(`Task ${task.id} has a Product-Asset mismatch and cannot be assigned.`);
+           return;
+        }
+
         this.pmService.updateTask({
           ...task,
+          assignedTo: tech.employeeId,
           status: 'In Progress',
-          assignedTo: tech
+          assignedAt: new Date(),
+          assignedBy: this.currentUser?.employeeId
         });
       }
     }
@@ -176,6 +218,18 @@ export class PmAssignComponent {
   }
 
   assignTask(task: PMTask) {
+    if (!this.canManageTask(task)) {
+      alert('You cannot manage or reassign work owned by another Engineer or outside your responsibility.');
+      return;
+    }
+    
+    // Validate Product-Asset match before assignment
+    const asset = this.pmService.assets().find(a => a.id === task.assetId);
+    if (!asset || asset.location !== task.productId) {
+      alert("Cannot assign task due to Product-Asset mismatch in the task record.");
+      return;
+    }
+
     const tech = this.selectedTech[task.id];
     if (!tech) {
       alert('Please select a technician first.');
@@ -186,12 +240,14 @@ export class PmAssignComponent {
     this.pmService.updateTask({
       ...task,
       status: 'In Progress',
-      assignedTo: tech
+      assignedTo: tech,
+      assignedAt: new Date(),
+      assignedBy: this.currentUser?.employeeId
     });
   }
 
   // --- Delegations ---
-  delegations = signal<any[]>([]);
+  delegations = signal<any[]>(this.authService.getActiveDelegations());
   newDelegationUsers = signal<string[]>([]);
   newDelegationProducts = signal<string[]>([]);
   newDelegationDuration = signal<number>(30);
@@ -220,20 +276,11 @@ export class PmAssignComponent {
       return;
     }
 
-    const newDelegations: any[] = [];
     const validUntil = new Date();
     validUntil.setDate(validUntil.getDate() + duration);
 
-    for (const user of users) {
-      newDelegations.push({
-        id: Math.random().toString(36).substring(2, 9),
-        user,
-        products: [...products],
-        validUntil
-      });
-    }
-
-    this.delegations.update(d => [...newDelegations, ...d]);
+    this.authService.grantDelegation(users, products, validUntil);
+    this.delegations.set(this.authService.getActiveDelegations());
     
     // Reset form
     this.newDelegationUsers.set([]);
@@ -242,7 +289,8 @@ export class PmAssignComponent {
   }
 
   revokeDelegation(id: string) {
-    this.delegations.update(d => d.filter(x => x.id !== id));
+    this.authService.revokeDelegation(id);
+    this.delegations.set(this.authService.getActiveDelegations());
   }
 
   toggleDelegationUser(user: string) {
@@ -257,7 +305,7 @@ export class PmAssignComponent {
     if (this.newDelegationUsers().length === allUsers.length) {
       this.newDelegationUsers.set([]);
     } else {
-      this.newDelegationUsers.set([...allUsers]);
+      this.newDelegationUsers.set(allUsers.map(u => u.employeeId!));
     }
   }
 

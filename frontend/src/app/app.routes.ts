@@ -1,6 +1,6 @@
 import { Routes } from '@angular/router';
 import { LayoutComponent } from './layout/layout.component';
-import { authGuard } from './core/guards/auth.guard';
+import { authGuard, authGuardChild } from './core/guards/auth.guard';
 
 export const routes: Routes = [
   {
@@ -11,11 +11,17 @@ export const routes: Routes = [
     path: '',
     component: LayoutComponent,
     canActivate: [authGuard],
+    canActivateChild: [authGuardChild],
     children: [
       {
         path: '',
         redirectTo: 'dashboard',
         pathMatch: 'full'
+      },
+      {
+        path: 'unauthorized',
+        loadComponent: () => import('./pages/unauthorized/unauthorized').then(m => m.Unauthorized),
+        data: { section: 'Error', title: 'Unauthorized Access' }
       },
       {
         path: 'dashboard',

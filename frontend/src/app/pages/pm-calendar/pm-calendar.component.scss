@@ -1,4 +1,55 @@
 .pm-calendar-page {
+  /* Map local variables to global styles.scss variables */
+  --blue: var(--color-blue-DEFAULT);
+  --blue-hover: var(--color-blue-hover);
+  --blue-light: var(--color-blue-light);
+  --blue-text: var(--color-blue-text);
+  
+  --success: var(--color-success);
+  --success-bg: var(--color-success-bg);
+  --success-text: var(--color-success-text);
+  --success-mid: var(--color-success-mid);
+  
+  --warning-bg: var(--color-warning-bg);
+  --warning-text: var(--color-warning-text);
+  --warning-mid: var(--color-warning-mid);
+  
+  --error: var(--color-error);
+  --error-bg: var(--color-error-bg);
+  --error-text: var(--color-error-text);
+  --error-mid: var(--color-error-mid);
+  
+  --info-bg: var(--color-info-bg);
+  --info-text: var(--color-info-text);
+  
+  --bg-page: var(--color-bg-page);
+  --bg-card: var(--color-bg-card);
+  --bg-card-alt: var(--color-bg-card-alt);
+  
+  --border: var(--color-border);
+  --border-soft: var(--color-border-soft);
+  --border-strong: var(--color-border-strong);
+  
+  --text-primary: var(--color-text-primary);
+  --text-secondary: var(--color-text-secondary);
+  --text-muted: var(--color-text-muted);
+  --text-caption: var(--color-text-caption);
+  
+  --r-sm: var(--radius-sm);
+  --r-md: var(--radius-md);
+  --r-lg: var(--radius-lg);
+  --r-xl: var(--radius-xl);
+  
+  --shadow-card: var(--shadow-card);
+  --shadow-inset: var(--shadow-inset);
+  --shadow-raise: var(--shadow-raise);
+  
+  --ease-out: var(--ease-out);
+  --ease-spring: var(--ease-spring);
+  --dur-base: var(--duration-base);
+  --dur-fast: var(--duration-fast);
+  --dur-enter: var(--duration-enter);
+
     @keyframes fadeUp{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
     .anim-enter{opacity:0;animation:fadeUp var(--dur-enter) var(--ease-out) forwards;}
     .app{display:flex;height:100vh;overflow:hidden;}
@@ -168,8 +219,8 @@
       align-items: center;
       gap: 8px;
       padding: 6px 14px;
-      background: var(--bg-card);
-      border: 1px solid var(--border);
+      background: white;
+      border: 1px solid var(--border-strong);
       border-radius: var(--r-md);
       color: var(--text-primary);
       font-family: var(--font-sans);
@@ -220,8 +271,8 @@
       top: calc(100% + 6px);
       left: 0;
       min-width: 200px;
-      background: var(--bg-card);
-      border: 1px solid var(--border);
+      background: white;
+      border: 1px solid var(--border-strong);
       border-radius: var(--r-lg);
       box-shadow: var(--shadow-raise);
       padding: 6px;

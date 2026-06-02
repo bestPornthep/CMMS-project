@@ -71,9 +71,38 @@ export class PmCreateComponent {
     this.openDropdown = this.openDropdown === dropdown ? null : dropdown;
   }
 
-  selectProduct(p: string) { this.productId = p; }
-  selectDept(d: string) { this.department = d; }
-  selectAsset(a: string) { this.assetId = a; }
+  selectProduct(p: string) { 
+    this.productId = p; 
+    // If Product changes, reset Asset if it does not belong to the new Product.
+    if (this.assetId) {
+      const asset = this.pmService.assets().find(a => a.id === this.assetId);
+      if (asset && asset.location !== p) {
+        this.assetId = '';
+      }
+    }
+  }
+
+  selectDept(d: string) { 
+    this.department = d; 
+    if (this.assetId) {
+      const asset = this.pmService.assets().find(a => a.id === this.assetId);
+      if (asset && asset.type !== d) {
+        this.assetId = '';
+      }
+    }
+  }
+
+  selectAsset(a: string) { 
+    this.assetId = a; 
+    if (a) {
+      const asset = this.pmService.assets().find(x => x.id === a);
+      if (asset) {
+        // Enforce the asset's location and type
+        this.productId = asset.location;
+        this.department = asset.type;
+      }
+    }
+  }
   selectType(t: string) { this.pmType = t as PMTaskFrequency; }
   selectPart(p: string) { this.selectedPart = p; }
 
@@ -83,10 +112,18 @@ export class PmCreateComponent {
   availableParts = ['Bearing Assembly 6205', 'Filter Element HF-04', 'Seal Kit SK-22', 'Lubricant SAE-30 (1L)', 'Drive Belt B-440', 'O-Ring Set OR-12'];
   
   // Computed Assets based on selection
-  availableAssets = computed(() => {
-    // In real app, filter by product/dept. Mocking here for simplicity
-    return this.pmService.assets();
-  });
+  availableAssets() {
+    const accessibleProducts = this.products();
+    return this.pmService.assets().filter(a => {
+      // Must be in user's scope
+      if (!accessibleProducts.includes(a.location)) return false;
+      // If a specific product is selected, must match it
+      if (this.productId && a.location !== this.productId) return false;
+      // If a department is selected, must match it
+      if (this.department && a.type !== this.department) return false;
+      return true;
+    });
+  }
 
   // Checklist Methods
   addChecklistItem() {
@@ -155,6 +192,15 @@ export class PmCreateComponent {
     }
 
     const selectedAsset = this.pmService.assets().find(a => a.id === this.assetId);
+    if (!selectedAsset) {
+      alert("Invalid asset selected.");
+      return;
+    }
+    
+    if (selectedAsset.location !== this.productId || selectedAsset.type !== this.department) {
+      alert("The selected asset does not match the chosen product or department. Action blocked.");
+      return;
+    }
     
     const nextDueDate = new Date();
     switch(this.pmType) {
@@ -175,7 +221,7 @@ export class PmCreateComponent {
       nextDueDate: nextDueDate,
       estimatedHours: this.estimatedHours,
       status: 'Pending' as PMTaskStatus,
-      createdBy: 'CURRENT-USER',
+      createdBy: this.authService.currentUser()?.employeeId,
       checklist: this.checklist().map(text => ({ text, done: false })),
       partsRequired: [...this.parts()]
     });

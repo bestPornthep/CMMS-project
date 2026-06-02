@@ -12,44 +12,44 @@
         <!-- Calendar -->
         <div data-enter>
           <div class="cal-nav">
-            <button class="topbar-btn" id="prevMonth"><span class="material-symbols-outlined">chevron_left</span></button>
-            <span class="cal-month-label" id="calLabel">October 2023</span>
-            <button class="topbar-btn" id="nextMonth"><span class="material-symbols-outlined">chevron_right</span></button>
-            <button class="btn btn-ghost" id="todayBtn" style="margin-left:4px;">
+            <button class="topbar-btn" (click)="prevMonth()"><span class="material-symbols-outlined">chevron_left</span></button>
+            <span class="cal-month-label">{{ currentMonthLabel }}</span>
+            <button class="topbar-btn" (click)="nextMonth()"><span class="material-symbols-outlined">chevron_right</span></button>
+            <button class="btn btn-ghost" (click)="goToToday()" style="margin-left:4px;">
               <span class="material-symbols-outlined">today</span>Today
             </button>
-            <div style="margin-left:auto;display:flex;align-items:center;gap:12px;flex-wrap:wrap;" id="calFilters">
+            <div style="margin-left:auto;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
               <!-- Department Filter (Custom Dropdown) -->
               <div style="display:flex;align-items:center;gap:8px;">
                 <span style="font-size:12px;color:var(--text-muted);font-weight:600;">Dept:</span>
-                <div class="custom-dropdown" id="deptFilterDropdown">
-                  <button class="dropdown-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
+                <div class="custom-dropdown" [class.open]="dropdownOpen">
+                  <button class="dropdown-trigger" [class.disabled]="!canChangeDept" (click)="toggleDropdown($event)" type="button" aria-haspopup="listbox" [attr.aria-expanded]="dropdownOpen">
                     <span class="material-symbols-outlined trigger-icon">domain</span>
-                    <span class="trigger-text">All Departments</span>
-                    <span class="material-symbols-outlined trigger-arrow">expand_more</span>
+                    <span class="trigger-text">{{ selectedDept() === 'All' ? 'All Departments' : selectedDept() }}</span>
+                    <span class="material-symbols-outlined trigger-arrow" *ngIf="canChangeDept">expand_more</span>
                   </button>
-                  <div class="dropdown-menu" role="listbox">
-                    <div class="dropdown-item active" data-value="All" role="option">
+                  <div class="dropdown-menu" role="listbox" *ngIf="canChangeDept">
+                    <div class="dropdown-item" [class.active]="selectedDept() === 'All'" (click)="setDepartment('All')" role="option">
                       <span class="material-symbols-outlined">domain</span>
                       <span class="item-text">All Departments</span>
                     </div>
-                    <div class="dropdown-item" data-value="Facility" role="option">
+                    <div class="dropdown-item" [class.active]="selectedDept() === 'Facility'" (click)="setDepartment('Facility')" role="option">
                       <span class="material-symbols-outlined">hvac</span>
                       <span class="item-text">Facility</span>
                     </div>
-                    <div class="dropdown-item" data-value="Mechanic" role="option">
+                    <div class="dropdown-item" [class.active]="selectedDept() === 'Mechanic'" (click)="setDepartment('Mechanic')" role="option">
                       <span class="material-symbols-outlined">build</span>
                       <span class="item-text">Mechanic</span>
                     </div>
-                    <div class="dropdown-item" data-value="Manufacturing" role="option">
+                    <div class="dropdown-item" [class.active]="selectedDept() === 'Manufacturing'" (click)="setDepartment('Manufacturing')" role="option">
                       <span class="material-symbols-outlined">precision_manufacturing</span>
                       <span class="item-text">Manufacturing</span>
                     </div>
-                    <div class="dropdown-item" data-value="Maintenance" role="option">
+                    <div class="dropdown-item" [class.active]="selectedDept() === 'Maintenance'" (click)="setDepartment('Maintenance')" role="option">
                       <span class="material-symbols-outlined">handyman</span>
                       <span class="item-text">Maintenance</span>
                     </div>
-                    <div class="dropdown-item" data-value="Test" role="option">
+                    <div class="dropdown-item" [class.active]="selectedDept() === 'Test'" (click)="setDepartment('Test')" role="option">
                       <span class="material-symbols-outlined">biotech</span>
                       <span class="item-text">Test</span>
                     </div>
@@ -58,24 +58,41 @@
               </div>
 
               <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);cursor:pointer;">
-                <input type="checkbox" id="filterScheduled" checked style="accent-color:var(--blue);cursor:pointer;">
+                <input type="checkbox" [(ngModel)]="filterScheduled" style="accent-color:var(--blue);cursor:pointer;">
                 <span style="width:8px;height:8px;border-radius:50%;background:var(--blue);display:inline-block;"></span> Scheduled
               </label>
               <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);cursor:pointer;">
-                <input type="checkbox" id="filterDone" checked style="accent-color:var(--success-mid);cursor:pointer;">
+                <input type="checkbox" [(ngModel)]="filterDone" style="accent-color:var(--success-mid);cursor:pointer;">
                 <span style="width:8px;height:8px;border-radius:50%;background:var(--success-mid);display:inline-block;"></span> Done
               </label>
               <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);cursor:pointer;">
-                <input type="checkbox" id="filterOverdue" checked style="accent-color:var(--error-mid);cursor:pointer;">
+                <input type="checkbox" [(ngModel)]="filterOverdue" style="accent-color:var(--error-mid);cursor:pointer;">
                 <span style="width:8px;height:8px;border-radius:50%;background:var(--error-mid);display:inline-block;"></span> Overdue
               </label>
             </div>
           </div>
           <div class="card" style="overflow:hidden;">
-            <div class="cal-grid" id="calGrid">
+            <div class="cal-grid">
               <div class="cal-dow">Mon</div><div class="cal-dow">Tue</div><div class="cal-dow">Wed</div>
               <div class="cal-dow">Thu</div><div class="cal-dow">Fri</div><div class="cal-dow">Sat</div><div class="cal-dow">Sun</div>
-              <!-- Dynamic Days will be injected here -->
+              <!-- Dynamic Days -->
+              <div *ngFor="let day of calendarDays()" 
+                   class="cal-day" 
+                   [class.today]="day.isToday" 
+                   [class.other-month]="!day.isCurrentMonth">
+                <span class="cal-date">{{ day.date }}</span>
+                <div class="cal-chips">
+                  <div *ngFor="let task of day.tasks" 
+                       class="cal-chip" 
+                       (click)="goToRecord(task.id)"
+                       style="cursor: pointer;"
+                       [class.pm]="task.status !== 'Done' && task.status !== 'Overdue'" 
+                       [class.completed]="task.status === 'Done'" 
+                       [class.overdue]="task.status === 'Overdue'">
+                    {{ task.id }}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -84,15 +101,26 @@
         <div class="side-card" data-enter>
           <div class="card" style="border-left:3px solid var(--error-mid);">
             <div class="card-header"><div class="card-title" style="color:var(--error);">⚠ Overdue PMs</div></div>
-            <div class="card-body" style="padding-top:8px;padding-bottom:8px;" id="overdueList">
-              <!-- Dynamic Overdue PMs -->
+            <div class="card-body" style="padding-top:8px;padding-bottom:8px;">
+              <div *ngFor="let t of overdueTasks()" class="overdue-item" (click)="goToRecord(t.id)" style="cursor: pointer; transition: background 0.2s ease; border-radius: 4px; padding: 10px 8px;" onmouseover="this.style.background='var(--bg-page)'" onmouseout="this.style.background='transparent'">
+                <div style="font-size:13px;font-weight:600;color:var(--text-primary);">{{ t.id }}</div>
+                <div class="badge badge-error" style="font-size:10px;">{{ t.status }}</div>
+              </div>
+              <div *ngIf="overdueTasks().length === 0" style="padding: 10px 0; color: var(--text-muted); font-size: 13px;">No overdue tasks.</div>
             </div>
           </div>
 
           <div class="card">
-            <div class="card-header"><div class="card-title">Today's Schedule</div><span style="font-size:12px;color:var(--text-muted);" class="mono" id="todayDateLabel"></span></div>
-            <div class="card-body" style="padding-top:8px;padding-bottom:8px;" id="todaySchedule">
-              <!-- Dynamic Today PMs -->
+            <div class="card-header"><div class="card-title">Today's Schedule</div><span style="font-size:12px;color:var(--text-muted);" class="mono">{{ currentDate() | date:'MMM d' }}</span></div>
+            <div class="card-body" style="padding-top:8px;padding-bottom:8px;">
+              <div *ngFor="let t of todayTasks()" class="today-item" (click)="goToRecord(t.id)" style="cursor: pointer; transition: background 0.2s ease; border-radius: 4px; padding: 8px;" onmouseover="this.style.background='var(--bg-page)'" onmouseout="this.style.background='transparent'">
+                <div class="today-dot" style="background:var(--blue);"></div>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:13px;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ t.title }}</div>
+                  <div style="font-size:11px;color:var(--text-muted);">{{ t.id }} · {{ t.department }}</div>
+                </div>
+              </div>
+              <div *ngIf="todayTasks().length === 0" style="padding: 10px 0; color: var(--text-muted); font-size: 13px;">Nothing scheduled for today.</div>
             </div>
           </div>
 
@@ -101,19 +129,19 @@
             <div class="card-body">
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
                 <div style="text-align:center;padding:12px;background:var(--blue-light);border-radius:var(--r-md);">
-                  <div class="mono" id="statScheduled" style="font-size:22px;font-weight:700;color:var(--blue);">0</div>
+                  <div class="mono" style="font-size:22px;font-weight:700;color:var(--blue);">{{ monthSummary().scheduled }}</div>
                   <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Scheduled</div>
                 </div>
                 <div style="text-align:center;padding:12px;background:var(--success-bg);border-radius:var(--r-md);">
-                  <div class="mono" id="statCompleted" style="font-size:22px;font-weight:700;color:var(--success);">0</div>
+                  <div class="mono" style="font-size:22px;font-weight:700;color:var(--success);">{{ monthSummary().completed }}</div>
                   <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Completed</div>
                 </div>
                 <div style="text-align:center;padding:12px;background:var(--error-bg);border-radius:var(--r-md);">
-                  <div class="mono" id="statOverdue" style="font-size:22px;font-weight:700;color:var(--error);">0</div>
+                  <div class="mono" style="font-size:22px;font-weight:700;color:var(--error);">{{ monthSummary().overdue }}</div>
                   <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Overdue</div>
                 </div>
                 <div style="text-align:center;padding:12px;background:var(--bg-card-alt);border-radius:var(--r-md);border:1px solid var(--border);">
-                  <div class="mono" id="statPending" style="font-size:22px;font-weight:700;color:var(--text-secondary);">0</div>
+                  <div class="mono" style="font-size:22px;font-weight:700;color:var(--text-secondary);">{{ monthSummary().pending }}</div>
                   <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Pending</div>
                 </div>
               </div>

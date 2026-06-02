@@ -103,11 +103,13 @@ export class AuthService {
 
   private readonly ROLE_DEFAULTS: Record<string, string[]> = {
     technician: [
+      'pm.dashboard.view',
       'pm.record.view',
       'pm.record.submit',
       'pm.calendar.view',
     ],
     engineer: [
+      'pm.dashboard.view',
       'pm.create.view',
       'pm.create.submit',
       'pm.assign.view',
@@ -144,6 +146,10 @@ export class AuthService {
     if (user.baseRole === 'technician' && user.delegatedProducts?.length > 0) {
       for (const dp of user.delegatedProducts) {
         if (dp.status !== 'active') continue;
+        if (dp.validUntil && new Date(dp.validUntil) < new Date()) {
+          dp.status = 'revoked';
+          continue;
+        }
         if (!dp.permissions?.includes(permission)) continue;
 
         // If no specific product is queried, they have the permission generally
@@ -172,6 +178,113 @@ export class AuthService {
     }
 
     return false;
+  }
+
+  private generateUUID(): string {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  }
+
+  grantDelegation(targetUserNamesOrIds: string[], products: string[], validUntil: Date): void {
+    const currentUser = this.currentUser();
+    if (!currentUser) throw new Error("Unauthorized.");
+
+    if (currentUser.baseRole === 'technician') {
+      // Tech can only delegate if they have temp permissions themselves, and only for products they have access to
+      const allowedProducts = this.getAccessibleProducts('pm.create.submit');
+      if (allowedProducts.length === 0) {
+        alert("API ERROR: Tech must have temporary permissions to grant delegations.");
+        throw new Error("Unauthorized");
+      }
+      for (const p of products) {
+        if (!allowedProducts.includes(p)) {
+          alert("API ERROR: Tech can only delegate within their granted scope.");
+          throw new Error("Scope error");
+        }
+      }
+    } else if (currentUser.baseRole === 'engineer') {
+      const allowedProducts = this.getAccessibleProducts('pm.create.submit');
+      for (const p of products) {
+        if (!allowedProducts.includes(p)) {
+          alert("API ERROR: Engineers can only delegate within their own department/products.");
+          throw new Error("Scope error");
+        }
+      }
+    }
+
+    const defaultPermissions = ['pm.create.view', 'pm.create.submit', 'pm.assign.view', 'pm.record.view', 'pm.record.submit', 'pm.calendar.view'];
+    const delegationId = `DEL-${this.generateUUID()}`;
+    
+    for (const nameOrId of targetUserNamesOrIds) {
+      const targetUser = Object.values(DEMO_USERS).find(u => u.name === nameOrId || u.employeeId === nameOrId);
+      if (targetUser) {
+        targetUser.delegatedProducts = targetUser.delegatedProducts || [];
+        for (const productId of products) {
+          targetUser.delegatedProducts.push({
+            id: delegationId,
+            productId,
+            status: 'active',
+            permissions: defaultPermissions,
+            validUntil
+          });
+        }
+      }
+    }
+  }
+
+  revokeDelegation(delegationId: string): void {
+    const currentUser = this.currentUser();
+    if (!currentUser) throw new Error("Unauthorized.");
+
+    if (currentUser.baseRole === 'technician') {
+       alert("API ERROR: Technicians cannot revoke delegations.");
+       throw new Error("Unauthorized");
+    }
+
+    for (const user of Object.values(DEMO_USERS)) {
+      if (user.delegatedProducts) {
+        for (const dp of user.delegatedProducts) {
+          if (dp.id === delegationId) {
+            dp.status = 'revoked';
+          }
+        }
+      }
+    }
+  }
+
+  getActiveDelegations(): any[] {
+    const delegationsMap = new Map<string, any>();
+    
+    for (const user of Object.values(DEMO_USERS)) {
+      if (user.delegatedProducts) {
+        for (const dp of user.delegatedProducts) {
+          if (dp.status === 'active') {
+            if (dp.validUntil && new Date(dp.validUntil) < new Date()) {
+               dp.status = 'revoked';
+               continue;
+            }
+            const id = dp.id || `DEL-${this.generateUUID()}`;
+            if (!delegationsMap.has(id)) {
+              delegationsMap.set(id, {
+                id,
+                user: user.name,
+                products: new Set([dp.productId]),
+                validUntil: dp.validUntil
+              });
+            } else {
+              delegationsMap.get(id).products.add(dp.productId);
+            }
+          }
+        }
+      }
+    }
+    
+    return Array.from(delegationsMap.values()).map(d => ({
+      ...d,
+      products: Array.from(d.products)
+    }));
   }
 
   getUser(employeeId: string): Partial<User> | undefined {
