@@ -67,7 +67,7 @@
           <div class="user-name">{{ u.name }}</div>
           <div class="user-role">{{ u.roleLabel }}</div>
         </div>
-        <span class="material-symbols-outlined user-settings">settings</span>
+        <span class="material-symbols-outlined user-settings" title="Logout" (click)="logout()" style="cursor:pointer; margin-left:auto;">logout</span>
       </div>
     </div>
   </aside>
@@ -77,9 +77,9 @@
     <!-- Topbar -->
     <header class="topbar">
       <div class="topbar-breadcrumb" aria-label="Breadcrumb">
-        <span class="crumb-muted">Overview</span>
+        <span class="crumb-muted">{{ currentSection() }}</span>
         <span class="topbar-sep" aria-hidden="true">›</span>
-        <span class="current">Dashboard</span>
+        <span class="current">{{ currentTitle() }}</span>
       </div>
 
       <div class="topbar-search">

@@ -1,232 +1,308 @@
 <div class="pm-assign-page overflow-y-auto h-full">
 
+  <div class="page-header" data-enter>
+    <div>
+      <h1 class="page-title">Assign PM</h1>
+      <p class="page-sub">Assign work orders and manage temporary permissions</p>
+    </div>
+  </div>
 
-      <div class="page-header" data-enter>
-        <div>
-          <h1 class="page-title">Assign PM</h1>
-          <p class="page-sub">Assign work orders and manage temporary permissions · <span data-last-updated></span></p>
+  <div style="display:flex; align-items:flex-end; justify-content:space-between; border-bottom:1px solid var(--border-soft); margin-bottom:20px;" data-enter>
+    <div class="tabs" style="border-bottom:none; margin-bottom:0;">
+      <button class="tab-btn" [class.active]="activeTab === 'unassigned'" (click)="activeTab = 'unassigned'">Unassigned PMs</button>
+      <button class="tab-btn" [class.active]="activeTab === 'assigned'" (click)="activeTab = 'assigned'">Assigned PMs</button>
+      <button class="tab-btn" [class.active]="activeTab === 'delegation'" (click)="activeTab = 'delegation'">Temporary Permissions</button>
+    </div>
+    
+    <!-- Show filter only on assignment tabs -->
+    <div *ngIf="activeTab === 'unassigned' || activeTab === 'assigned'" style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+      <div style="font-size:13px; font-weight:600; color:var(--text-secondary); white-space:nowrap;">Department Filter:</div>
+      <div class="c-dropdown" [class.open]="deptDropdownOpen" (click)="toggleDropdown('dept', $event)" style="flex-shrink:0;" *ngIf="canChangeDept">
+        <div class="c-dropdown-trigger" style="width:180px;">
+          <span>{{ deptFilter() }}</span>
+          <span class="material-symbols-outlined">expand_more</span>
+        </div>
+        <div class="c-dropdown-menu" *ngIf="deptDropdownOpen">
+          <div class="c-dropdown-item" (click)="deptFilter.set('All')">All Departments</div>
+          <div class="c-dropdown-item" (click)="deptFilter.set('Facility')">Facility</div>
+          <div class="c-dropdown-item" (click)="deptFilter.set('Mechanic')">Mechanic</div>
+          <div class="c-dropdown-item" (click)="deptFilter.set('Manufacturing')">Manufacturing</div>
+          <div class="c-dropdown-item" (click)="deptFilter.set('Maintenance')">Maintenance</div>
+          <div class="c-dropdown-item" (click)="deptFilter.set('Test')">Test</div>
         </div>
       </div>
-
-      <div class="tabs" data-enter>
-        <button class="tab-btn" [class.active]="activeTab === 'unassigned'" (click)="activeTab = 'unassigned'">Unassigned PMs</button>
-        <button class="tab-btn" [class.active]="activeTab === 'assigned'" (click)="activeTab = 'assigned'">Assigned PMs</button>
-        <button class="tab-btn" [class.active]="activeTab === 'delegation'" (click)="activeTab = 'delegation'">Temporary Permissions</button>
+      <div *ngIf="!canChangeDept" style="padding: 6px 14px; background: var(--color-bg-page); border: 1px solid var(--color-border-soft); border-radius: var(--radius-md); color: var(--color-text-primary); font-weight: 600; font-size: 13px;">
+        {{ deptFilter() }}
       </div>
+    </div>
+  </div>
 
-      <!-- TAB: UNASSIGNED PMS -->
-      <div class="tab-content" [class.active]="activeTab === 'unassigned'">
-        <div class="bulk-bar" id="bulkBar">
-          <span class="material-symbols-outlined" style="color:var(--blue);">checklist</span>
-          <span id="bulkCount">0 selected</span>
-          <select class="assignee-select" id="bulkAssignee">
-            <option value="">Assign all to…</option>
-          </select>
-          <button class="btn btn-primary" id="bulkAssignBtn" style="padding:6px 14px;font-size:12px;">
-            <span class="material-symbols-outlined">person_add</span>Assign Selected
+  <!-- TAB: UNASSIGNED PMS -->
+  <div class="tab-content" [class.active]="activeTab === 'unassigned'">
+    <div class="assign-toolbar" *ngIf="selectedTasks().size > 0" style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+      <div style="display:flex; align-items:center; gap:16px;">
+        <div class="bulk-bar" style="display:flex; align-items:center; gap:12px; background:var(--blue-light); padding:8px 16px; border-radius:var(--r-lg); border:1px solid rgba(26,86,219,0.2); flex-wrap:nowrap;">
+          <span class="material-symbols-outlined" style="color:var(--blue); flex-shrink:0;">checklist</span>
+          <span style="font-weight:600; color:var(--blue-text); font-size:13px; white-space:nowrap; flex-shrink:0;">{{ selectedTasks().size }} selected</span>
+          <div class="c-dropdown" [class.open]="bulkDropdownOpen" (click)="toggleDropdown('bulk', $event)" style="flex-shrink:0;">
+            <div class="c-dropdown-trigger" style="height:32px; width:180px; background:white; flex-shrink:0; display:flex; align-items:center;">
+              <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:left; max-width:130px; display:inline-block;">{{ bulkAssignee() || 'Assign all to...' }}</span>
+              <span class="material-symbols-outlined" style="flex-shrink:0; margin-left:auto;">expand_more</span>
+            </div>
+            <div class="c-dropdown-menu" *ngIf="bulkDropdownOpen">
+              <div class="c-dropdown-item" (click)="bulkAssignee.set('')">Select technician...</div>
+              <div class="c-dropdown-item" *ngFor="let t of technicians()" (click)="bulkAssignee.set(t)">{{ t }}</div>
+            </div>
+          </div>
+          <button class="btn btn-primary" style="padding:0 16px; height:32px; white-space:nowrap; flex-shrink:0; display:inline-flex; align-items:center; justify-content:center; gap:6px;" (click)="openBulkAssignModal()">
+            <span class="material-symbols-outlined" style="font-size:18px; line-height:1;">person_add</span>
+            <span style="font-size:13px; font-weight:600; line-height:1;">Assign Selected</span>
           </button>
         </div>
-
-        <div class="assign-toolbar" id="mgrToolbar" style="display:none; align-items:center; justify-content:space-between; margin-top:20px;">
-          <div style="font-size:13px; font-weight:600; color:var(--text-secondary);">Department View (Manager Only)</div>
-          <select class="form-select" id="deptFilter" style="width:200px; background-color:white;">
-            <option value="All">All Departments</option>
-            <option value="Facility">Facility</option>
-            <option value="Mechanic">Mechanic</option>
-            <option value="Manufacturing">Manufacturing</option>
-            <option value="Maintenance">Maintenance</option>
-            <option value="Test">Test</option>
-          </select>
-        </div>
-
-        <div class="card" data-enter>
-          <div class="card-header">
-            <div class="card-title">Unassigned PM Work Orders</div>
-            <div style="display:flex;align-items:center;gap:8px;">
-              <input type="checkbox" class="assign-checkbox" id="selectAll" title="Select all"/>
-              <span style="font-size:12px;color:var(--text-muted);">Select all</span>
-            </div>
-          </div>
-          <div style="overflow:hidden;border-radius:0 0 var(--r-xl) var(--r-xl);">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th style="width:40px;"></th>
-                  <th>PM ID</th>
-                  <th>Product & Dept</th>
-
-                  <th>Asset</th>
-                  <th>Type</th>
-                  <th>Due Date</th>
-                  <th>Assign To</th>
-                </tr>
-              </thead>
-              <tbody>
-    <tr *ngFor="let task of pendingTasks()">
-      <td><input type="checkbox" class="assign-checkbox"/></td>
-      <td><span class="mono" style="color:var(--blue);font-weight:600;">{{ task.id }}</span></td>
-      <td>
-        <div style="font-weight:600;color:var(--text-primary);">{{ task.productId }}</div>
-        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;">{{ task.department }}</div>
-      </td>
-      <td>
-        <div style="font-weight:500;">{{ task.title }}</div>
-        <div style="font-size:11px;color:var(--text-muted);">{{ task.assetId }}</div>
-      </td>
-      <td><span class="badge badge-info">{{ task.frequency }}</span></td>
-      <td style="color:var(--error-mid);font-weight:600;font-size:12px;">{{ task.nextDueDate | date:'MMM d, yyyy' }}</td>
-      <td>
-        <div style="display:flex;align-items:center;gap:6px;">
-          <select class="assignee-select" [(ngModel)]="selectedTech[task.id]">
-            <option value="">Select Tech…</option>
-            <option *ngFor="let tech of technicians" [value]="tech">{{ tech }}</option>
-          </select>
-          <button class="btn btn-primary" style="padding:4px 8px;font-size:11px;" (click)="assignTask(task)">Assign</button>
-        </div>
-      </td>
-    </tr>
-    <tr *ngIf="pendingTasks().length === 0">
-      <td colspan="7" style="text-align:center;padding:20px;color:var(--text-muted);">No unassigned tasks found.</td>
-    </tr>
-    </tbody>
-            </table>
-          </div>
-        </div>
       </div>
+    </div>
 
-      <!-- TAB: ASSIGNED PMS -->
-      <div class="tab-content" [class.active]="activeTab === 'assigned'">
-        <div class="assign-toolbar" id="assignedToolbar" style="display:none; align-items:center; justify-content:space-between; margin-bottom:20px;">
-          <div style="font-size:13px; font-weight:600; color:var(--text-secondary);">Department View (Manager Only)</div>
-          <select class="form-select" id="assignedDeptFilter" style="width:200px; background-color:white;">
-            <option value="All">All Departments</option>
-            <option value="Facility">Facility</option>
-            <option value="Mechanic">Mechanic</option>
-            <option value="Manufacturing">Manufacturing</option>
-            <option value="Maintenance">Maintenance</option>
-            <option value="Test">Test</option>
-          </select>
-        </div>
-
-        <div class="card" data-enter>
-          <div class="card-header">
-            <div class="card-title">Assigned PM Work Orders</div>
-          </div>
-          <div style="overflow:hidden;border-radius:0 0 var(--r-xl) var(--r-xl);">
-            <table class="data-table">
-              <thead>
-                <tr id="assignedHeaderRow">
-                  <th>PM ID</th>
-                  <th>Product & Dept</th>
-                  <th>Asset</th>
-                  <th>Type</th>
-                  <th>Due Date</th>
-                  <th>Assigned To</th>
-                  <th>Assigned By</th>
-                </tr>
-              </thead>
-              <tbody>
-    <tr *ngFor="let task of allTasks()">
-      <ng-container *ngIf="task.status !== 'Pending'">
-        <td><span class="mono" style="color:var(--blue);font-weight:600;">{{ task.id }}</span></td>
-        <td>
-          <div style="font-weight:600;color:var(--text-primary);">{{ task.productId }}</div>
-          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;">{{ task.department }}</div>
-        </td>
-        <td>
-          <div style="font-weight:500;">{{ task.title }}</div>
-          <div style="font-size:11px;color:var(--text-muted);">{{ task.assetId }}</div>
-        </td>
-        <td><span class="badge badge-info">{{ task.frequency }}</span></td>
-        <td style="color:var(--text-secondary);font-weight:500;font-size:12px;">{{ task.nextDueDate | date:'MMM d, yyyy' }}</td>
-        <td>
-          <div style="display:flex;align-items:center;gap:8px;">
-            <div style="width:24px;height:24px;border-radius:50%;background:var(--blue-light);color:var(--blue-text);display:grid;place-items:center;font-size:10px;font-weight:700;">{{ task.assignedTo?.substring(0,1) || 'U' }}</div>
-            <span style="font-weight:600;color:var(--text-primary);">{{ task.assignedTo || 'Unassigned' }}</span>
-          </div>
-        </td>
-        <td style="color:var(--text-muted);font-size:12px;">System</td>
-      </ng-container>
-    </tr>
-    </tbody>
-            </table>
-          </div>
-        </div>
+    <div class="card" data-enter>
+      <div class="card-header">
+        <div class="card-title">Unassigned PM Work Orders</div>
       </div>
-
-      <!-- TAB: TEMPORARY PERMISSIONS -->
-      <div class="tab-content" [class.active]="activeTab === 'delegation'">
-        <div class="create-grid">
-          <!-- Left: Form -->
-          <div class="card" data-enter>
-            <div class="card-header"><div class="card-title">Grant Temporary Access</div></div>
-            <div class="card-body" style="display:flex;flex-direction:column;gap:16px;">
-              
-              <!-- Multi-select Users -->
-              <div class="form-group">
-                <label class="form-label">Target User(s)</label>
-                <div class="multi-select-wrap">
-                  <button type="button" class="multi-select-btn" id="userMultiBtn">Select users...</button>
-                  <div class="multi-select-panel" id="userMultiPanel">
-                    <div class="multi-select-actions">
-                      <button type="button" class="multi-select-action-btn" onclick="selectAll('userMultiPanel', true, 'userMultiBtn', 'users')">Select All</button>
-                      <button type="button" class="multi-select-action-btn" onclick="selectAll('userMultiPanel', false, 'userMultiBtn', 'users')">Clear</button>
+      <div style="overflow:visible;border-radius:0 0 var(--r-xl) var(--r-xl);">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th style="width:40px;"><input type="checkbox" class="assign-checkbox" (change)="toggleAllSelection($event)" [checked]="selectedTasks().size === pendingTasks().length && pendingTasks().length > 0"/></th>
+              <th>PM ID</th>
+              <th>Product & Dept</th>
+              <th>Asset</th>
+              <th>Type</th>
+              <th>Due Date</th>
+              <th>Assign To</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let task of pendingTasks()" [class.selected-row]="selectedTasks().has(task.id)">
+              <td><input type="checkbox" class="assign-checkbox" [checked]="selectedTasks().has(task.id)" (change)="toggleSelection(task.id)"/></td>
+              <td><span class="mono" style="color:var(--blue);font-weight:600;">{{ task.id }}</span></td>
+              <td>
+                <div style="font-weight:600;color:var(--text-primary);">{{ task.productId }}</div>
+                <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;">{{ task.department }}</div>
+              </td>
+              <td>
+                <div style="font-weight:500;">{{ task.title }}</div>
+                <div style="font-size:11px;color:var(--text-muted);">{{ task.assetId }}</div>
+              </td>
+              <td><span class="badge badge-info">{{ task.frequency }}</span></td>
+              <td style="color:var(--error-mid);font-weight:600;font-size:12px;">{{ task.nextDueDate | date:'MMM d, yyyy' }}</td>
+              <td>
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <div class="c-dropdown form-dropdown" [class.open]="techDropdownOpen[task.id]" (click)="techDropdownOpen[task.id] = !techDropdownOpen[task.id]; $event.stopPropagation();" style="width:140px;">
+                    <div class="c-dropdown-trigger" style="height:32px; width:100%; background:white; display:flex; align-items:center; padding:6px 10px;">
+                      <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100px; display:inline-block; text-align:left;">{{ selectedTech[task.id] || 'Select Tech...' }}</span>
+                      <span class="material-symbols-outlined" style="margin-left:auto; flex-shrink:0;">expand_more</span>
                     </div>
-                    <div id="userMultiOptions"></div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Multi-select Products -->
-              <div class="form-group">
-                <label class="form-label">Product(s) / Asset Scope</label>
-                <div class="multi-select-wrap">
-                  <button type="button" class="multi-select-btn" id="prodMultiBtn">Select products...</button>
-                  <div class="multi-select-panel" id="prodMultiPanel">
-                    <div class="multi-select-actions">
-                      <button type="button" class="multi-select-action-btn" onclick="selectAll('prodMultiPanel', true, 'prodMultiBtn', 'products')">Select All</button>
-                      <button type="button" class="multi-select-action-btn" onclick="selectAll('prodMultiPanel', false, 'prodMultiBtn', 'products')">Clear</button>
+                    <div class="c-dropdown-menu" *ngIf="techDropdownOpen[task.id]">
+                      <div class="c-dropdown-item" (click)="selectedTech[task.id] = ''">Select Tech...</div>
+                      <div class="c-dropdown-item" *ngFor="let tech of technicians()" (click)="selectedTech[task.id] = tech">{{ tech }}</div>
                     </div>
-                    <div id="prodMultiOptions"></div>
                   </div>
+                  <button class="btn btn-primary" style="padding:4px 8px;font-size:11px; height:32px;" (click)="assignTask(task)">Assign</button>
                 </div>
-              </div>
+              </td>
+            </tr>
+            <tr *ngIf="pendingTasks().length === 0">
+              <td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted);">
+                <div class="empty-state">
+                  <span class="material-symbols-outlined">assignment_turned_in</span>
+                  <p>All tasks are assigned!</p>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 
-              <div class="form-group">
-                <label class="form-label">Duration (Days)</label>
-                <input type="number" class="form-input" id="delDuration" value="30" min="1" max="365" />
-              </div>
-              <button class="btn btn-primary" id="grantBtn" style="margin-top:8px;">
-                <span class="material-symbols-outlined">key</span>Grant Access
-              </button>
-            </div>
-          </div>
+  <!-- TAB: ASSIGNED PMS -->
+  <div class="tab-content" [class.active]="activeTab === 'assigned'">
+
+    <div class="card" data-enter>
+      <div class="card-header">
+        <div class="card-title">Assigned PM Work Orders</div>
+      </div>
+      <div style="overflow:hidden;border-radius:0 0 var(--r-xl) var(--r-xl);">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>PM ID</th>
+              <th>Product & Dept</th>
+              <th>Asset</th>
+              <th>Type</th>
+              <th>Due Date</th>
+              <th>Assigned To</th>
+              <th>Assigned By</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let task of assignedTasks()">
+              <td><span class="mono" style="color:var(--blue);font-weight:600;">{{ task.id }}</span></td>
+              <td>
+                <div style="font-weight:600;color:var(--text-primary);">{{ task.productId }}</div>
+                <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;">{{ task.department }}</div>
+              </td>
+              <td>
+                <div style="font-weight:500;">{{ task.title }}</div>
+                <div style="font-size:11px;color:var(--text-muted);">{{ task.assetId }}</div>
+              </td>
+              <td><span class="badge badge-info">{{ task.frequency }}</span></td>
+              <td style="color:var(--text-secondary);font-weight:500;font-size:12px;">{{ task.nextDueDate | date:'MMM d, yyyy' }}</td>
+              <td>
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <div style="width:24px;height:24px;border-radius:50%;background:var(--blue-light);color:var(--blue-text);display:grid;place-items:center;font-size:10px;font-weight:700;">{{ task.assignedTo?.substring(0,1) || 'U' }}</div>
+                  <span style="font-weight:600;color:var(--text-primary);">{{ task.assignedTo || 'Unassigned' }}</span>
+                </div>
+              </td>
+              <td style="color:var(--text-muted);font-size:12px;">System</td>
+            </tr>
+            <tr *ngIf="assignedTasks().length === 0">
+              <td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted);">
+                <div class="empty-state">
+                  <span class="material-symbols-outlined">inbox</span>
+                  <p>No assigned tasks match the criteria.</p>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: TEMPORARY PERMISSIONS -->
+  <div class="tab-content" [class.active]="activeTab === 'delegation'">
+    <div class="create-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+      
+      <!-- Left: Form -->
+      <div class="card" data-enter>
+        <div class="card-header"><div class="card-title">Grant Temporary Access</div></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:16px;">
           
-          <!-- Right: Active delegations table -->
-          <div class="card" data-enter>
-            <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
-              <div class="card-title">Active Delegations</div>
-              <button class="btn-lexus" id="bulkRevokeBtn" style="display:none;">REVOKE <span class="count" id="bulkRevokeCount">0</span> SELECTED</button>
+          <div class="form-group">
+            <label class="form-label">Target User</label>
+            <div class="c-dropdown form-dropdown" [class.open]="delegationUserDropdownOpen" (click)="toggleDropdown('delegationUser', $event)">
+              <div class="c-dropdown-trigger" style="width:100%; height:36px; background:white; display:flex; align-items:center;">
+                <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:inline-block; max-width:90%; text-align:left;">{{ newDelegationUsers().length ? newDelegationUsers().length + ' selected' : 'Select users...' }}</span>
+                <span class="material-symbols-outlined" style="margin-left:auto; flex-shrink:0;">expand_more</span>
+              </div>
+              <div class="c-dropdown-menu" *ngIf="delegationUserDropdownOpen" (click)="$event.stopPropagation();">
+                <div class="c-dropdown-item" (click)="toggleAllDelegationUsers()" style="display:flex; align-items:center; gap:8px; border-bottom:1px solid var(--border-soft); margin-bottom:4px; padding-bottom:10px;">
+                  <input type="checkbox" [checked]="newDelegationUsers().length === technicians().length" style="pointer-events:none; accent-color:var(--blue); width:14px; height:14px; margin:0;">
+                  <span style="font-family:var(--font-sans); font-size:13px; font-weight:600;">Select All</span>
+                </div>
+                <div class="c-dropdown-item" *ngFor="let t of technicians()" (click)="toggleDelegationUser(t)" style="display:flex; align-items:center; gap:8px;">
+                  <input type="checkbox" [checked]="newDelegationUsers().includes(t)" style="pointer-events:none; accent-color:var(--blue); width:14px; height:14px; margin:0;">
+                  <span style="font-family:var(--font-sans); font-size:13px;">{{ t }}</span>
+                </div>
+              </div>
             </div>
-            <div style="overflow:auto;border-radius:0 0 var(--r-xl) var(--r-xl);max-height:400px;">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th style="width:40px;"><input type="checkbox" class="assign-checkbox" id="selectAllDelegations" title="Select all" /></th>
-                    <th>User</th>
-                    <th>Product</th>
-                    <th>Valid Until</th>
-                    <th style="text-align:right;">Action</th>
-                  </tr>
-                </thead>
-                <tbody id="delegationsTable">
-                  <!-- Populated by JS -->
-                </tbody>
-              </table>
+            <div class="tag-list" style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;" *ngIf="newDelegationUsers().length > 0">
+              <span class="part-tag" style="display:inline-flex; align-items:center; gap:4px; padding:4px 10px; background:var(--blue-light); color:var(--blue-text); border-radius:20px; font-size:12px; font-weight:600;" *ngFor="let u of newDelegationUsers(); let i = index">
+                {{ u }} <button style="background:none; border:none; cursor:pointer; color:var(--blue-text); display:flex; align-items:center; padding:0; font-size:14px; line-height:1;" (click)="removeDelegationUser(i)">×</button>
+              </span>
             </div>
           </div>
+
+          <div class="form-group">
+            <label class="form-label">Product / Asset Scope</label>
+            <div class="c-dropdown form-dropdown" [class.open]="delegationProductDropdownOpen" (click)="toggleDropdown('delegationProduct', $event)">
+              <div class="c-dropdown-trigger" style="width:100%; height:36px; background:white; display:flex; align-items:center;">
+                <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:inline-block; max-width:90%; text-align:left;">{{ newDelegationProducts().length ? newDelegationProducts().length + ' selected' : 'Select products...' }}</span>
+                <span class="material-symbols-outlined" style="margin-left:auto; flex-shrink:0;">expand_more</span>
+              </div>
+              <div class="c-dropdown-menu" *ngIf="delegationProductDropdownOpen" (click)="$event.stopPropagation();">
+                <div class="c-dropdown-item" (click)="toggleAllDelegationProducts()" style="display:flex; align-items:center; gap:8px; border-bottom:1px solid var(--border-soft); margin-bottom:4px; padding-bottom:10px;">
+                  <input type="checkbox" [checked]="newDelegationProducts().length === products().length" style="pointer-events:none; accent-color:var(--blue); width:14px; height:14px; margin:0;">
+                  <span style="font-family:var(--font-sans); font-size:13px; font-weight:600;">Select All</span>
+                </div>
+                <div class="c-dropdown-item" *ngFor="let p of products()" (click)="toggleDelegationProduct(p)" style="display:flex; align-items:center; gap:8px;">
+                  <input type="checkbox" [checked]="newDelegationProducts().includes(p)" style="pointer-events:none; accent-color:var(--blue); width:14px; height:14px; margin:0;">
+                  <span style="font-family:var(--font-sans); font-size:13px;">{{ p }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="tag-list" style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;" *ngIf="newDelegationProducts().length > 0">
+              <span class="part-tag" style="display:inline-flex; align-items:center; gap:4px; padding:4px 10px; background:var(--blue-light); color:var(--blue-text); border-radius:20px; font-size:12px; font-weight:600;" *ngFor="let p of newDelegationProducts(); let i = index">
+                {{ p }} <button style="background:none; border:none; cursor:pointer; color:var(--blue-text); display:flex; align-items:center; padding:0; font-size:14px; line-height:1;" (click)="removeDelegationProduct(i)">×</button>
+              </span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Duration (Days)</label>
+            <input type="number" class="form-input" style="background:white; border: 1px solid var(--border-strong);" [ngModel]="newDelegationDuration()" (ngModelChange)="newDelegationDuration.set($event)" min="1" max="365" />
+          </div>
+          <button class="btn btn-primary" (click)="grantDelegation()" style="margin-top:8px;">
+            <span class="material-symbols-outlined">key</span>Grant Access
+          </button>
         </div>
       </div>
+      
+      <!-- Right: Active delegations table -->
+      <div class="card" data-enter>
+        <div class="card-header">
+          <div class="card-title">Active Delegations</div>
+        </div>
+        <div style="overflow:auto;border-radius:0 0 var(--r-xl) var(--r-xl);max-height:400px;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>User</th>
+                <th>Product</th>
+                <th>Valid Until</th>
+                <th style="text-align:right;">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let del of delegations()">
+                <td><span style="font-weight:600;color:var(--text-primary);">{{ del.user }}</span></td>
+                <td>
+              <div style="display:flex; gap:4px; flex-wrap:wrap;">
+                <span class="badge badge-neutral" *ngFor="let p of del.products">{{ p }}</span>
+              </div>
+            </td>
+                <td style="color:var(--text-secondary);font-size:12px;">{{ del.validUntil | date:'MMM d, yyyy' }}</td>
+                <td style="text-align:right;">
+                  <button class="btn btn-ghost" style="color:var(--error-mid); padding:4px 8px; font-size:11px;" (click)="revokeDelegation(del.id)">Revoke</button>
+                </td>
+              </tr>
+              <tr *ngIf="delegations().length === 0">
+                <td colspan="4" style="text-align:center;padding:40px;color:var(--text-muted);">
+                  <div class="empty-state">
+                    <span class="material-symbols-outlined">lock_open</span>
+                    <p>No active delegations.</p>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
 
-    
+  <!-- MODERN BULK ASSIGN CONFIRMATION MODAL -->
+  <div class="modal-overlay" [class.open]="showBulkModal()"></div>
+  <div class="template-modal" [class.open]="showBulkModal()">
+    <div class="modal-header">
+      <div>
+        <h2 class="modal-title">Confirm Assignment</h2>
+        <p class="modal-sub">You are assigning {{ selectedTasks().size }} tasks to <strong style="color:var(--text-primary);">{{ bulkAssignee() }}</strong>.</p>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px; margin-top:24px;">
+      <button class="btn btn-primary" style="flex:1; justify-content:center;" (click)="confirmBulkAssign()">Confirm</button>
+      <button class="btn btn-ghost" style="flex:1; justify-content:center;" (click)="showBulkModal.set(false)">Cancel</button>
+    </div>
+  </div>
+
 </div>

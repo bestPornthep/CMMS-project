@@ -3,13 +3,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { PmService } from '../../core/services/pm.service';
-import { PMTask, PMTaskFrequency, PMTaskStatus } from '../../core/models/pm.model';
-
-interface Template {
-  name: string;
-  department: string;
-  checklist: string[];
-}
+import { AuthService } from '../../core/services/auth.service';
+import { PMTask, PMTaskFrequency, PMTaskStatus, Template } from '../../core/models/pm.model';
 
 @Component({
   selector: 'app-pm-create',
@@ -20,6 +15,7 @@ interface Template {
 })
 export class PmCreateComponent {
   private pmService = inject(PmService);
+  private authService = inject(AuthService);
   private router = inject(Router);
 
   // Form Model
@@ -27,9 +23,22 @@ export class PmCreateComponent {
   productId: string = '';
   department: string = '';
   assetId: string = '';
-  dueDate: string = '';
   estimatedHours: number = 2.5;
   description: string = '';
+
+  // Expose auth service properties for UI
+  get currentUser() { return this.authService.currentUser(); }
+  get canChangeDept() {
+    const role = this.currentUser?.baseRole;
+    return role === 'admin' || role === 'manager';
+  }
+
+  constructor() {
+    // Auto-assign department for Eng/Tech
+    if (!this.canChangeDept && this.currentUser?.department) {
+      this.department = this.currentUser.department;
+    }
+  }
 
   // Dynamic Lists
   checklist = signal<string[]>(['Inspect bearing assembly', 'Check lubrication levels', 'Test pressure relief valve']);
@@ -42,7 +51,11 @@ export class PmCreateComponent {
   showSaveTemplateModal = false;
   showManageTemplateModal = false;
   newTemplateName = '';
-  templates = signal<Template[]>([]);
+  templates = computed(() => {
+    const all = this.pmService.templates();
+    if (this.canChangeDept) return all;
+    return all.filter(t => t.department === 'All' || t.department === this.currentUser?.department);
+  });
   dropdownOpen = false;
   
   openDropdown: string | null = null;
@@ -65,7 +78,7 @@ export class PmCreateComponent {
   selectPart(p: string) { this.selectedPart = p; }
 
   // Options
-  products = ['CUST-001', 'CUST-002', 'CUST-003', 'CUST-004', 'CUST-005', 'CUST-006'];
+  products = computed(() => this.authService.getAccessibleProducts('pm.create.submit'));
   departments = ['Facility', 'Mechanic', 'Manufacturing', 'Maintenance', 'Test'];
   availableParts = ['Bearing Assembly 6205', 'Filter Element HF-04', 'Seal Kit SK-22', 'Lubricant SAE-30 (1L)', 'Drive Belt B-440', 'O-Ring Set OR-12'];
   
@@ -108,7 +121,8 @@ export class PmCreateComponent {
   }
 
   // Template Methods
-  toggleDropdown() {
+  toggleDropdown(event: Event) {
+    event.stopPropagation();
     this.dropdownOpen = !this.dropdownOpen;
   }
 
@@ -119,18 +133,18 @@ export class PmCreateComponent {
 
   saveTemplate() {
     if (!this.newTemplateName.trim()) return;
-    this.templates.update(t => [...t, {
+    this.pmService.saveTemplate({
       name: this.newTemplateName,
       department: this.department || 'All',
       checklist: [...this.checklist()]
-    }]);
+    });
     this.showSaveTemplateModal = false;
     this.showManageTemplateModal = false;
     this.newTemplateName = '';
   }
 
-  deleteTemplate(index: number) {
-    this.templates.update(t => t.filter((_, i) => i !== index));
+  deleteTemplate(tpl: Template) {
+    this.pmService.deleteTemplate(tpl);
   }
 
   // Submit
@@ -142,6 +156,15 @@ export class PmCreateComponent {
 
     const selectedAsset = this.pmService.assets().find(a => a.id === this.assetId);
     
+    const nextDueDate = new Date();
+    switch(this.pmType) {
+      case 'Daily': nextDueDate.setDate(nextDueDate.getDate() + 1); break;
+      case 'Weekly': nextDueDate.setDate(nextDueDate.getDate() + 7); break;
+      case 'Monthly': nextDueDate.setDate(nextDueDate.getDate() + 30); break;
+      case 'Quarterly': nextDueDate.setDate(nextDueDate.getDate() + 90); break;
+      case 'Yearly': nextDueDate.setDate(nextDueDate.getDate() + 365); break;
+    }
+
     this.pmService.addPmTask({
       productId: this.productId,
       department: this.department,
@@ -149,11 +172,12 @@ export class PmCreateComponent {
       title: selectedAsset?.name || 'New Asset PM',
       description: this.description,
       frequency: this.pmType,
-      nextDueDate: this.dueDate ? new Date(this.dueDate) : new Date(),
+      nextDueDate: nextDueDate,
       estimatedHours: this.estimatedHours,
       status: 'Pending' as PMTaskStatus,
       createdBy: 'CURRENT-USER',
-      checklist: this.checklist().map(text => ({ text, done: false }))
+      checklist: this.checklist().map(text => ({ text, done: false })),
+      partsRequired: [...this.parts()]
     });
 
     this.router.navigate(['/pm-assign']);

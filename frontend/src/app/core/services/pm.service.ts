@@ -1,8 +1,9 @@
 import { Injectable, signal, computed } from '@angular/core';
-import { Asset, PMTask, PMTaskFrequency, PMTaskStatus } from '../models/pm.model';
+import { Asset, PMTask, PMTaskFrequency, PMTaskStatus, Template } from '../models/pm.model';
 
 const DB_KEY = 'assetintel_pm_db_v_ng';
 const SEED_FLAG = 'assetintel_pm_seeded_v_ng';
+const TEMPLATE_DB_KEY = 'assetintel_pm_templates_v_ng';
 
 @Injectable({
   providedIn: 'root'
@@ -10,9 +11,11 @@ const SEED_FLAG = 'assetintel_pm_seeded_v_ng';
 export class PmService {
   private assetsSignal = signal<Asset[]>(this.initializeAssets());
   private pmTasksSignal = signal<PMTask[]>([]);
+  private templatesSignal = signal<Template[]>([]);
 
   readonly assets = computed(() => this.assetsSignal());
   readonly pmTasks = computed(() => this.pmTasksSignal());
+  readonly templates = computed(() => this.templatesSignal());
 
   constructor() {
     this.seedIfNeeded();
@@ -171,6 +174,13 @@ export class PmService {
     } catch {
       this.pmTasksSignal.set([]);
     }
+
+    try {
+      const tplData = localStorage.getItem(TEMPLATE_DB_KEY);
+      if (tplData) {
+        this.templatesSignal.set(JSON.parse(tplData));
+      }
+    } catch {}
   }
 
   private saveToStorage() {
@@ -197,5 +207,15 @@ export class PmService {
   deleteTask(id: string) {
     this.pmTasksSignal.update(tasks => tasks.filter(t => t.id !== id));
     this.saveToStorage();
+  }
+
+  saveTemplate(tpl: Template) {
+    this.templatesSignal.update(t => [...t, tpl]);
+    localStorage.setItem(TEMPLATE_DB_KEY, JSON.stringify(this.templatesSignal()));
+  }
+
+  deleteTemplate(tpl: Template) {
+    this.templatesSignal.update(t => t.filter(x => !(x.name === tpl.name && x.department === tpl.department)));
+    localStorage.setItem(TEMPLATE_DB_KEY, JSON.stringify(this.templatesSignal()));
   }
 }

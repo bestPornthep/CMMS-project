@@ -101,20 +101,77 @@ export class AuthService {
     localStorage.removeItem(AUTH_KEY);
   }
 
-  hasPermission(permission: string): boolean {
+  private readonly ROLE_DEFAULTS: Record<string, string[]> = {
+    technician: [
+      'pm.record.view',
+      'pm.record.submit',
+      'pm.calendar.view',
+    ],
+    engineer: [
+      'pm.create.view',
+      'pm.create.submit',
+      'pm.assign.view',
+      'pm.assign.submit',
+      'pm.record.view',
+      'pm.record.submit',
+      'pm.calendar.view',
+      'pm.reports.view',
+      'pm.audit.view',
+      'pm.reports.export',
+      'pm.permission.delegate',
+    ]
+  };
+
+  hasPermission(permission: string, productId?: string): boolean {
     const user = this.currentUser();
     if (!user) return false;
-    // Admins and Managers get full access
+    
+    // Admins and Managers get full access (legacy mapping)
     if (user.baseRole === 'admin' || user.baseRole === 'manager') return true;
     
-    // Engineers and Technicians get basic access (including assign for testing purposes right now)
-    const basicPerms = [
-      'pm.dashboard.view', 'pm.create.view', 'pm.assign.view', 
-      'pm.record.view', 'pm.calendar.view', 'pm.reports.view'
-    ];
-    if (basicPerms.includes(permission)) return true;
+    // Check base role defaults
+    if (user.baseRole && this.ROLE_DEFAULTS[user.baseRole]) {
+      if (this.ROLE_DEFAULTS[user.baseRole].includes(permission)) {
+        // If it's an engineer, ensure they own the product (or if no product specified, they just have the permission globally)
+        if (user.baseRole === 'engineer' && productId) {
+          return !!user.ownedProducts && (user.ownedProducts.includes('*') || user.ownedProducts.includes(productId));
+        }
+        return true;
+      }
+    }
+
+    // Check delegations (Technicians)
+    if (user.baseRole === 'technician' && user.delegatedProducts?.length > 0) {
+      for (const dp of user.delegatedProducts) {
+        if (dp.status !== 'active') continue;
+        if (!dp.permissions?.includes(permission)) continue;
+
+        // If no specific product is queried, they have the permission generally
+        if (!productId) return true;
+        
+        // If product is specified, it must match
+        if (dp.productId === productId) return true;
+      }
+    }
 
     return user.permissions?.includes(permission) ?? false;
+  }
+
+  canDelegate(targetEmployeeId: string): boolean {
+    const user = this.currentUser();
+    if (!user) return false;
+
+    // Admin/Manager can cross sections and roles
+    if (user.baseRole === 'admin' || user.baseRole === 'manager') return true;
+
+    // Engineer can only delegate to Technicians in the exact same department
+    if (user.baseRole === 'engineer') {
+      const targetUser = this.getUser(targetEmployeeId);
+      if (!targetUser) return false;
+      return targetUser.baseRole === 'technician' && targetUser.department === user.department;
+    }
+
+    return false;
   }
 
   getUser(employeeId: string): Partial<User> | undefined {

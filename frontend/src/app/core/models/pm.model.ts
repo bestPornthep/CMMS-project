@@ -8,6 +8,12 @@ export interface Asset {
 export type PMTaskStatus = 'Pending' | 'In Progress' | 'Done' | 'Overdue';
 export type PMTaskFrequency = 'Daily' | 'Weekly' | 'Monthly' | 'Quarterly' | 'Yearly';
 
+export interface Template {
+  name: string;
+  department: string;
+  checklist: string[];
+}
+
 export interface PMTask {
     id: string;
     title: string;
@@ -21,6 +27,7 @@ export interface PMTask {
     productId?: string;
     department?: string;
     checklist?: { text: string; done: boolean }[];
+    partsRequired?: string[];
     
     // Execution details (merged from legacy WorkOrder)
     assignedTo?: string; // employeeId of assignee
