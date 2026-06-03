@@ -322,4 +322,9 @@
     .form-dropdown.open .c-dropdown-trigger { background: var(--bg-card); border-color: var(--blue); box-shadow: 0 0 0 4px rgba(26,86,219,0.1), var(--shadow-card); }
     
     tr.selected-row td { background: var(--blue-light) !important; }
+    
+    .ms-item { cursor: pointer; transition: background 0.2s var(--ease-out); }
+    .ms-item:hover { background: var(--bg-card-alt); }
+    .ms-checkbox { width: 16px; height: 16px; border: 1px solid #94A3B8; border-radius: 3px; display: flex; align-items: center; justify-content: center; background: white; transition: all 0.2s; }
+    .ms-checkbox.checked { background: var(--blue); border-color: var(--blue); }
 }

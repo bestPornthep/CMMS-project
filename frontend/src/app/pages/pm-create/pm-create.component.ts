@@ -104,7 +104,25 @@ export class PmCreateComponent {
     }
   }
   selectType(t: string) { this.pmType = t as PMTaskFrequency; }
-  selectPart(p: string) { this.selectedPart = p; }
+  
+  togglePart(part: string, event: Event) {
+    event.stopPropagation();
+    const current = this.parts();
+    if (current.includes(part)) {
+      this.parts.update(p => p.filter(x => x !== part));
+    } else {
+      this.parts.update(p => [...p, part]);
+    }
+  }
+
+  toggleAllParts(event: Event) {
+    event.stopPropagation();
+    if (this.parts().length === this.availableParts.length) {
+      this.parts.set([]);
+    } else {
+      this.parts.set([...this.availableParts]);
+    }
+  }
 
   // Options
   products = computed(() => this.authService.getAccessibleProducts('pm.create.submit'));

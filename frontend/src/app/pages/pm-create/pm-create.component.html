@@ -143,21 +143,37 @@
           <div style="display:flex;gap:8px;">
             <div class="c-dropdown form-dropdown" [class.open]="openDropdown === 'part'" (click)="toggleCustomDropdown('part', $event)" style="flex:1;">
               <div class="c-dropdown-trigger">
-                <input type="text" style="border:none; width:100%; box-shadow:none; background:transparent; outline:none; font-family:inherit; font-size:inherit; color:inherit; padding:0;" [(ngModel)]="selectedPart" name="selectedPart" placeholder="Select or type part..." (click)="$event.stopPropagation(); openDropdown = 'part'" />
+                <input type="text" style="border:none; width:100%; box-shadow:none; background:transparent; outline:none; font-family:inherit; font-size:inherit; color:inherit; padding:0;" [(ngModel)]="selectedPart" name="selectedPart" placeholder="Select or type part and press Enter..." (click)="$event.stopPropagation(); openDropdown = 'part'" (keyup.enter)="addPart()" />
                 <span class="material-symbols-outlined">expand_more</span>
               </div>
-              <div class="c-dropdown-menu">
-                <div class="c-dropdown-item" (click)="selectPart('')">Select part...</div>
-                <div class="c-dropdown-item" *ngFor="let part of availableParts" (click)="selectPart(part)">{{ part }}</div>
+              <div class="c-dropdown-menu" style="padding: 0; overflow: hidden;">
+                <div class="ms-item" (click)="toggleAllParts($event)" style="border-bottom: 1px solid var(--border-soft); padding: 12px 16px;">
+                  <div style="display:flex; align-items:center; gap: 12px;">
+                    <div class="ms-checkbox" [class.checked]="parts().length === availableParts.length && availableParts.length > 0">
+                       <span class="material-symbols-outlined" *ngIf="parts().length === availableParts.length && availableParts.length > 0" style="font-size: 14px; font-weight: bold; color: white;">check</span>
+                    </div>
+                    <span style="font-weight: 600; font-size: 13.5px; color: var(--text-primary);">Select All</span>
+                  </div>
+                </div>
+                <div style="padding: 6px 0; max-height: 200px; overflow-y: auto;">
+                  <div class="ms-item" *ngFor="let part of availableParts" (click)="togglePart(part, $event)" style="padding: 8px 16px;">
+                    <div style="display:flex; align-items:center; gap: 12px;">
+                      <div class="ms-checkbox" [class.checked]="parts().includes(part)">
+                         <span class="material-symbols-outlined" *ngIf="parts().includes(part)" style="font-size: 14px; font-weight: bold; color: white;">check</span>
+                      </div>
+                      <span style="font-size: 13px; color: var(--text-secondary);">{{ part }}</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-            <button class="btn btn-ghost" (click)="addPart()">
-              <span class="material-symbols-outlined">add</span>Add
-            </button>
           </div>
           <div class="tag-list">
             <span class="part-tag" *ngFor="let p of parts(); let i = index">
-              {{ p }} <button (click)="removePart(i)">×</button>
+              <span>{{ p }}</span> 
+              <button (click)="removePart(i)">
+                <span class="material-symbols-outlined" style="font-size: 14px; font-weight: bold;">close</span>
+              </button>
             </span>
           </div>
         </div>

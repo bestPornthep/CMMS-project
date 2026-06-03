@@ -293,5 +293,11 @@
     }
     .c-dropdown-item.empty { color: var(--text-muted); cursor: default; }
     .c-dropdown-item.empty:hover { background: none; color: var(--text-muted); padding-left: 12px; font-weight: inherit; }
+    
+    .ms-item { cursor: pointer; transition: background 0.2s var(--ease-out); }
+    .ms-item:hover { background: var(--bg-card-alt); }
+    .ms-checkbox { width: 16px; height: 16px; border: 1px solid #94A3B8; border-radius: 3px; display: flex; align-items: center; justify-content: center; background: white; transition: all 0.2s; }
+    .ms-checkbox.checked { background: var(--blue); border-color: var(--blue); }
+    
     @media(max-width:1023px){.create-grid{grid-template-columns:1fr;}}
 }
