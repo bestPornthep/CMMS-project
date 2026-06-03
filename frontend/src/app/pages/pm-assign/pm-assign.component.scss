@@ -134,8 +134,8 @@
     .card-action:hover{background:var(--blue-light);}
     /* Table */
     .data-table{width:100%;border-collapse:collapse;}
-    .data-table th{font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;padding:10px 16px;text-align:left;background:var(--bg-card-alt);border-bottom:1px solid var(--border);}
-    .data-table td{padding:11px 16px;border-bottom:1px solid var(--border-soft);vertical-align:middle;font-size:13px;}
+    .data-table th{font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;padding:10px 16px;text-align:center;background:var(--bg-card-alt);border-bottom:1px solid var(--border);}
+    .data-table td{padding:11px 16px;border-bottom:1px solid var(--border-soft);vertical-align:middle;font-size:13px;text-align:center;}
     .data-table tr:last-child td{border-bottom:none;}
     .data-table tbody tr{transition:background var(--dur-base) var(--ease-out);cursor:pointer;}
     .data-table tbody tr:hover td{background:var(--bg-card-alt);}
@@ -188,7 +188,7 @@
     .bulk-bar.show{display:flex;animation: fadeUp var(--dur-fast) var(--ease-out) forwards;}
 
     /* Tab Styles */
-    .tabs { display: flex; gap: 24px; border-bottom: 1px solid var(--border-soft); margin-bottom: 24px; }
+    .tabs { display: flex; gap: 24px; border-bottom: 1px solid var(--border-soft); margin-bottom: 24px; flex-wrap: wrap; }
     .tab-btn { background: none; border: none; font-family: var(--font-sans); font-size: 14px; font-weight: 600; color: var(--text-muted); padding: 0 0 12px 0; cursor: pointer; position: relative; transition: color var(--dur-fast) var(--ease-out); }
     .tab-btn:hover { color: var(--text-primary); }
     .tab-btn.active { color: var(--blue); }

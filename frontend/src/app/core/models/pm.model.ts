@@ -6,12 +6,12 @@ export interface Asset {
 }
 
 export type PMTaskStatus = 'Pending' | 'In Progress' | 'Pending Approval' | 'Done' | 'Overdue';
-export type PMTaskFrequency = 'Daily' | 'Weekly' | 'Monthly' | 'Quarterly' | 'Yearly';
+export type PMTaskFrequency = string; // E.g., 'Daily', 'Weekly', 'Monthly', 'Quarterly', 'Yearly', or custom like '4 month(s)'
 
 export interface Template {
   name: string;
   department: string;
-  checklist: string[];
+  checklist: { text: string; requiresPhoto?: boolean }[];
 }
 
 export interface PMTask {
@@ -27,7 +27,7 @@ export interface PMTask {
     
     productId?: string;
     department?: string;
-    checklist?: { text: string; done: boolean }[];
+    checklist?: { text: string; done: boolean; requiresPhoto?: boolean; photoUrl?: string }[];
     partsRequired?: string[];
     
     // Execution details (merged from legacy WorkOrder)
@@ -41,6 +41,9 @@ export interface PMTask {
     
     approvedBy?: string;
     approvedAt?: Date;
+    
+    rejectedBy?: string;
+    rejectedAt?: Date;
     
     createdBy?: string;
     createdAt?: Date;

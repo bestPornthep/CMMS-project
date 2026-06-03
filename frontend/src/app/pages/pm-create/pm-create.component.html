@@ -69,7 +69,28 @@
                 <div class="c-dropdown-item" (click)="selectType('Weekly')">Weekly</div>
                 <div class="c-dropdown-item" (click)="selectType('Monthly')">Monthly</div>
                 <div class="c-dropdown-item" (click)="selectType('Quarterly')">Quarterly</div>
-                <div class="c-dropdown-item" (click)="selectType('Annual')">Annual</div>
+                <div class="c-dropdown-item" (click)="selectType('Yearly')">Yearly</div>
+                <div class="c-dropdown-item" (click)="selectType('Custom')">Custom</div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="form-group" *ngIf="pmType === 'Custom'">
+            <label class="form-label">Custom Duration</label>
+            <div style="display:flex; gap:12px; align-items:center;">
+              <input type="number" class="form-input" [(ngModel)]="customDurationValue" min="1" style="width: 80px;" />
+              
+              <div class="c-dropdown form-dropdown" style="width: 120px;" [class.open]="openDropdown === 'customUnit'" (click)="toggleCustomDropdown('customUnit', $event)">
+                <div class="c-dropdown-trigger">
+                  <span>{{ customDurationUnit }}</span>
+                  <span class="material-symbols-outlined">expand_more</span>
+                </div>
+                <div class="c-dropdown-menu">
+                  <div class="c-dropdown-item" (click)="customDurationUnit = 'hour(s)'">hour(s)</div>
+                  <div class="c-dropdown-item" (click)="customDurationUnit = 'day(s)'">day(s)</div>
+                  <div class="c-dropdown-item" (click)="customDurationUnit = 'month(s)'">month(s)</div>
+                  <div class="c-dropdown-item" (click)="customDurationUnit = 'Year(s)'">Year(s)</div>
+                </div>
               </div>
             </div>
           </div>
@@ -118,8 +139,13 @@
         </div>
         <div class="card-body">
           <div style="display:flex;flex-direction:column;gap:0;">
-            <div class="checklist-item" *ngFor="let item of checklist(); let i = index">
-              <input type="text" name="item_{{i}}" [ngModel]="item" (ngModelChange)="updateChecklistItem(i, $event)"/>
+            <div class="checklist-item" *ngFor="let item of checklist(); let i = index" style="display:flex; align-items:center; gap:4px;">
+              <input type="text" name="item_{{i}}" [ngModel]="item.text" (ngModelChange)="updateChecklistItem(i, $event)" style="flex:1;"/>
+              <button class="photo-req-btn" (click)="togglePhotoRequirement(i)" 
+                      [class.active]="item.requiresPhoto"
+                      title="Require Photo Evidence">
+                <span class="material-symbols-outlined" [style.font-variation-settings]="item.requiresPhoto ? '\'FILL\' 1' : '\'FILL\' 0'">photo_camera</span>
+              </button>
               <button class="remove-item-btn" (click)="removeChecklistItem(i)"><span class="material-symbols-outlined">close</span></button>
             </div>
           </div>
@@ -143,7 +169,7 @@
           <div style="display:flex;gap:8px;">
             <div class="c-dropdown form-dropdown" [class.open]="openDropdown === 'part'" (click)="toggleCustomDropdown('part', $event)" style="flex:1;">
               <div class="c-dropdown-trigger">
-                <input type="text" style="border:none; width:100%; box-shadow:none; background:transparent; outline:none; font-family:inherit; font-size:inherit; color:inherit; padding:0;" [(ngModel)]="selectedPart" name="selectedPart" placeholder="Select or type part and press Enter..." (click)="$event.stopPropagation(); openDropdown = 'part'" (keyup.enter)="addPart()" />
+                <input type="text" style="border:none; width:100%; box-shadow:none; background:transparent; outline:none; font-family:inherit; font-size:inherit; color:inherit; padding:0;" [(ngModel)]="selectedPart" name="selectedPart" placeholder="Select or type part and press Enter..." (keyup.enter)="addPart()" />
                 <span class="material-symbols-outlined">expand_more</span>
               </div>
               <div class="c-dropdown-menu" style="padding: 0; overflow: hidden;">
@@ -187,7 +213,7 @@
         <div class="preview-row"><span class="preview-label">Product</span><span class="preview-val" [style.color]="productId ? 'var(--text-primary)' : 'var(--text-muted)'">{{ productId || '—' }}</span></div>
         <div class="preview-row"><span class="preview-label">Dept</span><span class="preview-val" [style.color]="department ? 'var(--text-primary)' : 'var(--text-muted)'">{{ department || '—' }}</span></div>
         <div class="preview-row"><span class="preview-label">Asset</span><span class="preview-val" [style.color]="assetId ? 'var(--text-primary)' : 'var(--text-muted)'">{{ assetId || '—' }}</span></div>
-        <div class="preview-row"><span class="preview-label">Type</span><span class="preview-val">{{ pmType || '—' }}</span></div>
+        <div class="preview-row"><span class="preview-label">Type</span><span class="preview-val">{{ pmType === 'Custom' ? customDurationValue + ' ' + customDurationUnit : (pmType || '—') }}</span></div>
         <div class="preview-row"><span class="preview-label">Tasks</span><span class="preview-val">{{ checklist().length }} items</span></div>
         <div class="preview-row"><span class="preview-label">Est. Time</span><span class="preview-val">{{ estimatedHours }} hrs</span></div>
         <div class="preview-row"><span class="preview-label">Parts</span><span class="preview-val">{{ parts().length }} required</span></div>

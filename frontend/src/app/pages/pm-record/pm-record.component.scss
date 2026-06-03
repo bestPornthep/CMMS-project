@@ -133,8 +133,8 @@
     .card-action:hover{background:var(--blue-light);}
     /* Table */
     .data-table{width:100%;border-collapse:collapse;}
-    .data-table th{font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;padding:10px 16px;text-align:left;background:var(--bg-card-alt);border-bottom:1px solid var(--border);}
-    .data-table td{padding:11px 16px;border-bottom:1px solid var(--border-soft);vertical-align:middle;font-size:13px;}
+    .data-table th{font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;padding:10px 16px;text-align:center;background:var(--bg-card-alt);border-bottom:1px solid var(--border);}
+    .data-table td{padding:11px 16px;border-bottom:1px solid var(--border-soft);vertical-align:middle;font-size:13px;text-align:center;}
     .data-table tr:last-child td{border-bottom:none;}
     .data-table tbody tr{transition:background var(--dur-base) var(--ease-out);cursor:pointer;}
     .data-table tbody tr:hover td{background:var(--bg-card-alt);}
@@ -273,6 +273,17 @@
     .template-modal .modal-header{margin-bottom:20px;}
     .template-modal .modal-title{margin:0;font-size:20px;font-weight:800;letter-spacing:-0.5px;color:var(--text-primary);}
     .template-modal .modal-sub{font-size:12.5px;color:var(--text-muted);margin:4px 0 0;}
+    .note-card{padding:12px;border-radius:var(--r-md);border-left:3px solid transparent;background:var(--bg-card-alt);}
+    .note-tech{border-left-color:var(--blue);background:var(--blue-light);}
+    .note-tech .note-author{color:var(--blue-text);}
+    .note-approver{border-left-color:var(--success-mid);background:var(--success-light);}
+    .note-approver .note-author{color:var(--success-mid);}
+    .note-rejected{border-left-color:var(--error-mid);background:var(--error-light);}
+    .note-rejected .note-author{color:var(--error-mid);}
+    .note-header{display:flex;justify-content:space-between;align-items:center;font-size:12px;margin-bottom:6px;font-weight:700;}
+    .note-author{display:flex;align-items:center;gap:6px;}
+    .note-time{color:var(--text-muted);font-weight:500;font-size:11px;}
+    .note-body{font-size:13px;color:var(--text-secondary);white-space:pre-wrap;}
     /* Custom Dropdown */
     .c-dropdown { position: relative; width: 190px; font-family: var(--font-sans); }
     .c-dropdown-trigger { display: flex; align-items: center; justify-content: space-between; width: 100%; height: 32px; padding: 6px 10px; background: white; border: 1px solid var(--border); border-radius: var(--r-md); font-size: 12.5px; font-weight: 500; color: var(--text-primary); cursor: pointer; user-select: none; transition: all var(--dur-base) var(--ease-out); }

@@ -1,4 +1,4 @@
-<div class="pm-assign-page overflow-y-auto h-full">
+<div class="pm-assign-page overflow-y-auto h-full" style="min-width: 900px;">
 
   <div class="page-header" data-enter>
     <div>
@@ -7,11 +7,11 @@
     </div>
   </div>
 
-  <div style="display:flex; align-items:flex-end; justify-content:space-between; border-bottom:1px solid var(--border-soft); margin-bottom:20px;" data-enter>
+  <div style="display:flex; align-items:flex-end; justify-content:space-between; border-bottom:1px solid var(--border-soft); margin-bottom:20px; flex-wrap:wrap; gap: 16px;" data-enter>
     <div class="tabs" style="border-bottom:none; margin-bottom:0;">
       <button class="tab-btn" [class.active]="activeTab === 'unassigned'" (click)="activeTab = 'unassigned'">Unassigned PMs</button>
       <button class="tab-btn" [class.active]="activeTab === 'assigned'" (click)="activeTab = 'assigned'">Assigned PMs</button>
-      <button class="tab-btn" [class.active]="activeTab === 'delegation'" (click)="activeTab = 'delegation'">Temporary Permissions</button>
+      <button class="tab-btn" *ngIf="canManageDelegations()" [class.active]="activeTab === 'delegation'" (click)="activeTab = 'delegation'">Temporary Permissions</button>
     </div>
     
     <!-- Show filter only on assignment tabs -->
@@ -66,7 +66,7 @@
       <div class="card-header">
         <div class="card-title">Unassigned PM Work Orders</div>
       </div>
-      <div style="overflow:visible;border-radius:0 0 var(--r-xl) var(--r-xl);">
+      <div style="overflow:visible; border-radius:0 0 var(--r-xl) var(--r-xl);">
         <table class="data-table">
           <thead>
             <tr>
@@ -75,6 +75,7 @@
               <th>Product & Dept</th>
               <th>Asset</th>
               <th>Type</th>
+              <th>Created By</th>
               <th>Due Date</th>
               <th>Assign To</th>
             </tr>
@@ -92,9 +93,10 @@
                 <div style="font-size:11px;color:var(--text-muted);">{{ task.assetId }}</div>
               </td>
               <td><span class="badge badge-info">{{ task.frequency }}</span></td>
-              <td style="color:var(--error-mid);font-weight:600;font-size:12px;">{{ task.nextDueDate | date:'MMM d, yyyy' }}</td>
+              <td style="color:var(--text-secondary);font-weight:500;font-size:12px;">{{ getCreatorName(task.createdBy) }}</td>
+              <td style="color:var(--error-mid);font-weight:600;font-size:12px;">{{ task.nextDueDate | date: (task.frequency.includes('hour') ? 'MMM d, yyyy, h:mm a' : 'MMM d, yyyy') }}</td>
               <td>
-                <div style="display:flex;align-items:center;gap:6px;">
+                <div style="display:flex;align-items:center;justify-content:center;gap:6px;">
                   <div class="c-dropdown form-dropdown" [class.open]="techDropdownOpen[task.id]" (click)="techDropdownOpen[task.id] = !techDropdownOpen[task.id]; $event.stopPropagation();" style="width:140px;">
                     <div class="c-dropdown-trigger" style="height:32px; width:100%; background:white; display:flex; align-items:center; padding:6px 10px;">
                       <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100px; display:inline-block; text-align:left;">{{ getTechName(selectedTech[task.id]) || 'Select Tech...' }}</span>
@@ -110,7 +112,7 @@
               </td>
             </tr>
             <tr *ngIf="pendingTasks().length === 0">
-              <td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted);">
+              <td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted);">
                 <div class="empty-state">
                   <span class="material-symbols-outlined">assignment_turned_in</span>
                   <p>All tasks are assigned!</p>
@@ -130,7 +132,7 @@
       <div class="card-header">
         <div class="card-title">Assigned PM Work Orders</div>
       </div>
-      <div style="overflow:hidden;border-radius:0 0 var(--r-xl) var(--r-xl);">
+      <div style="overflow:visible; border-radius:0 0 var(--r-xl) var(--r-xl);">
         <table class="data-table">
           <thead>
             <tr>
@@ -138,6 +140,7 @@
               <th>Product & Dept</th>
               <th>Asset</th>
               <th>Type</th>
+              <th>Created By</th>
               <th>Due Date</th>
               <th>Assigned To</th>
               <th>Time Stamp</th>
@@ -155,17 +158,15 @@
                 <div style="font-size:11px;color:var(--text-muted);">{{ task.assetId }}</div>
               </td>
               <td><span class="badge badge-info">{{ task.frequency }}</span></td>
-              <td style="color:var(--text-secondary);font-weight:500;font-size:12px;">{{ task.nextDueDate | date:'MMM d, yyyy' }}</td>
+              <td style="color:var(--text-secondary);font-weight:500;font-size:12px;">{{ getCreatorName(task.createdBy) }}</td>
+              <td style="color:var(--text-secondary);font-weight:500;font-size:12px;">{{ task.nextDueDate | date: (task.frequency.includes('hour') ? 'MMM d, yyyy, h:mm a' : 'MMM d, yyyy') }}</td>
               <td>
-                <div style="display:flex;align-items:center;gap:8px;">
-                  <div style="width:24px;height:24px;border-radius:50%;background:var(--blue-light);color:var(--blue-text);display:grid;place-items:center;font-size:10px;font-weight:700;">{{ getTechName(task.assignedTo).substring(0,1) || 'U' }}</div>
-                  <span style="font-weight:600;color:var(--text-primary);">{{ getTechName(task.assignedTo) }}</span>
-                </div>
+                <div style="font-weight:600;color:var(--text-primary);">{{ getTechName(task.assignedTo) }}</div>
               </td>
               <td style="color:var(--text-muted);font-size:12px;">{{ (task.assignedAt || task.createdAt) | date:'MMM d, y, h:mm a' }}</td>
             </tr>
             <tr *ngIf="assignedTasks().length === 0">
-              <td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted);">
+              <td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted);">
                 <div class="empty-state">
                   <span class="material-symbols-outlined">inbox</span>
                   <p>No assigned tasks match the criteria.</p>
@@ -279,19 +280,19 @@
                 <th>User</th>
                 <th>Product</th>
                 <th>Valid Until</th>
-                <th style="text-align:right;">Action</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody>
               <tr *ngFor="let del of delegations()">
                 <td><span style="font-weight:600;color:var(--text-primary);">{{ getTechName(del.user) }}</span></td>
                 <td>
-              <div style="display:flex; gap:4px; flex-wrap:wrap;">
+              <div style="display:flex; justify-content:center; gap:4px; flex-wrap:wrap;">
                 <span class="badge badge-neutral" *ngFor="let p of del.products">{{ p }}</span>
               </div>
             </td>
                 <td style="color:var(--text-secondary);font-size:12px;">{{ del.validUntil | date:'MMM d, yyyy' }}</td>
-                <td style="text-align:right;">
+                <td>
                   <button class="btn btn-ghost" style="color:var(--error-mid); padding:4px 8px; font-size:11px;" (click)="revokeDelegation(del.id)">Revoke</button>
                 </td>
               </tr>

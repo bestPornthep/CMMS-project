@@ -20,6 +20,9 @@ export class PmCreateComponent {
 
   // Form Model
   pmType: PMTaskFrequency = 'Monthly';
+  customDurationValue: number = 1;
+  customDurationUnit: string = 'month(s)';
+  
   productId: string = '';
   department: string = '';
   assetId: string = '';
@@ -41,7 +44,11 @@ export class PmCreateComponent {
   }
 
   // Dynamic Lists
-  checklist = signal<string[]>(['Inspect bearing assembly', 'Check lubrication levels', 'Test pressure relief valve']);
+  checklist = signal<{ text: string, requiresPhoto: boolean }[]>([
+    { text: 'Inspect bearing assembly', requiresPhoto: false },
+    { text: 'Check lubrication levels', requiresPhoto: false },
+    { text: 'Test pressure relief valve', requiresPhoto: false }
+  ]);
   newChecklistItem = '';
   
   parts = signal<string[]>([]);
@@ -146,7 +153,7 @@ export class PmCreateComponent {
   // Checklist Methods
   addChecklistItem() {
     if (this.newChecklistItem.trim()) {
-      this.checklist.update(list => [...list, this.newChecklistItem.trim()]);
+      this.checklist.update(list => [...list, { text: this.newChecklistItem.trim(), requiresPhoto: false }]);
       this.newChecklistItem = '';
     }
   }
@@ -158,7 +165,15 @@ export class PmCreateComponent {
   updateChecklistItem(index: number, val: string) {
     this.checklist.update(list => {
       const newList = [...list];
-      newList[index] = val;
+      newList[index] = { ...newList[index], text: val };
+      return newList;
+    });
+  }
+
+  togglePhotoRequirement(index: number) {
+    this.checklist.update(list => {
+      const newList = [...list];
+      newList[index] = { ...newList[index], requiresPhoto: !newList[index].requiresPhoto };
       return newList;
     });
   }
@@ -182,7 +197,9 @@ export class PmCreateComponent {
   }
 
   loadTemplate(tpl: Template) {
-    this.checklist.set([...tpl.checklist]);
+    // Make sure we have proper boolean for requiresPhoto when loading
+    const mapped = tpl.checklist.map(item => ({ text: item.text, requiresPhoto: !!item.requiresPhoto }));
+    this.checklist.set([...mapped]);
     this.dropdownOpen = false;
   }
 
@@ -221,12 +238,24 @@ export class PmCreateComponent {
     }
     
     const nextDueDate = new Date();
+    let finalFrequency = this.pmType;
+    
     switch(this.pmType) {
       case 'Daily': nextDueDate.setDate(nextDueDate.getDate() + 1); break;
       case 'Weekly': nextDueDate.setDate(nextDueDate.getDate() + 7); break;
       case 'Monthly': nextDueDate.setDate(nextDueDate.getDate() + 30); break;
       case 'Quarterly': nextDueDate.setDate(nextDueDate.getDate() + 90); break;
       case 'Yearly': nextDueDate.setDate(nextDueDate.getDate() + 365); break;
+      case 'Custom':
+        finalFrequency = `${this.customDurationValue} ${this.customDurationUnit}`;
+        const val = this.customDurationValue;
+        switch(this.customDurationUnit) {
+          case 'hour(s)': nextDueDate.setHours(nextDueDate.getHours() + val); break;
+          case 'day(s)': nextDueDate.setDate(nextDueDate.getDate() + val); break;
+          case 'month(s)': nextDueDate.setMonth(nextDueDate.getMonth() + val); break;
+          case 'Year(s)': nextDueDate.setFullYear(nextDueDate.getFullYear() + val); break;
+        }
+        break;
     }
 
     this.pmService.addPmTask({
@@ -235,12 +264,12 @@ export class PmCreateComponent {
       assetId: this.assetId,
       title: selectedAsset?.name || 'New Asset PM',
       description: this.description,
-      frequency: this.pmType,
+      frequency: finalFrequency,
       nextDueDate: nextDueDate,
       estimatedHours: this.estimatedHours,
       status: 'Pending' as PMTaskStatus,
       createdBy: this.authService.currentUser()?.employeeId,
-      checklist: this.checklist().map(text => ({ text, done: false })),
+      checklist: this.checklist().map(item => ({ text: item.text, done: false, requiresPhoto: item.requiresPhoto })),
       partsRequired: [...this.parts()]
     });
 

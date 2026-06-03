@@ -133,8 +133,8 @@
     .card-action:hover{background:var(--blue-light);}
     /* Table */
     .data-table{width:100%;border-collapse:collapse;}
-    .data-table th{font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;padding:10px 16px;text-align:left;background:var(--bg-card-alt);border-bottom:1px solid var(--border);}
-    .data-table td{padding:11px 16px;border-bottom:1px solid var(--border-soft);vertical-align:middle;font-size:13px;}
+    .data-table th{font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;padding:10px 16px;text-align:center;background:var(--bg-card-alt);border-bottom:1px solid var(--border);}
+    .data-table td{padding:11px 16px;border-bottom:1px solid var(--border-soft);vertical-align:middle;font-size:13px;text-align:center;}
     .data-table tr:last-child td{border-bottom:none;}
     .data-table tbody tr{transition:background var(--dur-base) var(--ease-out);cursor:pointer;}
     .data-table tbody tr:hover td{background:var(--bg-card-alt);}
@@ -247,6 +247,12 @@
     .remove-item-btn{width:26px;height:26px;border:none;background:none;color:var(--text-muted);border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:background var(--dur-fast) var(--ease-out),color var(--dur-fast) var(--ease-out);}
     .remove-item-btn:hover{background:var(--error-bg);color:var(--error-mid);}
     .remove-item-btn .material-symbols-outlined{font-size:16px;}
+    
+    .photo-req-btn{width:26px;height:26px;border:none;background:none;color:var(--text-muted);border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:all var(--dur-fast) var(--ease-out);}
+    .photo-req-btn:hover{background:var(--blue-light);color:var(--blue);}
+    .photo-req-btn.active{background:var(--blue);color:white;}
+    .photo-req-btn.active:hover{background:var(--blue-hover);}
+    .photo-req-btn .material-symbols-outlined{font-size:16px;}
     .preview-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border-soft);font-size:13px;}
     .preview-row:last-child{border-bottom:none;}
     .preview-label{color:var(--text-muted);font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.4px;}

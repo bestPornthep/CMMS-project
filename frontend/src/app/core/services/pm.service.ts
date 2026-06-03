@@ -186,7 +186,12 @@ export class PmService {
     try {
       const tplData = localStorage.getItem(TEMPLATE_DB_KEY);
       if (tplData) {
-        this.templatesSignal.set(JSON.parse(tplData));
+        let parsed = JSON.parse(tplData);
+        parsed = parsed.map((t: any) => ({
+          ...t,
+          checklist: t.checklist.map((item: any) => typeof item === 'string' ? { text: item, requiresPhoto: false } : item)
+        }));
+        this.templatesSignal.set(parsed);
       }
     } catch {}
   }

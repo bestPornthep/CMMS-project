@@ -21,6 +21,10 @@ export class PmAssignComponent {
     const role = this.currentUser?.baseRole;
     return role === 'admin' || role === 'manager';
   }
+  
+  canManageDelegations = computed(() => {
+    return this.authService.hasPermission('pm.permission.delegate');
+  });
 
   constructor() {
     if (!this.canChangeDept && this.currentUser?.department) {
@@ -54,16 +58,28 @@ export class PmAssignComponent {
     return tasks;
   });
 
-  // Dynamically populated technicians based on delegation rules
+  // Dynamically populated technicians based on assignment rules
   technicians = computed(() => {
-    return this.authService.getAllUsers()
-      .filter(u => u.employeeId && this.authService.canDelegate(u.employeeId));
+    const user = this.currentUser;
+    if (!user) return [];
+    
+    return this.authService.getAllUsers().filter(u => {
+       if (!u.employeeId || u.baseRole !== 'technician') return false;
+       if (user.baseRole === 'admin' || user.baseRole === 'manager') return true;
+       return u.department === user.department;
+    });
   });
 
   getTechName(employeeId?: string): string {
     if (!employeeId) return 'Unassigned';
     const tech = this.authService.getAllUsers().find(u => u.employeeId === employeeId);
     return tech?.name || employeeId;
+  }
+
+  getCreatorName(employeeId?: string): string {
+    if (!employeeId) return 'System';
+    const user = this.authService.getAllUsers().find(u => u.employeeId === employeeId);
+    return user?.name || employeeId;
   }
 
   // Dynamically populated products based on access rules
@@ -130,19 +146,25 @@ export class PmAssignComponent {
     if (user.baseRole === 'admin' || user.baseRole === 'manager') return true;
     
     if (user.baseRole === 'engineer') {
-      // Must be within their owned products
       if (user.ownedProducts && !(user.ownedProducts.includes('*') || user.ownedProducts.includes(task.productId!))) {
          return false;
       }
-      // Cannot take over work owned by another Engineer
       if (task.createdBy && task.createdBy !== user.employeeId) {
          const creator = this.authService.getUser(task.createdBy);
          if (creator && creator.baseRole === 'engineer') {
             return false;
          }
       }
+      return true;
     }
-    return true;
+    
+    if (user.baseRole === 'technician') {
+      const allowedProducts = this.authService.getAccessibleProducts('pm.assign.submit');
+      if (allowedProducts.length === 0) return false;
+      return user.department === task.department && allowedProducts.includes(task.productId || '');
+    }
+    
+    return false;
   }
 
   toggleSelection(taskId: string) {
@@ -267,12 +289,20 @@ export class PmAssignComponent {
       return;
     }
 
-    const activeUsers = users.filter(user => 
-      this.delegations().some(d => d.user === user)
-    );
+    // Check if any of the selected users already have an active delegation for any of the selected products
+    const conflicts: string[] = [];
+    for (const user of users) {
+      const existingUserDelegations = this.delegations().filter(d => d.employeeId === user || d.user === user);
+      for (const p of products) {
+        if (existingUserDelegations.some(d => d.products.includes(p))) {
+           const userName = existingUserDelegations[0].user || user;
+           conflicts.push(`${userName} (${p})`);
+        }
+      }
+    }
 
-    if (activeUsers.length > 0) {
-      alert(`The following users already have active permissions: ${activeUsers.join(', ')}. Please revoke their existing permissions first.`);
+    if (conflicts.length > 0) {
+      alert(`The following users already have active permissions for these products: ${conflicts.join(', ')}. Please revoke their existing permissions first or unselect those products.`);
       return;
     }
 

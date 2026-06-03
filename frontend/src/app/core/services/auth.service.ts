@@ -3,8 +3,8 @@ import { User } from '../models/pm.model';
 
 const AUTH_KEY = 'assetintel_auth';
 
-// Legacy mock data
-const DEMO_USERS: Record<string, Partial<User> & { password?: string }> = {
+const DEMO_USERS_KEY = 'assetintel_demo_users';
+let DEMO_USERS: Record<string, Partial<User> & { password?: string }> = {
   // ── Managers (3) ─────────────────────────────────────────────────────────
   'MGR001': { employeeId: 'MGR001', name: 'Manager Somporn', initials: 'MS', baseRole: 'manager', department: 'All', ownedProducts: ['*'], delegatedProducts: [], password: 'mgr123' },
   'MGR002': { employeeId: 'MGR002', name: 'Senior Eng Nattapol', initials: 'SN', baseRole: 'manager', department: 'All', ownedProducts: ['*'], delegatedProducts: [], password: 'mgr123' },
@@ -70,6 +70,19 @@ const DEMO_USERS: Record<string, Partial<User> & { password?: string }> = {
   // ── Admin (1) ────────────────────────────────────────────────────────────
   'ADM001': { employeeId: 'ADM001', name: 'Admin Supachai', initials: 'AS', baseRole: 'admin', department: 'All', ownedProducts: ['*'], delegatedProducts: [], password: 'adm123', permissions: ['pm.dashboard.view', 'pm.create.view', 'pm.create.submit', 'pm.assign.view', 'pm.assign.submit', 'pm.record.view', 'pm.record.submit', 'pm.calendar.view', 'pm.reports.view', 'pm.audit.view', 'pm.reports.export', 'pm.permission.delegate', 'pm.permission.revoke', 'system.user.manage', 'system.role.manage', 'system.product.manage'] },
 };
+
+try {
+  const storedUsers = localStorage.getItem(DEMO_USERS_KEY);
+  if (storedUsers) {
+    DEMO_USERS = JSON.parse(storedUsers);
+  }
+} catch (e) {
+  console.error("Could not load users from local storage.");
+}
+
+function saveDemoUsers() {
+  localStorage.setItem(DEMO_USERS_KEY, JSON.stringify(DEMO_USERS));
+}
 
 @Injectable({
   providedIn: 'root'
@@ -214,12 +227,12 @@ export class AuthService {
       }
     }
 
-    const defaultPermissions = ['pm.create.view', 'pm.create.submit', 'pm.assign.view', 'pm.record.view', 'pm.record.submit', 'pm.calendar.view'];
-    const delegationId = `DEL-${this.generateUUID()}`;
+    const defaultPermissions = ['pm.create.view', 'pm.create.submit', 'pm.assign.view', 'pm.assign.submit', 'pm.record.view', 'pm.record.submit', 'pm.calendar.view'];
     
     for (const nameOrId of targetUserNamesOrIds) {
       const targetUser = Object.values(DEMO_USERS).find(u => u.name === nameOrId || u.employeeId === nameOrId);
       if (targetUser) {
+        const delegationId = `DEL-${this.generateUUID()}`;
         targetUser.delegatedProducts = targetUser.delegatedProducts || [];
         for (const productId of products) {
           targetUser.delegatedProducts.push({
@@ -232,6 +245,7 @@ export class AuthService {
         }
       }
     }
+    saveDemoUsers();
   }
 
   revokeDelegation(delegationId: string): void {
@@ -252,6 +266,7 @@ export class AuthService {
         }
       }
     }
+    saveDemoUsers();
   }
 
   getActiveDelegations(): any[] {
@@ -269,6 +284,7 @@ export class AuthService {
             if (!delegationsMap.has(id)) {
               delegationsMap.set(id, {
                 id,
+                employeeId: user.employeeId,
                 user: user.name,
                 products: new Set([dp.productId]),
                 validUntil: dp.validUntil
@@ -301,7 +317,23 @@ export class AuthService {
     if (user.baseRole === 'admin' || user.baseRole === 'manager') {
       return ['CUST-001', 'CUST-002', 'CUST-003', 'CUST-004', 'CUST-005', 'CUST-006']; // Demo all products
     }
-    return user.ownedProducts || [];
+    
+    const products = new Set<string>(user.ownedProducts || []);
+    
+    if (user.delegatedProducts?.length > 0) {
+      for (const dp of user.delegatedProducts) {
+        if (dp.status !== 'active') continue;
+        if (dp.validUntil && new Date(dp.validUntil) < new Date()) {
+          dp.status = 'revoked';
+          continue;
+        }
+        if (dp.permissions?.includes(permission) && dp.productId) {
+          products.add(dp.productId);
+        }
+      }
+    }
+    
+    return Array.from(products);
   }
 
   private loadStoredAuth(): User | null {
