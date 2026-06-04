@@ -141,6 +141,11 @@ export class AuthService {
     const user = this.currentUser();
     if (!user) return false;
     
+    // Explicit restriction for audit log: only eng and mgr
+    if (permission === 'pm.audit.view') {
+      return user.baseRole === 'engineer' || user.baseRole === 'manager';
+    }
+
     // Admins and Managers get full access (legacy mapping)
     if (user.baseRole === 'admin' || user.baseRole === 'manager') return true;
     

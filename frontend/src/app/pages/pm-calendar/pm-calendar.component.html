@@ -131,19 +131,19 @@
             <div class="card-body">
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
                 <div style="text-align:center;padding:12px;background:var(--blue-light);border-radius:var(--r-md);">
-                  <div class="mono" style="font-size:22px;font-weight:700;color:var(--blue);">{{ monthSummary().scheduled }}</div>
+                  <div style="font-size:22px;font-weight:800;letter-spacing:-0.5px;color:var(--blue);">{{ monthSummary().scheduled }}</div>
                   <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Scheduled</div>
                 </div>
                 <div style="text-align:center;padding:12px;background:var(--success-bg);border-radius:var(--r-md);">
-                  <div class="mono" style="font-size:22px;font-weight:700;color:var(--success);">{{ monthSummary().completed }}</div>
+                  <div style="font-size:22px;font-weight:800;letter-spacing:-0.5px;color:var(--success);">{{ monthSummary().completed }}</div>
                   <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Completed</div>
                 </div>
                 <div style="text-align:center;padding:12px;background:var(--error-bg);border-radius:var(--r-md);">
-                  <div class="mono" style="font-size:22px;font-weight:700;color:var(--error);">{{ monthSummary().overdue }}</div>
+                  <div style="font-size:22px;font-weight:800;letter-spacing:-0.5px;color:var(--error);">{{ monthSummary().overdue }}</div>
                   <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Overdue</div>
                 </div>
                 <div style="text-align:center;padding:12px;background:var(--bg-card-alt);border-radius:var(--r-md);border:1px solid var(--border);">
-                  <div class="mono" style="font-size:22px;font-weight:700;color:var(--text-secondary);">{{ monthSummary().pending }}</div>
+                  <div style="font-size:22px;font-weight:800;letter-spacing:-0.5px;color:var(--text-secondary);">{{ monthSummary().pending }}</div>
                   <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Pending</div>
                 </div>
               </div>
