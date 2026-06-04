@@ -41,7 +41,7 @@ describe('PmCreateComponent - Checklist', () => {
 
     // Verify the checklist state
     expect(component.checklist().length).toBe(1);
-    expect(component.checklist()[0]).toBe('Test Checklist Item');
+    expect(component.checklist()[0].text).toBe('Test Checklist Item');
 
     // Verify UI reflects the change
     const checklistItems = checklistCard.queryAll(By.css('.checklist-item input'));
@@ -56,14 +56,14 @@ describe('PmCreateComponent - Checklist', () => {
     
     component.newTemplateName = 'My Test Template';
     component.department = 'Test Dept';
-    component.checklist.set(['Task 1', 'Task 2']);
+    component.checklist.set([{ text: 'Task 1', requiresPhoto: false }, { text: 'Task 2', requiresPhoto: false }]);
     
     component.saveTemplate();
     
     expect(savedTemplate).toEqual({
       name: 'My Test Template',
       department: 'Test Dept',
-      checklist: ['Task 1', 'Task 2']
+      checklist: [{ text: 'Task 1', requiresPhoto: false }, { text: 'Task 2', requiresPhoto: false }]
     });
   });
 
@@ -99,7 +99,7 @@ describe('PmCreateComponent - Checklist', () => {
     component.assetId = 'THC-P1-01';
     component.pmType = 'Weekly';
     
-    component.checklist.set(['Task A']);
+    component.checklist.set([{ text: 'Task A', requiresPhoto: false }]);
     component.parts.set(['Part A']);
     
     component.submitForm();
