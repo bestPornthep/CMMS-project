@@ -84,20 +84,56 @@
 
       <div class="topbar-search">
         <span class="material-symbols-outlined">search</span>
-        <input type="text" placeholder="Search PM work orders…" autocomplete="off" />
+        <input type="text" placeholder="Search PM work orders…" autocomplete="off" (keydown.enter)="onSearch($event)" />
       </div>
 
       <div class="topbar-right">
-        <button class="topbar-btn topbar-notif" title="Notifications">
-          <span class="material-symbols-outlined">notifications</span>
-          <div class="notif-dot"></div>
-        </button>
-        <button class="topbar-btn" title="Help">
-          <span class="material-symbols-outlined">help_outline</span>
-        </button>
-        <button class="topbar-btn" title="Settings">
-          <span class="material-symbols-outlined">settings</span>
-        </button>
+        <!-- Notifications -->
+        <div style="position: relative;">
+          <button class="topbar-btn topbar-notif" title="Notifications" (click)="toggleNotifications($event)">
+            <span class="material-symbols-outlined">notifications</span>
+            <div class="notif-dot" *ngIf="hasUnreadNotifications()"></div>
+          </button>
+          
+          <div class="dropdown-menu" *ngIf="notificationsOpen" style="position: absolute; right: 0; top: 100%; margin-top: 8px; width: 300px; background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 8px; border: 1px solid var(--color-border-soft); z-index: 1000; overflow: hidden;">
+            <div style="padding: 12px 16px; font-weight: 600; border-bottom: 1px solid var(--color-border-soft); color: var(--color-text-primary); display: flex; justify-content: space-between; align-items: center;">
+              Notifications
+              <span class="badge badge-error" *ngIf="notifications().length > 0">{{ notifications().length }}</span>
+            </div>
+            <div style="max-height: 300px; overflow-y: auto;">
+               <div *ngFor="let notif of notifications()" style="padding: 12px 16px; border-bottom: 1px solid var(--color-border-soft); cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='var(--color-bg-hover)'" onmouseout="this.style.background='transparent'" (click)="readNotification(notif)">
+                  <div style="font-size: 13px; font-weight: 600; color: var(--color-error-mid);">{{ notif.title }}</div>
+                  <div style="font-size: 12px; color: var(--color-text-secondary); margin-top: 4px;">{{ notif.message }}</div>
+               </div>
+               <div *ngIf="notifications().length === 0" style="padding: 24px; text-align: center; color: var(--color-text-muted); font-size: 13px;">
+                  No new notifications
+               </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Settings -->
+        <div style="position: relative;">
+          <button class="topbar-btn" title="Settings" (click)="toggleSettings($event)">
+            <span class="material-symbols-outlined">settings</span>
+          </button>
+          
+          <div class="dropdown-menu" *ngIf="settingsOpen" style="position: absolute; right: 0; top: 100%; margin-top: 8px; width: 200px; background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 8px; border: 1px solid var(--color-border-soft); z-index: 1000; overflow: hidden; padding: 8px 0;">
+             <div style="padding: 10px 16px; display: flex; align-items: center; gap: 10px; cursor: pointer; color: var(--color-text-primary);" onmouseover="this.style.background='var(--color-bg-hover)'" onmouseout="this.style.background='transparent'">
+                <span class="material-symbols-outlined" style="font-size: 20px; color: var(--color-text-secondary);">person</span>
+                <span style="font-size: 14px; font-weight: 500;">Profile</span>
+             </div>
+             <div style="padding: 10px 16px; display: flex; align-items: center; gap: 10px; cursor: pointer; color: var(--color-text-primary);" onmouseover="this.style.background='var(--color-bg-hover)'" onmouseout="this.style.background='transparent'">
+                <span class="material-symbols-outlined" style="font-size: 20px; color: var(--color-text-secondary);">tune</span>
+                <span style="font-size: 14px; font-weight: 500;">Preferences</span>
+             </div>
+             <div style="height: 1px; background: var(--color-border-soft); margin: 8px 0;"></div>
+             <div style="padding: 10px 16px; display: flex; align-items: center; gap: 10px; cursor: pointer; color: var(--color-error-mid);" onmouseover="this.style.background='var(--color-bg-hover)'" onmouseout="this.style.background='transparent'" (click)="logout()">
+                <span class="material-symbols-outlined" style="font-size: 20px;">logout</span>
+                <span style="font-size: 14px; font-weight: 600;">Sign out</span>
+             </div>
+          </div>
+        </div>
       </div>
     </header>
 
@@ -105,5 +141,88 @@
     <main class="canvas">
       <router-outlet></router-outlet>
     </main>
+  </div>
+
+  <!-- GLOBAL Read-Only PM Details Modal -->
+  <div class="modal-overlay" [class.open]="!!viewedTask" (click)="closeTaskDetails()"></div>
+  <div class="template-modal" [class.open]="!!viewedTask" style="max-width: 600px; width: 95%; padding: 24px; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10000; background: white; border-radius: 18px; box-shadow: 0 10px 40px rgba(0,0,0,0.15);" *ngIf="viewedTask">
+      <div class="modal-header" style="display:flex; justify-content:space-between; align-items:flex-start;">
+        <div>
+          <h2 class="modal-title" style="font-size: 20px; font-weight: 700; color: var(--color-text-primary); margin: 0 0 4px 0;">PM Details: {{ viewedTask.title }}</h2>
+        </div>
+        <button class="icon-btn" (click)="closeTaskDetails()"
+          style="background:none; border:none; cursor:pointer; color:var(--color-text-muted); padding: 4px; border-radius: 4px;"><span
+            class="material-symbols-outlined">close</span></button>
+      </div>
+
+      <div class="modal-body"
+        style="display:flex; flex-direction:column; gap:20px; max-height: 65vh; overflow-y: auto; padding-right: 8px; margin-top: 20px;">
+        <div style="display:flex; flex-wrap: wrap; gap: 20px; font-size:13px; color:var(--color-text-secondary);">
+          <div><strong style="color:var(--color-text-primary);">Asset:</strong> {{ viewedTask.assetId }}</div>
+          <div><strong style="color:var(--color-text-primary);">Product:</strong> {{ viewedTask.productId || '—' }}</div>
+          <div><strong style="color:var(--color-text-primary);">Status:</strong> <span class="badge" style="margin-left: 4px;"
+              [class.badge-success]="viewedTask.status === 'Done'"
+              [class.badge-error]="viewedTask.status === 'In Progress' && viewedTask.recordNotes?.includes('[Rejected')"
+              [class.badge-blue]="viewedTask.status === 'In Progress' && !viewedTask.recordNotes?.includes('[Rejected')"
+              [class.badge-info]="viewedTask.status === 'Pending Approval'">{{ viewedTask.status }}</span></div>
+          <div><strong style="color:var(--color-text-primary);">Est. Time:</strong> {{ viewedTask.estimatedHours }} hrs</div>
+          <div *ngIf="viewedTask.actualHours"><strong style="color:var(--color-text-primary);">Act. Time:</strong> {{
+            viewedTask.actualHours }} hrs</div>
+        </div>
+
+        <div *ngIf="viewedTask.description"
+          style="padding:12px; background:var(--color-blue-light); border-left:3px solid var(--color-blue-DEFAULT); border-radius:4px; font-size:13px; color:var(--color-blue-text);">
+          {{ viewedTask.description }}
+        </div>
+
+        <!-- Checklist -->
+        <div *ngIf="getDisplayChecklist(viewedTask).length > 0">
+          <div
+            style="font-size:12px;font-weight:700;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:12px;">
+            Checklist</div>
+          <div
+            style="display:flex;flex-direction:column;gap:12px; background:var(--color-bg-card-alt); padding:16px; border-radius:var(--r-lg); border:1px solid var(--color-border-soft);">
+            <div class="checkbox-row" *ngFor="let item of getDisplayChecklist(viewedTask)">
+              <div class="checkbox-box" [class.checked]="item.done">
+                <span class="material-symbols-outlined" *ngIf="item.done">check</span>
+              </div>
+              <div style="flex:1;">
+                <span class="checkbox-label" [class.done]="item.done">{{ item.text }}</span>
+                <div *ngIf="item.photoUrl" style="margin-top: 8px;">
+                  <img [src]="item.photoUrl" alt="Evidence"
+                    style="max-width: 100px; max-height: 100px; border-radius: 4px; border: 1px solid var(--color-border-soft); display: block;" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Notes History -->
+        <div *ngIf="viewedTask.recordNotes">
+          <div
+            style="font-size:12px;font-weight:700;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:12px;">
+            Notes & Feedback History</div>
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <ng-container *ngFor="let note of getParsedNotes(viewedTask.recordNotes)">
+              <div class="note-card" [ngClass]="'note-' + note.type" *ngIf="note.text">
+                <div class="note-header">
+                  <span class="note-author">
+                    <span class="material-symbols-outlined" style="font-size:14px;">
+                      {{ note.type === 'approver' ? 'verified_user' : (note.type === 'rejected' ? 'cancel' : 'build') }}
+                    </span>
+                    {{ note.type === 'approver' ? 'Approver' : (note.type === 'rejected' ? 'Rejection Feedback' : 'Technician Note') }}
+                  </span>
+                  <span class="note-time" *ngIf="note.timestamp">{{ note.timestamp | date:'MMM d, h:mm a' }}</span>
+                </div>
+                <div class="note-body">{{ note.text }}</div>
+              </div>
+            </ng-container>
+          </div>
+        </div>
+
+      </div>
+      <div class="modal-footer" style="display:flex; justify-content: flex-end; margin-top: 16px;">
+        <button class="btn btn-ghost" (click)="closeTaskDetails()">Close</button>
+      </div>
   </div>
 </div>

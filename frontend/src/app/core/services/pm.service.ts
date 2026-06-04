@@ -18,6 +18,8 @@ export class PmService {
   readonly assets = computed(() => this.assetsSignal());
   readonly pmTasks = computed(() => this.pmTasksSignal());
   readonly templates = computed(() => this.templatesSignal());
+  
+  viewedTaskGlobal = signal<PMTask | null>(null);
 
   constructor() {
     this.seedIfNeeded();

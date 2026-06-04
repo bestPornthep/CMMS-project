@@ -46,12 +46,12 @@
           <span style="font-weight:600; color:var(--blue-text); font-size:13px; white-space:nowrap; flex-shrink:0;">{{ selectedTasks().size }} selected</span>
           <div class="c-dropdown" [class.open]="bulkDropdownOpen" (click)="toggleDropdown('bulk', $event)" style="flex-shrink:0;">
             <div class="c-dropdown-trigger" style="height:32px; width:180px; background:white; flex-shrink:0; display:flex; align-items:center;">
-              <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:left; max-width:130px; display:inline-block;">{{ bulkAssignee()?.name || 'Assign all to...' }}</span>
+              <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:left; max-width:130px; display:inline-block;">{{ bulkAssignee() ? getTechNameWithWorkload(bulkAssignee()!.employeeId) : 'Assign all to...' }}</span>
               <span class="material-symbols-outlined" style="flex-shrink:0; margin-left:auto;">expand_more</span>
             </div>
             <div class="c-dropdown-menu" *ngIf="bulkDropdownOpen">
               <div class="c-dropdown-item" (click)="bulkAssignee.set('')">Select technician...</div>
-              <div class="c-dropdown-item" *ngFor="let t of technicians()" (click)="bulkAssignee.set(t)">{{ t.name }}</div>
+              <div class="c-dropdown-item" *ngFor="let t of getBulkTechnicians()" (click)="bulkAssignee.set(t)">{{ getTechNameWithWorkload(t.employeeId) }}</div>
             </div>
           </div>
           <button class="btn btn-primary" style="padding:0 16px; height:32px; white-space:nowrap; flex-shrink:0; display:inline-flex; align-items:center; justify-content:center; gap:6px;" (click)="openBulkAssignModal()">
@@ -83,7 +83,7 @@
           <tbody>
             <tr *ngFor="let task of pendingTasks()" [class.selected-row]="selectedTasks().has(task.id)">
               <td><input type="checkbox" class="assign-checkbox" [checked]="selectedTasks().has(task.id)" (change)="toggleSelection(task.id)"/></td>
-              <td><span class="mono" style="color:var(--blue);font-weight:600;">{{ task.id }}</span></td>
+              <td><span class="mono" style="color:var(--blue);font-weight:600; cursor:pointer;" (click)="viewTaskDetails(task)">{{ task.id }}</span></td>
               <td>
                 <div style="font-weight:600;color:var(--text-primary);">{{ task.productId }}</div>
                 <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;">{{ task.department }}</div>
@@ -99,12 +99,12 @@
                 <div style="display:flex;align-items:center;justify-content:center;gap:6px;">
                   <div class="c-dropdown form-dropdown" [class.open]="techDropdownOpen[task.id]" (click)="techDropdownOpen[task.id] = !techDropdownOpen[task.id]; $event.stopPropagation();" style="width:140px;">
                     <div class="c-dropdown-trigger" style="height:32px; width:100%; background:white; display:flex; align-items:center; padding:6px 10px;">
-                      <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100px; display:inline-block; text-align:left;">{{ getTechName(selectedTech[task.id]) || 'Select Tech...' }}</span>
+                      <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100px; display:inline-block; text-align:left;">{{ selectedTech[task.id] ? getTechNameWithWorkload(selectedTech[task.id]) : 'Select Tech...' }}</span>
                       <span class="material-symbols-outlined" style="margin-left:auto; flex-shrink:0;">expand_more</span>
                     </div>
                     <div class="c-dropdown-menu" *ngIf="techDropdownOpen[task.id]">
                       <div class="c-dropdown-item" (click)="selectedTech[task.id] = ''">Select Tech...</div>
-                      <div class="c-dropdown-item" *ngFor="let tech of technicians()" (click)="selectedTech[task.id] = tech.employeeId!">{{ tech.name }}</div>
+                      <div class="c-dropdown-item" *ngFor="let tech of getTaskTechnicians(task)" (click)="selectedTech[task.id] = tech.employeeId!">{{ getTechNameWithWorkload(tech.employeeId) }}</div>
                     </div>
                   </div>
                   <button class="btn btn-primary" style="padding:4px 8px;font-size:11px; height:32px;" (click)="assignTask(task)">Assign</button>
@@ -148,7 +148,7 @@
           </thead>
           <tbody>
             <tr *ngFor="let task of assignedTasks()">
-              <td><span class="mono" style="color:var(--blue);font-weight:600;">{{ task.id }}</span></td>
+              <td><span class="mono" style="color:var(--blue);font-weight:600; cursor:pointer;" (click)="viewTaskDetails(task)">{{ task.id }}</span></td>
               <td>
                 <div style="font-weight:600;color:var(--text-primary);">{{ task.productId }}</div>
                 <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;">{{ task.department }}</div>

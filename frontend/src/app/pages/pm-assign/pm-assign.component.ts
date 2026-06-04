@@ -76,6 +76,51 @@ export class PmAssignComponent {
     return tech?.name || employeeId;
   }
 
+  getTaskTechnicians(task: PMTask) {
+    return this.authService.getAllUsers().filter(u => {
+      if (!u.employeeId || u.baseRole !== 'technician') return false;
+      // Always restrict by task department to protect against human error
+      return u.department === task.department;
+    });
+  }
+
+  getBulkTechnicians() {
+    const selectedIds = Array.from(this.selectedTasks());
+    const tasks = this.pendingTasks().filter(t => selectedIds.includes(t.id));
+    const depts = new Set(tasks.map(t => t.department));
+    
+    return this.authService.getAllUsers().filter(u => {
+      if (!u.employeeId || u.baseRole !== 'technician') return false;
+      if (depts.size === 0) return true;
+      // If multiple departments are selected, we shouldn't allow bulk assign to prevent cross-dept error
+      if (depts.size > 1) return false;
+      return depts.has(u.department);
+    });
+  }
+
+  getTechWorkload(techId: string): number {
+    const today = new Date();
+    const thirtyDaysFromNow = new Date();
+    thirtyDaysFromNow.setDate(today.getDate() + 30);
+
+    const tasks = this.allTasks().filter(t => 
+      t.assignedTo === techId && 
+      t.status !== 'Done' && 
+      new Date(t.nextDueDate) <= thirtyDaysFromNow
+    );
+
+    const totalHours = tasks.reduce((sum, t) => sum + (t.estimatedHours || 0), 0);
+    return Math.round((totalHours / 70) * 100);
+  }
+
+  getTechNameWithWorkload(employeeId?: string): string {
+    if (!employeeId) return 'Unassigned';
+    const tech = this.authService.getAllUsers().find(u => u.employeeId === employeeId);
+    if (!tech) return employeeId;
+    const workload = this.getTechWorkload(employeeId);
+    return `${tech.name} (${workload}%)`;
+  }
+
   getCreatorName(employeeId?: string): string {
     if (!employeeId) return 'System';
     const user = this.authService.getAllUsers().find(u => u.employeeId === employeeId);
@@ -182,6 +227,10 @@ export class PmAssignComponent {
       }
       return newSet;
     });
+  }
+
+  viewTaskDetails(task: PMTask) {
+    this.pmService.viewedTaskGlobal.set(task);
   }
 
   toggleAllSelection(event: any) {

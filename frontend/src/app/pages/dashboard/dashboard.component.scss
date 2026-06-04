@@ -1,4 +1,9 @@
 .dashboard-page {
+/* ── Animation variables (aliases for global tokens) ── */
+--dur-enter: var(--duration-enter, 560ms);
+--dur-base: var(--duration-base, 260ms);
+--ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
 /* ── Reset & Base ─────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -878,9 +883,9 @@ a { color: inherit; text-decoration: none; }
   filter: brightness(1.08);
 }
 
-.bar-cm { background: #1A56DB; }
-.bar-pm { background: #93C5FD; }
-.bar-em { background: #F59E0B; }
+.bar-cm { background: var(--color-blue-DEFAULT); }
+.bar-pm { background: var(--color-blue-light); }
+.bar-em { background: var(--color-warning-mid); }
 
 .bar-label {
   font-size: 10px;

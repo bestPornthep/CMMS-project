@@ -1,7 +1,7 @@
 import { Component, computed, inject, signal, HostListener } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { PmService } from '../../core/services/pm.service';
 import { AuthService } from '../../core/services/auth.service';
 import { PMTask } from '../../core/models/pm.model';
@@ -19,10 +19,13 @@ export class PmCalendarComponent {
   private authService = inject(AuthService);
   private datePipe = inject(DatePipe);
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
 
   // State
   currentDate = signal(new Date());
+  realToday = new Date();
   dropdownOpen = false;
+  highlightedTaskId = signal<string | null>(null);
   
   // Filters
   selectedDept = signal('All');
@@ -36,6 +39,15 @@ export class PmCalendarComponent {
     if (user && user.baseRole !== 'manager' && user.baseRole !== 'admin') {
       this.selectedDept.set(user.department || 'All');
     }
+
+    this.route.queryParams.subscribe(params => {
+      const taskId = params['task'];
+      if (taskId) {
+        this.highlightTask(taskId);
+      } else {
+        this.highlightedTaskId.set(null);
+      }
+    });
   }
 
   get currentUser() {
@@ -80,8 +92,48 @@ export class PmCalendarComponent {
     return this.datePipe.transform(this.currentDate(), 'MMMM yyyy');
   }
   
-  goToRecord(taskId: string) {
+  goToRecord(taskId: string, fromSidebar: boolean = false) {
+    const task = this.pmService.pmTasks().find(t => t.id === taskId);
+    if (!task) return;
+    
+    if (this.currentUser?.baseRole !== 'technician') {
+      if (task.status === 'Pending Approval' || task.status === 'Done') {
+        this.router.navigate(['/pm-record'], { queryParams: { task: taskId } });
+      } else {
+        if (fromSidebar) {
+          this.highlightTask(taskId);
+        } else {
+          this.pmService.viewedTaskGlobal.set(task);
+        }
+      }
+      return;
+    }
+
     this.router.navigate(['/pm-record'], { queryParams: { task: taskId } });
+  }
+
+  highlightTask(taskId: string) {
+    this.highlightedTaskId.set(taskId);
+    const task = this.pmService.pmTasks().find(t => t.id === taskId);
+    if (task && task.nextDueDate) {
+      const d = new Date(task.nextDueDate);
+      this.currentDate.set(new Date(d.getFullYear(), d.getMonth(), 1));
+      setTimeout(() => {
+        const el = document.getElementById('task-' + taskId);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        // Clear highlight after animation (2s)
+        setTimeout(() => {
+          this.highlightedTaskId.set(null);
+          this.router.navigate([], {
+            relativeTo: this.route,
+            queryParams: { task: null },
+            queryParamsHandling: 'merge',
+            replaceUrl: true
+          });
+        }, 2500);
+      }, 100);
+    }
   }
 
   // Filtering Logic
@@ -97,6 +149,13 @@ export class PmCalendarComponent {
     } else if (user.baseRole === 'engineer') {
       const allowedProducts = this.authService.getAccessibleProducts('pm.calendar.view');
       tasks = tasks.filter(t => t.department === user.department && allowedProducts.includes(t.productId || ''));
+      tasks = tasks.filter(t => {
+        if (t.createdBy && t.createdBy !== user.employeeId) {
+          const creator = this.authService.getUser(t.createdBy);
+          if (creator && creator.baseRole === 'engineer') return false;
+        }
+        return true;
+      });
     } else {
       // Manager/Admin uses the dropdown
       const dept = this.selectedDept();
@@ -191,16 +250,20 @@ export class PmCalendarComponent {
 
   monthSummary = computed(() => {
     const date = this.currentDate();
-    const tasks = this.filteredTasks().filter(t => {
+    const monthTasks = this.filteredTasks().filter(t => {
       const compareDate = (t.status === 'Done' && t.completedAt) ? new Date(t.completedAt) : new Date(t.nextDueDate);
       return compareDate.getFullYear() === date.getFullYear() && compareDate.getMonth() === date.getMonth();
     });
 
+    const completed = monthTasks.filter(t => t.status === 'Done').length;
+    const pendingApproval = monthTasks.filter(t => t.status === 'Pending Approval').length;
+    const overdue = this.overdueTasks().length;
+
     return {
-      scheduled: tasks.length,
-      completed: tasks.filter(t => t.status === 'Done').length,
-      overdue: tasks.filter(t => t.status === 'Overdue').length,
-      pending: tasks.filter(t => t.status !== 'Done' && t.status !== 'Overdue').length
+      scheduled: monthTasks.length + overdue,
+      completed,
+      overdue,
+      pendingApproval
     };
   });
 }
