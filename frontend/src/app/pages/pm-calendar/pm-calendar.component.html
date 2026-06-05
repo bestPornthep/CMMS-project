@@ -132,19 +132,19 @@
             <div class="card-header"><div class="card-title">Month Summary</div></div>
             <div class="card-body">
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-                <div style="text-align:center;padding:12px;background:var(--color-info-bg);border-radius:var(--r-md);">
+                <div style="text-align:center;padding:12px;background:var(--color-info-bg);border-radius:var(--radius-md);">
                   <div style="font-size:22px;font-weight:800;letter-spacing:-0.5px;color:var(--color-info);">{{ monthSummary().scheduled }}</div>
                   <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Scheduled</div>
                 </div>
-                <div style="text-align:center;padding:12px;background:var(--color-success-bg);border-radius:var(--r-md);">
+                <div style="text-align:center;padding:12px;background:var(--color-success-bg);border-radius:var(--radius-md);">
                   <div style="font-size:22px;font-weight:800;letter-spacing:-0.5px;color:var(--color-success);">{{ monthSummary().completed }}</div>
                   <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Done</div>
                 </div>
-                <div style="text-align:center;padding:12px;background:var(--error-bg);border-radius:var(--r-md);">
+                <div style="text-align:center;padding:12px;background:var(--error-bg);border-radius:var(--radius-md);">
                   <div style="font-size:22px;font-weight:800;letter-spacing:-0.5px;color:var(--error);">{{ monthSummary().overdue }}</div>
                   <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Overdue</div>
                 </div>
-                <div style="text-align:center;padding:12px;background:var(--bg-card-alt);border-radius:var(--r-md);border:1px solid var(--border);">
+                <div style="text-align:center;padding:12px;background:var(--bg-card-alt);border-radius:var(--radius-md);border:1px solid var(--border);">
                   <div style="font-size:22px;font-weight:800;letter-spacing:-0.5px;color:var(--text-secondary);">{{ monthSummary().pendingApproval }}</div>
                   <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">To Approve</div>
                 </div>

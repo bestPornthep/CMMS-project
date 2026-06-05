@@ -28,15 +28,15 @@ export class LoginComponent {
     this.showPassword = !this.showPassword;
   }
 
-  onSubmit(): void {
+  async onSubmit(): Promise<void> {
     if (this.loginForm.invalid) {
       this.errorMessage = 'Please enter Employee ID and Password.';
       return;
     }
 
     const { employeeId, password } = this.loginForm.value;
-    
-    if (this.authService.login(employeeId!, password!)) {
+
+    if (await this.authService.login(employeeId!, password!)) {
       this.router.navigate(['/dashboard']);
     } else {
       this.errorMessage = 'Invalid credentials. Please try again.';

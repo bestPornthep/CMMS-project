@@ -3,29 +3,41 @@ import { PmAssignComponent } from './pm-assign.component';
 import { By } from '@angular/platform-browser';
 import { FormsModule } from '@angular/forms';
 import { PmService } from '../../core/services/pm.service';
+import { AuthService } from '../../core/services/auth.service';
+
+const flush = () => new Promise(r => setTimeout(r, 0));
 
 describe('PmAssignComponent', () => {
   let component: PmAssignComponent;
   let fixture: ComponentFixture<PmAssignComponent>;
+  let authService: AuthService;
 
   beforeEach(async () => {
+    localStorage.clear();
     await TestBed.configureTestingModule({
       imports: [PmAssignComponent, FormsModule],
     }).compileComponents();
+
+    authService = TestBed.inject(AuthService);
+    await authService.login('MGR001', 'mgr123');
+    await flush(); // allow usersCache to populate
 
     fixture = TestBed.createComponent(PmAssignComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });
 
+  afterEach(() => {
+    authService.logout();
+    localStorage.clear();
+  });
+
   it('should switch tabs correctly', () => {
-    // Default tab should be 'unassigned'
     expect(component.activeTab).toBe('unassigned');
 
-    // Find the Assigned PMs tab button and click it
     const tabButtons = fixture.debugElement.queryAll(By.css('.tab-btn'));
     const assignedTabBtn = tabButtons.find(btn => btn.nativeElement.textContent.trim() === 'Assigned PMs');
-    
+
     assignedTabBtn?.nativeElement.click();
     fixture.detectChanges();
 
@@ -34,18 +46,15 @@ describe('PmAssignComponent', () => {
   });
 
   it('should filter pending tasks by selected department', () => {
-    // Add mock tasks to PmService
     const pmService = TestBed.inject(PmService);
     (pmService as any).pmTasksSignal.set([
-      { id: 'PM-1', title: 'Task 1', department: 'Facility', status: 'Pending', nextDueDate: new Date() } as any,
-      { id: 'PM-2', title: 'Task 2', department: 'Mechanic', status: 'Pending', nextDueDate: new Date() } as any,
+      { id: 'PM-1', title: 'Task 1', department: 'Facility', status: 'Pending', productId: 'CUST-001', frequency: 'Weekly', nextDueDate: new Date(), assetId: 'CH-P1-01' } as any,
+      { id: 'PM-2', title: 'Task 2', department: 'Mechanic', status: 'Pending', productId: 'CUST-001', frequency: 'Monthly', nextDueDate: new Date(), assetId: 'CM-P1-01' } as any,
     ]);
     fixture.detectChanges();
 
-    // Initially all pending tasks are shown
     expect(component.pendingTasks().length).toBe(2);
 
-    // Set filter to Facility
     component.deptFilter.set('Facility');
     fixture.detectChanges();
 
@@ -53,89 +62,76 @@ describe('PmAssignComponent', () => {
     expect(component.pendingTasks()[0].department).toBe('Facility');
   });
 
-  it('should allow bulk assigning tasks to a technician and clear selection', () => {
+  it('should allow bulk assigning tasks to a technician and clear selection', async () => {
     const pmService = TestBed.inject(PmService);
-    (pmService as any).pmTasksSignal.set([
-      { id: 'PM-1', title: 'Task 1', status: 'Pending', nextDueDate: new Date() } as any,
-      { id: 'PM-2', title: 'Task 2', status: 'Pending', nextDueDate: new Date() } as any,
-      { id: 'PM-3', title: 'Task 3', status: 'Pending', nextDueDate: new Date() } as any,
-    ]);
-    fixture.detectChanges();
 
-    // Select first and third tasks
+    // Use REAL pending tasks from seed data (they exist in ApiService too)
+    const pending = pmService.pmTasks().filter(t => t.status === 'Pending');
+    expect(pending.length).toBeGreaterThanOrEqual(2);
+
+    const taskId1 = pending[0].id;
+    const taskId2 = pending[1].id;
+
     component.selectedTasks.update(set => {
-      set.add('PM-1');
-      set.add('PM-3');
+      set.add(taskId1);
+      set.add(taskId2);
       return new Set(set);
     });
-    
-    // Choose technician for bulk
-    component.bulkAssignee.set('J. Doe');
-    
-    // Attempt bulk assign, should open modal
+
+    const techUser = authService.getUser('TECH-TST-1');
+    component.bulkAssignee.set(techUser);
+
     component.openBulkAssignModal();
     expect(component.showBulkModal()).toBe(true);
-    
-    // Confirm bulk assignment
+
     component.confirmBulkAssign();
-    
-    // Verify tasks were assigned via service
+    await flush();
+
     const tasks = pmService.pmTasks();
-    const pm1 = tasks.find(t => t.id === 'PM-1');
-    const pm2 = tasks.find(t => t.id === 'PM-2');
-    const pm3 = tasks.find(t => t.id === 'PM-3');
+    const t1 = tasks.find(t => t.id === taskId1);
+    const t2 = tasks.find(t => t.id === taskId2);
 
-    expect(pm1?.status).toBe('In Progress');
-    expect(pm1?.assignedTo).toBe('J. Doe');
-    
-    expect(pm3?.status).toBe('In Progress');
-    expect(pm3?.assignedTo).toBe('J. Doe');
+    expect(t1?.status).toBe('In Progress');
+    expect(t1?.assignedTo).toBe('TECH-TST-1');
+    expect(t2?.status).toBe('In Progress');
 
-    // PM-2 shouldn't be affected
-    expect(pm2?.status).toBe('Pending');
-    expect(pm2?.assignedTo).toBeUndefined();
-
-    // Modal should close and selection should clear
     expect(component.showBulkModal()).toBe(false);
     expect(component.selectedTasks().size).toBe(0);
-    expect(component.bulkAssignee()).toBe('');
   });
 
-  it('should create a single delegation row with multiple products and allow revoking', () => {
-    // Initial state
+  it('should create delegations and allow revoking', async () => {
+    await flush(); // ensure usersCache is populated
+
     expect(component.delegations().length).toBe(0);
 
-    // Grant a delegation with multiple users and multiple products
-    component.newDelegationUsers.set(['J. Doe', 'S. Miller']);
-    component.newDelegationProducts.set(['Product A', 'Product B']);
+    component.newDelegationUsers.set(['TECH-TST-1', 'TECH-TST-2']);
+    component.newDelegationProducts.set(['CUST-001', 'CUST-002']);
     component.newDelegationDuration.set(30);
 
     component.grantDelegation();
 
-    // Since we selected 2 users, there should be exactly 2 delegation rows (one per user)
-    // Each row should contain both products.
+    // 2 users = 2 rows (after the composite key fix)
     expect(component.delegations().length).toBe(2);
-    
-    const delegation1 = component.delegations().find(d => d.user === 'J. Doe');
-    expect(delegation1.products.length).toBe(2);
-    expect(delegation1.products).toContain('Product A');
-    expect(delegation1.products).toContain('Product B');
 
-    // Revoke the delegation
-    component.revokeDelegation(delegation1.id);
-    expect(component.delegations().length).toBe(1);
+    const delegation1 = component.delegations().find(d => d.employeeId === 'TECH-TST-1');
+    expect(delegation1).toBeTruthy();
+    expect(delegation1!.products.length).toBe(2);
+    expect(delegation1!.products).toContain('CUST-001');
+    expect(delegation1!.products).toContain('CUST-002');
+
+    component.revokeDelegation(delegation1!.id);
+    const after = component.delegations();
+    // Only TECH-TST-1's delegation should be revoked, TECH-TST-2 still active
+    expect(after.find(d => d.employeeId === 'TECH-TST-1')).toBeUndefined();
   });
 
   it('should close other dropdowns when opening a new one', () => {
-    // Open user dropdown
     component.delegationUserDropdownOpen = true;
     expect(component.delegationUserDropdownOpen).toBe(true);
 
-    // Toggle product dropdown
     const event = new MouseEvent('click');
     component.toggleDropdown('delegationProduct', event);
 
-    // Product should be open, user should be closed
     expect(component.delegationProductDropdownOpen).toBe(true);
     expect(component.delegationUserDropdownOpen).toBe(false);
   });

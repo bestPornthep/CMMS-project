@@ -118,27 +118,11 @@ export class DashboardComponent implements OnInit {
   });
 
   ngOnInit() {
-    // Setup entrance animations
     setTimeout(() => {
       document.querySelectorAll('[data-enter]').forEach((el: any, i) => {
         el.style.animationDelay = `${i * 60}ms`;
         el.classList.add('anim-enter');
       });
-      
-      // Animate Health Bars
-      document.querySelectorAll('.health-bar-fill[data-width]').forEach((bar: any, i) => {
-        const targetWidth = bar.getAttribute('data-width');
-        const pct = parseInt(targetWidth);
-        const color = pct >= 70 ? 'var(--success-mid)' : pct >= 50 ? 'var(--warning-mid)' : 'var(--error-mid)';
-        bar.style.background = color;
-    
-        setTimeout(() => {
-          bar.style.transition = `width 700ms cubic-bezier(0.16, 1, 0.3, 1)`;
-          bar.style.width = targetWidth;
-        }, 400 + i * 80);
-      });
-
-
     }, 50);
   }
 

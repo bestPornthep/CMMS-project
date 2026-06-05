@@ -28,16 +28,16 @@
           <div class="kpi-card" data-enter>
             <div class="kpi-top">
               <div>
-                <div class="kpi-label">Total Work Orders</div>
+                <div class="kpi-label">TOTAL WORK ORDERS</div>
                 <div class="kpi-value">{{ totalWorkOrders() }}</div>
               </div>
-              <div class="kpi-icon" style="background:var(--blue-light);">
-                <span class="material-symbols-outlined" style="color:var(--blue);">assignment</span>
+              <div class="kpi-icon">
+                <span class="material-symbols-outlined">assignment</span>
               </div>
             </div>
 
             <div class="kpi-footer">
-              <span class="kpi-trend good">
+              <span class="kpi-trend">
                 <span class="material-symbols-outlined">trending_up</span>
                 <span>+12% from last mo</span>
               </span>
@@ -47,18 +47,20 @@
           <div class="kpi-card" data-enter>
             <div class="kpi-top">
               <div>
-                <div class="kpi-label">Pending Actions</div>
-                <div class="kpi-value"><span>{{ pendingActions() }}</span> <span class="crit" *ngIf="overdueActions() > 0">{{ overdueActions() }} overdue</span></div>
+                <div class="kpi-label">PENDING ACTIONS</div>
+                <div class="kpi-value">
+                  <span>{{ pendingActions() }}</span>
+                  <span class="crit" *ngIf="overdueActions() > 0">{{ overdueActions() }} overdue</span>
+                </div>
               </div>
-              <div class="kpi-icon" style="background:var(--warning-bg);">
-                <span class="material-symbols-outlined" style="color:var(--warning-mid);">pending_actions</span>
+              <div class="kpi-icon">
+                <span class="material-symbols-outlined">pending_actions</span>
               </div>
             </div>
 
             <div class="kpi-footer">
-              <span class="kpi-trend neutral">
-                <span class="material-symbols-outlined">trending_flat</span>
-                <span>Steady</span>
+              <span class="kpi-trend badge-blue">
+                <span>&rarr; Steady</span>
               </span>
             </div>
           </div>
@@ -66,16 +68,18 @@
           <div class="kpi-card" data-enter>
             <div class="kpi-top">
               <div>
-                <div class="kpi-label">PM Compliance</div>
-                <div class="kpi-value"><span>{{ pmCompliance() }}</span><sub>%</sub></div>
+                <div class="kpi-label">PM COMPLIANCE</div>
+                <div class="kpi-value">
+                  <span>{{ pmCompliance() }}</span><sub>%</sub>
+                </div>
               </div>
-              <div class="kpi-icon" style="background:var(--success-bg);">
-                <span class="material-symbols-outlined" style="color:var(--success-mid);">bolt</span>
+              <div class="kpi-icon">
+                <span class="material-symbols-outlined icon-filled">bolt</span>
               </div>
             </div>
 
             <div class="kpi-footer">
-              <span class="kpi-trend good">
+              <span class="kpi-trend">
                 <span class="material-symbols-outlined">trending_up</span>
                 <span>+2.4%</span>
               </span>
@@ -85,16 +89,18 @@
           <div class="kpi-card" data-enter>
             <div class="kpi-top">
               <div>
-                <div class="kpi-label">Active Assignments</div>
-                <div class="kpi-value"><span>{{ assignedTasks() }}</span><sub> active</sub></div>
+                <div class="kpi-label">ACTIVE ASSIGNMENTS</div>
+                <div class="kpi-value">
+                  <span>{{ assignedTasks() }}</span><sub> active</sub>
+                </div>
               </div>
-              <div class="kpi-icon" style="background:var(--info-bg);">
-                <span class="material-symbols-outlined" style="color:var(--info-mid);">group_work</span>
+              <div class="kpi-icon">
+                <span class="material-symbols-outlined icon-filled">group_work</span>
               </div>
             </div>
 
             <div class="kpi-footer">
-              <span class="kpi-trend good">
+              <span class="kpi-trend">
                 <span class="material-symbols-outlined">trending_up</span>
                 <span>Optimal load</span>
               </span>
@@ -194,8 +200,6 @@
             </div>
           </div>
 
-
-
         </div>
         <!-- end main grid -->
 
@@ -212,7 +216,7 @@
               <a class="card-action" routerLink="/pm-assign">View All</a>
             </div>
 
-            <div style="overflow:auto;border-radius:0 0 var(--r-xl) var(--r-xl);">
+            <div style="overflow:auto;border-radius:0 0 var(--radius-xl) var(--radius-xl);">
               <table class="wo-table">
                 <thead>
                   <tr>

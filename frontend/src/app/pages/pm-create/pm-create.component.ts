@@ -89,24 +89,23 @@ export class PmCreateComponent {
     }
   }
 
-  selectDept(d: string) { 
-    this.department = d; 
+  selectDept(d: string) {
+    this.department = d;
     if (this.assetId) {
       const asset = this.pmService.assets().find(a => a.id === this.assetId);
-      if (asset && asset.type !== d) {
+      if (asset && asset.department !== d) {
         this.assetId = '';
       }
     }
   }
 
-  selectAsset(a: string) { 
-    this.assetId = a; 
+  selectAsset(a: string) {
+    this.assetId = a;
     if (a) {
       const asset = this.pmService.assets().find(x => x.id === a);
       if (asset) {
-        // Enforce the asset's location and type
         this.productId = asset.location;
-        this.department = asset.type;
+        this.department = asset.department;
       }
     }
   }
@@ -136,16 +135,12 @@ export class PmCreateComponent {
   departments = ['Facility', 'Mechanic', 'Manufacturing', 'Maintenance', 'Test'];
   availableParts = ['Bearing Assembly 6205', 'Filter Element HF-04', 'Seal Kit SK-22', 'Lubricant SAE-30 (1L)', 'Drive Belt B-440', 'O-Ring Set OR-12'];
   
-  // Computed Assets based on selection
   availableAssets() {
     const accessibleProducts = this.products();
     return this.pmService.assets().filter(a => {
-      // Must be in user's scope
       if (!accessibleProducts.includes(a.location)) return false;
-      // If a specific product is selected, must match it
       if (this.productId && a.location !== this.productId) return false;
-      // If a department is selected, must match it
-      if (this.department && a.type !== this.department) return false;
+      if (this.department && a.department !== this.department) return false;
       return true;
     });
   }
@@ -228,12 +223,11 @@ export class PmCreateComponent {
 
     const selectedAsset = this.pmService.assets().find(a => a.id === this.assetId);
     if (!selectedAsset) {
-      alert("Invalid asset selected.");
+      alert('Invalid asset selected.');
       return;
     }
-    
-    if (selectedAsset.location !== this.productId || selectedAsset.type !== this.department) {
-      alert("The selected asset does not match the chosen product or department. Action blocked.");
+    if (selectedAsset.location !== this.productId || selectedAsset.department !== this.department) {
+      alert('The selected asset does not match the chosen product or department. Action blocked.');
       return;
     }
     

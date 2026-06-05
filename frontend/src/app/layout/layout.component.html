@@ -181,7 +181,7 @@
             style="font-size:12px;font-weight:700;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:12px;">
             Checklist</div>
           <div
-            style="display:flex;flex-direction:column;gap:12px; background:var(--color-bg-card-alt); padding:16px; border-radius:var(--r-lg); border:1px solid var(--color-border-soft);">
+            style="display:flex;flex-direction:column;gap:12px; background:var(--color-bg-card-alt); padding:16px; border-radius:var(--radius-lg); border:1px solid var(--color-border-soft);">
             <div class="checkbox-row" *ngFor="let item of getDisplayChecklist(viewedTask)">
               <div class="checkbox-box" [class.checked]="item.done">
                 <span class="material-symbols-outlined" *ngIf="item.done">check</span>

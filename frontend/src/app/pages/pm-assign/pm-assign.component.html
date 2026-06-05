@@ -41,7 +41,7 @@
   <div class="tab-content" [class.active]="activeTab === 'unassigned'">
     <div class="assign-toolbar" *ngIf="selectedTasks().size > 0" style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
       <div style="display:flex; align-items:center; gap:16px;">
-        <div class="bulk-bar" style="display:flex; align-items:center; gap:12px; background:var(--blue-light); padding:8px 16px; border-radius:var(--r-lg); border:1px solid rgba(26,86,219,0.2); flex-wrap:nowrap;">
+        <div class="bulk-bar" style="display:flex; align-items:center; gap:12px; background:var(--blue-light); padding:8px 16px; border-radius:var(--radius-lg); border:1px solid rgba(26,86,219,0.2); flex-wrap:nowrap;">
           <span class="material-symbols-outlined" style="color:var(--blue); flex-shrink:0;">checklist</span>
           <span style="font-weight:600; color:var(--blue-text); font-size:13px; white-space:nowrap; flex-shrink:0;">{{ selectedTasks().size }} selected</span>
           <div class="c-dropdown" [class.open]="bulkDropdownOpen" (click)="toggleDropdown('bulk', $event)" style="flex-shrink:0;">
@@ -66,7 +66,7 @@
       <div class="card-header">
         <div class="card-title">Unassigned PM Work Orders</div>
       </div>
-      <div style="overflow:visible; border-radius:0 0 var(--r-xl) var(--r-xl);">
+      <div style="overflow:visible; border-radius:0 0 var(--radius-xl) var(--radius-xl);">
         <table class="data-table">
           <thead>
             <tr>
@@ -132,7 +132,7 @@
       <div class="card-header">
         <div class="card-title">Assigned PM Work Orders</div>
       </div>
-      <div style="overflow:visible; border-radius:0 0 var(--r-xl) var(--r-xl);">
+      <div style="overflow:visible; border-radius:0 0 var(--radius-xl) var(--radius-xl);">
         <table class="data-table">
           <thead>
             <tr>
@@ -273,7 +273,7 @@
         <div class="card-header">
           <div class="card-title">Active Delegations</div>
         </div>
-        <div style="overflow:auto;border-radius:0 0 var(--r-xl) var(--r-xl);max-height:400px;">
+        <div style="overflow:auto;border-radius:0 0 var(--radius-xl) var(--radius-xl);max-height:400px;">
           <table class="data-table">
             <thead>
               <tr>

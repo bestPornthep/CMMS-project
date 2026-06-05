@@ -32,29 +32,20 @@ export class PmAssignComponent {
     }
   }
 
-  // Computed signals
-  allTasks = this.pmService.pmTasks;
-  
-  // Department filter
   deptFilter = signal<string>('All');
 
   // Computed assigned tasks filtered by department
   assignedTasks = computed(() => {
-    let tasks = this.allTasks().filter(t => t.status !== 'Pending' && this.canManageTask(t));
+    let tasks = this.pmService.pmTasks().filter(t => t.status !== 'Pending' && this.canManageTask(t));
     const dept = this.deptFilter();
-    if (dept !== 'All') {
-      tasks = tasks.filter(t => t.department === dept);
-    }
+    if (dept !== 'All') tasks = tasks.filter(t => t.department === dept);
     return tasks;
   });
 
-  // Get only pending tasks to assign, filtered by department
   pendingTasks = computed(() => {
-    let tasks = this.allTasks().filter(t => t.status === 'Pending' && this.canManageTask(t));
+    let tasks = this.pmService.pmTasks().filter(t => t.status === 'Pending' && this.canManageTask(t));
     const dept = this.deptFilter();
-    if (dept !== 'All') {
-      tasks = tasks.filter(t => t.department === dept);
-    }
+    if (dept !== 'All') tasks = tasks.filter(t => t.department === dept);
     return tasks;
   });
 
@@ -103,7 +94,7 @@ export class PmAssignComponent {
     const thirtyDaysFromNow = new Date();
     thirtyDaysFromNow.setDate(today.getDate() + 30);
 
-    const tasks = this.allTasks().filter(t => 
+    const tasks = this.pmService.pmTasks().filter((t: PMTask) => 
       t.assignedTo === techId && 
       t.status !== 'Done' && 
       new Date(t.nextDueDate) <= thirtyDaysFromNow
@@ -213,7 +204,7 @@ export class PmAssignComponent {
   }
 
   toggleSelection(taskId: string) {
-    const task = this.allTasks().find(t => t.id === taskId);
+    const task = this.pmService.pmTasks().find(t => t.id === taskId);
     if (task && !this.canManageTask(task)) {
       alert('You cannot manage or reassign work owned by another Engineer or outside your responsibility.');
       return;
@@ -262,7 +253,7 @@ export class PmAssignComponent {
     const taskIds = this.selectedTasks();
     
     // Update all selected tasks
-    const tasks = this.allTasks();
+    const tasks = this.pmService.pmTasks();
     for (const task of tasks) {
       if (taskIds.has(task.id)) {
         // Validate Product-Asset match before assignment
