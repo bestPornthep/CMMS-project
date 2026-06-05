@@ -97,18 +97,22 @@ export class PmCalendarComponent {
     if (!task) return;
     
     if (this.currentUser?.baseRole !== 'technician') {
-      if (task.status === 'Pending Approval' || task.status === 'Done') {
+      if (task.status === 'Pending Approval') {
+        // Redirect to Approval Records (pm-record action tab)
         this.router.navigate(['/pm-record'], { queryParams: { task: taskId } });
+      } else if (task.status === 'Done') {
+        // Only Done task gets the modal
+        this.pmService.viewedTaskGlobal.set(task);
       } else {
+        // Scheduled and Overdue MUST NOT show modal
         if (fromSidebar) {
           this.highlightTask(taskId);
-        } else {
-          this.pmService.viewedTaskGlobal.set(task);
         }
       }
       return;
     }
 
+    // Technicians always go to pm-record to execute
     this.router.navigate(['/pm-record'], { queryParams: { task: taskId } });
   }
 

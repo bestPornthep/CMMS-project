@@ -14,49 +14,49 @@
     </div>
 
     <nav class="sidebar-nav">
-      <div class="nav-label">Overview</div>
+      <div class="nav-label">{{ 'Overview' | tr }}</div>
 
       <a class="nav-item" routerLink="/dashboard" routerLinkActive="active" *ngIf="hasPermission('pm.dashboard.view')">
         <span class="material-symbols-outlined">dashboard</span>
-        <span class="nav-item-label">Dashboard</span>
+        <span class="nav-item-label">{{ 'Dashboard' | tr }}</span>
       </a>
 
       <div class="nav-divider"></div>
 
-      <div class="nav-label">PM Work</div>
+      <div class="nav-label">{{ 'PM Work' | tr }}</div>
 
       <a class="pm-subitem" routerLink="/pm-create" routerLinkActive="active" *ngIf="hasPermission('pm.create.view')">
         <span class="material-symbols-outlined">add_circle</span>
-        <span>Create PM</span>
+        <span>{{ 'Create PM' | tr }}</span>
       </a>
 
       <a class="pm-subitem" routerLink="/pm-assign" routerLinkActive="active" *ngIf="hasPermission('pm.assign.view')">
         <span class="material-symbols-outlined">person_add</span>
-        <span>Assign PM</span>
+        <span>{{ 'Assign PM' | tr }}</span>
       </a>
 
       <a class="pm-subitem" routerLink="/pm-record" routerLinkActive="active" *ngIf="hasPermission('pm.record.view')">
         <span class="material-symbols-outlined">edit_note</span>
-        <span>Record PM</span>
+        <span>{{ 'Record PM' | tr }}</span>
       </a>
 
       <a class="pm-subitem" routerLink="/pm-calendar" routerLinkActive="active" *ngIf="hasPermission('pm.calendar.view')">
         <span class="material-symbols-outlined">calendar_month</span>
-        <span>PM Calendar</span>
+        <span>{{ 'PM Calendar' | tr }}</span>
       </a>
 
       <a class="pm-subitem" routerLink="/pm-reports" routerLinkActive="active" *ngIf="hasPermission('pm.reports.view')">
         <span class="material-symbols-outlined">bar_chart</span>
-        <span>PM Reports</span>
+        <span>{{ 'PM Reports' | tr }}</span>
       </a>
 
       <div class="nav-divider"></div>
       
-      <div class="nav-label">Administration</div>
+      <div class="nav-label">{{ 'Administration' | tr }}</div>
       
       <a class="pm-subitem" routerLink="/pm-audit" routerLinkActive="active" *ngIf="hasPermission('pm.audit.view')">
         <span class="material-symbols-outlined">history</span>
-        <span>Audit Log</span>
+        <span>{{ 'Audit Log' | tr }}</span>
       </a>
     </nav>
 
@@ -88,6 +88,11 @@
       </div>
 
       <div class="topbar-right">
+        <!-- Language Toggle -->
+        <button class="topbar-btn" style="font-weight: 700; font-size: 13px; font-family: monospace;" (click)="translationService.toggleLanguage()" [title]="translationService.currentLang() === 'en' ? 'Switch to Thai' : 'Switch to English'">
+          {{ translationService.currentLang() === 'en' ? 'TH' : 'EN' }}
+        </button>
+
         <!-- Notifications -->
         <div style="position: relative;">
           <button class="topbar-btn topbar-notif" title="Notifications" (click)="toggleNotifications($event)">
@@ -175,11 +180,11 @@
           {{ viewedTask.description }}
         </div>
 
-        <!-- Checklist -->
-        <div *ngIf="getDisplayChecklist(viewedTask).length > 0">
+        <!-- Checklist (Only show if completed or in review) -->
+        <div *ngIf="(viewedTask.status === 'Done' || viewedTask.status === 'Pending Approval' || viewedTask.recordNotes?.includes('[Rejected')) && getDisplayChecklist(viewedTask).length > 0">
           <div
             style="font-size:12px;font-weight:700;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:12px;">
-            Checklist</div>
+            Completed Checklist</div>
           <div
             style="display:flex;flex-direction:column;gap:12px; background:var(--color-bg-card-alt); padding:16px; border-radius:var(--radius-lg); border:1px solid var(--color-border-soft);">
             <div class="checkbox-row" *ngFor="let item of getDisplayChecklist(viewedTask)">

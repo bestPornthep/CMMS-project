@@ -3,18 +3,21 @@ import { CommonModule } from '@angular/common';
 import { RouterModule, Router, NavigationEnd, ActivatedRoute } from '@angular/router';
 import { AuthService } from '../core/services/auth.service';
 import { PmService } from '../core/services/pm.service';
+import { TranslationService } from '../core/services/translation.service';
+import { TranslatePipe } from '../shared/pipes/translate.pipe';
 import { filter, map, mergeMap } from 'rxjs/operators';
 
 @Component({
   selector: 'app-layout',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, TranslatePipe],
   templateUrl: './layout.component.html',
   styleUrls: []
 })
 export class LayoutComponent {
   private authService = inject(AuthService);
   private pmService = inject(PmService);
+  public translationService = inject(TranslationService);
   private router = inject(Router);
   private activatedRoute = inject(ActivatedRoute);
   
