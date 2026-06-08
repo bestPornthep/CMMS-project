@@ -23,16 +23,21 @@ export class AuthService {
   // ── Auth ────────────────────────────────────────────────────────────────
 
   async login(employeeId: string, password: string): Promise<boolean> {
-    const user = await this.api.verifyLogin(employeeId, password);
-    if (!user) return false;
-    this.currentUserSignal.set(user);
-    localStorage.setItem(AUTH_KEY, JSON.stringify(user)); // session persistence
+    const res = await this.api.verifyLogin(employeeId, password);
+    if (!res || !res.token) return false;
+    localStorage.setItem(AUTH_KEY, res.token);
+    localStorage.setItem('assetintel_user', JSON.stringify(res.user));
+    this.currentUserSignal.set(res.user);
+    const users = await this.api.getAllUsers();
+    this.usersCache.set(users);
     return true;
   }
 
   logout(): void {
+    this.api.logout().catch(() => {});
     this.currentUserSignal.set(null);
-    localStorage.removeItem(AUTH_KEY); // clears session on explicit logout
+    localStorage.removeItem(AUTH_KEY);
+    localStorage.removeItem('assetintel_user');
   }
 
   // ── Permission checks (synchronous — uses cached user) ──────────────────
@@ -129,70 +134,41 @@ export class AuthService {
     });
   }
 
-  grantDelegation(targetIds: string[], products: string[], validUntil: Date): void {
+  async grantDelegation(targetIds: string[], products: string[], validUntil: Date): Promise<void> {
     const currentUser = this.currentUser();
     if (!currentUser) throw new Error('Unauthorized.');
 
-    if (currentUser.baseRole === 'technician') {
-      const allowed = this.getAccessibleProducts('pm.create.submit');
-      if (allowed.length === 0) throw new Error('No products to delegate.');
-      for (const p of products) {
-        if (!allowed.includes(p)) throw new Error('Can only delegate within granted scope.');
-      }
-    } else if (currentUser.baseRole === 'engineer') {
-      const allowed = this.getAccessibleProducts('pm.create.submit');
-      for (const p of products) {
-        if (!allowed.includes(p)) throw new Error('Can only delegate within owned products.');
-      }
-    }
+    await this.api.grantDelegation(targetIds, products, validUntil);
 
-    const defaultPermissions = [
-      'pm.create.view', 'pm.create.submit', 'pm.assign.view', 'pm.assign.submit',
-      'pm.record.view', 'pm.record.submit', 'pm.calendar.view',
-    ];
-    const delegationId = `DEL-${this.generateId()}`;
+    const users = await this.api.getAllUsers();
+    this.usersCache.set(users);
 
-    this.usersCache.update(users => users.map(u => {
-      if (!targetIds.includes(u.employeeId)) return u;
-      const newDelegations: DelegatedProduct[] = products.map(productId => ({
-        id: delegationId, productId, status: 'active', permissions: defaultPermissions, validUntil
-      }));
-      return { ...u, delegatedProducts: [...(u.delegatedProducts || []), ...newDelegations] };
-    }));
-
-    // Sync session user if they were updated
     const sessionUser = this.currentUser();
     if (sessionUser && targetIds.includes(sessionUser.employeeId)) {
-      const updated = this.usersCache().find(u => u.employeeId === sessionUser.employeeId);
+      const updated = users.find(u => u.employeeId === sessionUser.employeeId);
       if (updated) {
         this.currentUserSignal.set(updated);
-        localStorage.setItem(AUTH_KEY, JSON.stringify(updated));
+        localStorage.setItem('assetintel_user', JSON.stringify(updated));
       }
-    }
-
-    // Also update ApiService for consistency
-    for (const id of targetIds) {
-      const updated = this.usersCache().find(u => u.employeeId === id);
-      if (updated) this.api.updateUser(id, { delegatedProducts: updated.delegatedProducts });
     }
   }
 
-  revokeDelegation(delegationId: string): void {
+  async revokeDelegation(delegationId: string): Promise<void> {
     const currentUser = this.currentUser();
     if (!currentUser) throw new Error('Unauthorized.');
     if (currentUser.baseRole === 'technician') throw new Error('Technicians cannot revoke delegations.');
 
-    this.usersCache.update(users => users.map(u => ({
-      ...u,
-      delegatedProducts: (u.delegatedProducts || []).map(dp =>
-        dp.id === delegationId ? { ...dp, status: 'revoked' as const } : dp
-      )
-    })));
+    await this.api.revokeDelegation(delegationId);
 
-    // Sync to api for consistency
-    for (const u of this.usersCache()) {
-      if (u.delegatedProducts?.some(dp => dp.id === delegationId)) {
-        this.api.updateUser(u.employeeId, { delegatedProducts: u.delegatedProducts });
+    const users = await this.api.getAllUsers();
+    this.usersCache.set(users);
+
+    const sessionUser = this.currentUser();
+    if (sessionUser) {
+      const updated = users.find(u => u.employeeId === sessionUser.employeeId);
+      if (updated) {
+        this.currentUserSignal.set(updated);
+        localStorage.setItem('assetintel_user', JSON.stringify(updated));
       }
     }
   }
@@ -221,7 +197,7 @@ export class AuthService {
 
   private loadStoredSession(): User | null {
     try {
-      const stored = localStorage.getItem(AUTH_KEY);
+      const stored = localStorage.getItem('assetintel_user');
       return stored ? JSON.parse(stored) as User : null;
     } catch {
       return null;

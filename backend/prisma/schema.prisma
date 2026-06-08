@@ -1,0 +1,3034 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlserver"
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model AddCustomer_Prefix {
+  Customer  String   @db.NVarChar(50)
+  FileName  String   @db.NVarChar(50)
+  PreFix    String   @db.NVarChar(50)
+  Picture   Bytes    @db.Image
+  date_time DateTime @db.DateTime
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model AddICTfixture_Identify {
+  Customer       String   @db.NVarChar(50)
+  PartNum        String   @db.NVarChar(100)
+  FileName       String   @db.NVarChar(200)
+  FixID          String   @db.NVarChar(100)
+  Location       String   @db.NVarChar(50)
+  Samp_Lock_Loca String   @db.NVarChar(50)
+  Picture        Bytes    @db.Image
+  date_time      DateTime @db.DateTime
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model AdditionalResults {
+  StepResultsId       BigInt
+  VariableType        BigInt
+  VariableName        String
+  LookUpString        String
+  BooleanValue        Boolean?
+  NumericValue        Float?
+  StringValue         String?
+  AdditionalResultsId BigInt
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model All_master_ICs_Pro {
+  Cm_pn               String?   @db.NChar(20)
+  Cm_pn_ic_Pro        String?   @db.NChar(20)
+  Cm_pn_ic_Pro_rev    String?   @db.NChar(10)
+  Cm_ic_loc           String?   @db.NChar(10)
+  Cm_ic_Pro_des       String?   @db.NChar(150)
+  checksum_master     String?   @db.NChar(10)
+  Cm_ic_Pro_item_name String?   @db.NChar(50)
+  Cm_ic_Pro_file_name String?   @db.NChar(40)
+  Cm_ic_Pro_filezip   String?   @db.NChar(40)
+  Date_time           DateTime? @db.DateTime
+  KE_pn               String?   @db.NChar(40)
+  KE_pn_ic_Pro        String?   @db.NChar(40)
+  KE_pn_ic_Pro_rev    String?   @db.NChar(10)
+  KE_ic_loc           String?   @db.NChar(10)
+  KE_ic_Pro_des       String?   @db.NChar(150)
+  checksum_read       String?   @db.NChar(10)
+  KE_blank_pn_ic_Pro  String?   @db.NChar(40)
+  KE_ic_Pro_ampl      String?   @db.NChar(380)
+  Mco_num             String?   @db.NChar(20)
+  Date_time_compare   DateTime? @db.DateTime
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model BD_EVENT_LOG {
+  log_id               String?   @unique(map: "ClusteredIndex-20220914-082718", clustered: true) @db.VarChar(100)
+  event_dt             DateTime? @default(now(), map: "DF_BD_EVENT_LOG_event_dt") @db.DateTime
+  product              String?   @db.VarChar(200)
+  process              String?   @db.VarChar(100)
+  computer_name        String?   @db.VarChar(100)
+  local_backup         String?   @db.VarChar(500)
+  file_name            String?   @db.VarChar(200)
+  file_size            String?   @db.VarChar(100)
+  file_name_json       String?   @db.NVarChar(Max)
+  serial_number        String?   @db.VarChar(100)
+  date_time            DateTime? @db.DateTime
+  server_file_path     String?   @db.VarChar(500)
+  processing_status    Boolean?
+  local_backup_status  Boolean?
+  trc_status           Boolean?
+  server_backup_status Boolean?
+  record_status        Boolean?
+  meas_status          Boolean?
+  err_msg              String?   @db.NVarChar(Max)
+  extend               String?   @db.NVarChar(Max)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model BD_PROCESS_MEAS {
+  log_id     String  @db.VarChar(200)
+  step_id    String? @db.VarChar(200)
+  meas_value String?
+
+  @@unique([log_id, step_id], map: "ClusteredIndex-20220914-082341", clustered: true)
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model BD_PROCESS_RECORD {
+  log_id              String?   @db.VarChar(100)
+  history_id          String?   @db.VarChar(50)
+  machine_name        String?   @db.VarChar(200)
+  part_number         String?   @db.VarChar(50)
+  process             String?   @db.VarChar(50)
+  serial_number       String?   @db.VarChar(50)
+  ent_time            DateTime? @db.DateTime
+  ext_time            DateTime? @db.DateTime
+  mode                String?   @db.VarChar(20)
+  status              String?   @db.VarChar(20)
+  run_time            String?   @db.VarChar(20)
+  fixture             String?   @db.VarChar(100)
+  failure_name        String?   @db.VarChar(1000)
+  failure_description String?   @db.VarChar(Max)
+  extend              String?   @db.NVarChar(Max)
+
+  @@index([serial_number, ent_time, status], map: "udi_ser_num_ent_status")
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model BD_PROCESS_RECORD_OLD {
+  log_id              String?   @unique(map: "ClusteredIndex-20220914-083014", clustered: true) @db.VarChar(100)
+  machine_name        String?   @db.VarChar(200)
+  part_number         String?   @db.VarChar(50)
+  process             String?   @db.VarChar(50)
+  serial_number       String?   @db.VarChar(50)
+  ent_time            DateTime? @db.DateTime
+  ext_time            DateTime? @db.DateTime
+  mode                String?   @db.VarChar(20)
+  status              String?   @db.VarChar(20)
+  run_time            String?   @db.VarChar(20)
+  fixture             String?   @db.VarChar(100)
+  failure_name        String?   @db.VarChar(1000)
+  failure_description String?   @db.VarChar(Max)
+  extend              String?   @db.NVarChar(Max)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model BD_PROCESS_REGISTERED {
+  regis_datetime       DateTime? @default(now(), map: "DF_BD_PROCESS_REGISTERED_regis_datetime") @db.DateTime
+  regis_by             String?   @db.VarChar(10)
+  computer_name        String?   @db.VarChar(100)
+  product_name         String?   @db.VarChar(100)
+  process              String?   @db.VarChar(100)
+  monitor_path         String?
+  sub_folder           Boolean?  @default(false, map: "DF_BD_PROCESS_REGISTERED_sub_folder")
+  process_time         Int?
+  delay_time           Int?
+  backup_local         String?
+  backup_server        String?
+  regex_file_format    String?   @db.NVarChar(Max)
+  regex_log_processing String?   @db.NVarChar(Max)
+  select_process_mode  Boolean?  @default(false, map: "DF_BD_PROCESS_REGISTERED_select_process_mode")
+  insert_trc           Boolean?
+  station_function_id  Int?
+  station_id           Int?
+  station_function     String?   @db.VarChar(1000)
+  station_name         String?   @db.VarChar(1000)
+  en_proc_backup_log   Boolean?
+  en_proc_record       Boolean?
+  en_proc_meas         Boolean?
+  en_log_validation    Boolean?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model BD_PROCESS_REGISTERED_HISTORY {
+  event                String?   @db.VarChar(100)
+  event_dt             DateTime? @db.DateTime
+  regis_datetime       DateTime? @db.DateTime
+  regis_by             String?   @db.VarChar(10)
+  computer_name        String?   @db.VarChar(100)
+  product_name         String?   @db.VarChar(100)
+  process              String?   @db.VarChar(100)
+  monitor_path         String?
+  sub_folder           Boolean?
+  process_time         Int?
+  delay_time           Int?
+  backup_local         String?
+  backup_server        String?
+  regex_file_format    String?   @db.NVarChar(Max)
+  regex_log_processing String?   @db.NVarChar(Max)
+  select_process_mode  Boolean?
+  insert_trc           Boolean?
+  station_function_id  Int?
+  station_id           Int?
+  station_function     String?   @db.VarChar(1000)
+  station_name         String?   @db.VarChar(1000)
+  en_proc_backup_log   Boolean?
+  en_proc_record       Boolean?
+  en_proc_meas         Boolean?
+  en_log_validation    Boolean?
+
+  @@ignore
+}
+
+model BD_PRODUCT_PARAMETER {
+  Product          String  @db.VarChar(200)
+  Process          String  @db.VarChar(200)
+  Parent_Step_ID   String? @db.VarChar(200)
+  Step_ID          String  @db.VarChar(200)
+  Step_Name        String
+  Step_Description String? @db.NVarChar(Max)
+  Meas_Type        String?
+  Meas_Units       String? @db.NVarChar(100)
+  Limit_Min        String? @db.NVarChar(100)
+  Limit_Max        String? @db.NVarChar(100)
+  Limit_String     String? @db.NVarChar(100)
+  Extend_Data      String? @db.NVarChar(Max)
+
+  @@unique([Product, Process, Step_ID], map: "ClusteredIndex-20220914-083050", clustered: true)
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model Comparison {
+  ComparisonId   BigInt
+  ComparisonType String
+
+  @@ignore
+}
+
+model CongatecCycleTime {
+  Id             Int                      @id(map: "PK__Congatec__3214EC07ADAD3356") @default(autoincrement())
+  FG_Part_Number String                   @unique(map: "UX_CycleTime_FGPart") @db.NVarChar(100)
+  BIOS           String?                  @db.NVarChar(255)
+  PREPROG_BIOS   String?                  @db.NVarChar(255)
+  PREPROG        String?                  @db.NVarChar(255)
+  STATUS         String                   @default("ACTIVE", map: "DF_CycleTime_STATUS") @db.NVarChar(20)
+  CAN_RETEST     Boolean                  @default(false, map: "DF_CycleTime_CANRETEST")
+  CYCLE_TIME     Int?
+  UpdatedAt      DateTime                 @default(dbgenerated("sysdatetime()"), map: "DF_CycleTime_UpdatedAt")
+  RowVer         Unsupported("timestamp")
+
+  @@index([STATUS], map: "IX_CycleTime_STATUS")
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model CycleTime_Staging {
+  No             String? @db.NVarChar(50)
+  FG_Part_Number String? @db.NVarChar(200)
+  BIOS           String? @db.NVarChar(255)
+  PREPROG_BIOS   String? @db.NVarChar(255)
+  STATUS         String? @db.NVarChar(50)
+  PREPROG        String? @db.NVarChar(255)
+  CAN_RE_TEST_   String? @map("CAN_RE-TEST?") @db.NVarChar(20)
+  CYCLE_TIME     String? @db.NVarChar(50)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model DB_ABB_MAC_address {
+  id_mac_address       Int       @default(autoincrement())
+  Mac_address_hex      String?   @db.VarChar(50)
+  number_run_dec       String?   @db.VarChar(50)
+  ser_num              String?   @db.VarChar(50)
+  group_type           String?   @db.VarChar(50)
+  Mac_Group_id         String?   @db.VarChar(50)
+  dtime_mapping_serial DateTime? @db.DateTime
+  password_MAC         String?   @db.VarChar(50)
+  Remark               String?   @db.VarChar(Max)
+
+  @@ignore
+}
+
+model DB_ABB_Seat_ID_Passcode {
+  ABB_Seat_ID Int     @id(map: "PK_DB_ABB_Seat_ID_Passcode") @default(autoincrement())
+  SL_No       String? @db.VarChar(50)
+  Seat_Id     String? @db.VarChar(50)
+  Passcode    String? @db.VarChar(50)
+  uut_sn      String? @db.VarChar(50)
+  uut_result  String? @db.VarChar(50)
+  remark      String? @db.VarChar(Max)
+  upload      Int?
+  final_sn    String? @db.VarChar(50)
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model DB_Artemis_MAC_Address {
+  id_artemis_mac  Int       @default(autoincrement())
+  mac_address_hex String?   @db.NVarChar(50)
+  mac_address_dec String?   @db.NVarChar(50)
+  ser_num         String?   @db.NVarChar(50)
+  group_type      String?   @db.NVarChar(50)
+  date_time       DateTime? @db.DateTime
+  remark          String?   @db.NVarChar(50)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model DB_Black_Stack_MAP {
+  Black_Stack_map_ID Int     @default(autoincrement())
+  display_id         String? @db.NVarChar(50)
+  module_id          String? @db.NVarChar(50)
+  module_cal_id      String? @db.NVarChar(50)
+  probe_id           String? @db.NVarChar(50)
+  probe_cal_id       String? @db.NVarChar(50)
+  remark             String? @db.NVarChar(Max)
+
+  @@ignore
+}
+
+model DB_CAH_Final_Temp_Record {
+  cah_final_temp_id Int       @id(map: "PK_DB_CAH_Final_Temp_Record") @default(autoincrement())
+  datetime          DateTime? @db.DateTime
+  cycle             Int?
+  temperature       String?   @db.NVarChar(50)
+  status            String?   @db.NVarChar(50)
+  serial_number     String?   @db.NVarChar(50)
+  remark            String?   @db.NVarChar(Max)
+}
+
+model DB_CAH_Probe_Calibration_Record {
+  cah_cal_log_id       Int       @id(map: "PK_DB_CAH_Probe_Calibration_Record") @default(autoincrement())
+  machine_number       String?   @db.VarChar(50)
+  programming_cal_time DateTime? @db.DateTime
+  fluke1560_sn         String?   @db.VarChar(50)
+  probe_sn             String?   @db.VarChar(50)
+  probe_cal_date       String?   @db.VarChar(50)
+  probe_a0             String?   @db.VarChar(50)
+  probe_a1             String?   @db.VarChar(50)
+  probe_a2             String?   @db.VarChar(50)
+  probe_a3             String?   @db.VarChar(50)
+  status               String?   @db.VarChar(50)
+  Program_by           String?   @db.VarChar(100)
+  remark               String?   @db.VarChar(Max)
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model DB_CAH_Room_Temp_log {
+  room_temp_id Int       @default(autoincrement())
+  time         DateTime? @db.DateTime
+  room_id      String?   @db.VarChar(50)
+  temp1        String?   @db.VarChar(50)
+  temp2        String?   @db.VarChar(50)
+  rh1          String?   @db.VarChar(50)
+  rh2          String?   @db.VarChar(50)
+  remark       String?   @db.VarChar(Max)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model DB_CAH_Shalf_Temp_log {
+  shelf_temp_id Int       @default(autoincrement())
+  time          DateTime? @db.DateTime
+  shelf_id      String?   @db.VarChar(50)
+  temp1         String?   @db.VarChar(50)
+  temp2         String?   @db.VarChar(50)
+  temp3         String?   @db.VarChar(50)
+  remark        String?   @db.VarChar(Max)
+
+  @@ignore
+}
+
+model DB_CAH_Temp_Record {
+  cah_temp_log_id  Int       @id(map: "PK_DB_CAH_Temp_Record") @default(autoincrement())
+  machine_number   String?   @db.VarChar(50)
+  time             DateTime? @db.DateTime
+  high_limit       String?   @db.VarChar(50)
+  low_limit        String?   @db.VarChar(50)
+  temp_value       String?   @db.VarChar(50)
+  result           String?   @db.VarChar(50)
+  bath_temp_set    String?   @db.VarChar(50)
+  fluke1560_sn     String?   @db.VarChar(50)
+  software_version String?   @db.VarChar(50)
+  remark           String?   @db.VarChar(Max)
+  probe_sn         String?   @db.VarChar(50)
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model DB_CAH_Thermistor_Cal_Map {
+  CAH_Map_ID     Int       @default(autoincrement())
+  date_time      DateTime? @db.DateTime
+  mainboard_id   String?   @db.NVarChar(50)
+  unit_sn        String?   @db.NVarChar(50)
+  status         String?   @db.NVarChar(50)
+  unmap_datetime DateTime? @db.DateTime
+  remark         String?   @db.NVarChar(Max)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model DB_CAL_ID_MAP {
+  Cal_map_ID            Int     @default(autoincrement())
+  Cal_ID                String? @db.NVarChar(50)
+  Equipment_ID          String? @db.NVarChar(50)
+  Equipment_description String? @db.NVarChar(100)
+  remark                String? @db.NVarChar(Max)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model DB_Congatec_BIOS_FW {
+  Conf_bios_id   Int     @default(autoincrement())
+  part_number    String? @db.VarChar(50)
+  Customer       String? @db.VarChar(50)
+  description    String? @db.VarChar(50)
+  product_series String? @db.VarChar(50)
+  pre_bios       String? @db.VarChar(50)
+  fct_bios       String? @db.VarChar(50)
+  firmware       String? @db.VarChar(50)
+  remark         String? @db.VarChar(Max)
+  upload         Int?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model DB_Congatec_Log {
+  Congatec_ID Int       @default(autoincrement())
+  Tester      String?   @db.VarChar(50)
+  Packet      String?   @db.VarChar(50)
+  SNR         String?   @db.VarChar(50)
+  PO          String?   @db.VarChar(50)
+  Article     String?   @db.VarChar(50)
+  EAN         String?   @db.VarChar(50)
+  Product_ID  String?   @db.VarChar(50)
+  Rev         String?   @db.VarChar(50)
+  Mfg_ID      String?   @db.VarChar(50)
+  Mfg_date    String?   @db.VarChar(50)
+  BIOS        String?   @db.VarChar(100)
+  FW          String?   @db.VarChar(50)
+  Test_date   String?   @db.VarChar(50)
+  MAC_Address String?   @db.VarChar(50)
+  Result      String?   @db.VarChar(50)
+  Folder_date DateTime? @db.DateTime
+  Remark      String?   @db.VarChar(Max)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model DB_Congatec_Log_old {
+  Congatec_ID Int     @default(autoincrement())
+  Tester      String? @db.VarChar(50)
+  Packet      String? @db.VarChar(50)
+  SNR         String? @db.VarChar(50)
+  PO          String? @db.VarChar(50)
+  Article     String? @db.VarChar(50)
+  EAN         String? @db.VarChar(50)
+  Product_ID  String? @db.VarChar(50)
+  Rev         String? @db.VarChar(50)
+  Mfg_ID      String? @db.VarChar(50)
+  Mfg_date    String? @db.VarChar(50)
+  BIOS        String? @db.VarChar(100)
+  FW          String? @db.VarChar(50)
+  Test_date   String? @db.VarChar(50)
+  MAC_Address String? @db.VarChar(50)
+  Result      String? @db.VarChar(50)
+  Remark      String? @db.VarChar(Max)
+
+  @@ignore
+}
+
+model DB_DHR_Report {
+  DHR_Report_ID         Int       @id(map: "PK_DB_DHR_Report") @default(autoincrement())
+  station_ID            Int?
+  date_time             DateTime? @db.DateTime
+  process_name          String?   @db.NVarChar(50)
+  machine_name          String?   @db.NVarChar(50)
+  part_number           String?   @db.NVarChar(50)
+  description           String?   @db.NVarChar(50)
+  setting_value         String?   @db.NVarChar(50)
+  actual_value          String?   @db.NVarChar(50)
+  get_actual_value_type String?   @db.NVarChar(50)
+  remark                String?   @db.NVarChar(Max)
+  check_expired_date    Boolean?
+
+  @@index([machine_name, part_number], map: "IDX_DB_DHR_Report_4047")
+  @@index([machine_name, part_number, description, actual_value], map: "IDX_DB_DHR_Report_53395")
+}
+
+model DB_ESD_Record {
+  esd_record_id String    @id(map: "PK_DB_ESD_Record") @db.VarChar(50)
+  equipment_id  String?   @db.VarChar(50)
+  time          DateTime? @db.DateTime
+  computor_name String?   @db.VarChar(50)
+  badge_no      String?   @db.VarChar(50)
+  esd_plug      String?   @db.VarChar(50)
+  esd_value     String?   @db.VarChar(50)
+  esd_status    String?   @db.VarChar(50)
+  station_id    String?   @db.VarChar(50)
+  remark        String?   @db.VarChar(50)
+  start_time    DateTime? @db.DateTime
+}
+
+model DB_Inogen_Log_Upload_Status {
+  Inogen_log_ID Int       @id(map: "PK_DB_Inogen_Log_Upload_Status") @default(autoincrement())
+  Serial_number String?   @db.VarChar(100)
+  Upload_time   DateTime? @db.DateTime
+  Upload_status String?   @db.VarChar(50)
+  Tester_number String?   @db.VarChar(50)
+  RSN_number    String?   @db.VarChar(50)
+  Remark        String?   @db.VarChar(Max)
+}
+
+model DB_KEIND_Carton_Number {
+  id_keind_carton_number Int     @id(map: "PK_DB_KEIND_Carton_Number") @default(autoincrement())
+  carton_number          String? @db.VarChar(50)
+  part_number            String? @db.VarChar(50)
+  carton_status          String? @db.VarChar(50)
+  remark                 String? @db.VarChar(Max)
+  batch_number           String? @db.VarChar(50)
+
+  @@index([batch_number], map: "IDX_DB_KEIND_Carton_Number_3737")
+  @@index([carton_number, carton_status], map: "IDX_DB_KEIND_Carton_Number_3755")
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model DB_KEIND_Trainner_Pack {
+  id_keind_trainner_pack Int       @default(autoincrement())
+  carton_number          String?   @db.VarChar(50)
+  unit_sn                String?   @db.VarChar(50)
+  pack_time              DateTime? @db.DateTime
+  status                 String?   @db.VarChar(50)
+  remark                 String?   @db.VarChar(Max)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model DB_Nexteer_JTAG_Verify {
+  meas_id       Int       @default(autoincrement())
+  record_id     String?   @db.VarChar(50)
+  time_stamp    DateTime? @db.DateTime
+  serial_number String?   @db.VarChar(50)
+  key1          String?   @db.NVarChar(Max)
+  key2          String?   @db.NVarChar(Max)
+  verify_status String?   @db.VarChar(10)
+  fixture_id    String?   @db.VarChar(20)
+  fct_id        String?   @db.VarChar(20)
+  user_id       String?   @db.VarChar(20)
+
+  @@ignore
+}
+
+model DB_Software_Record {
+  sw_record_id      String    @id(map: "PK_DB_Software_Record") @db.VarChar(50)
+  plant_products_id Int?
+  software_name     String?   @db.VarChar(50)
+  software_version  String?   @db.VarChar(50)
+  receive_by        String?   @db.VarChar(50)
+  receive_date      DateTime? @db.DateTime
+  review_by         String?   @db.VarChar(50)
+  review_date       DateTime? @db.DateTime
+  validate_by       String?   @db.VarChar(50)
+  validate_date     DateTime? @db.DateTime
+  commit_id         String?   @db.VarChar(50)
+  remote_url        String?   @db.VarChar(Max)
+  remark            String?   @db.VarChar(Max)
+}
+
+model DB_Software_Record_Product {
+  sw_record_product_id Int       @id(map: "PK_DB_Software_Record_Product") @default(autoincrement())
+  sw_record_id         String?   @db.VarChar(50)
+  bom_id               Int?
+  set_date             DateTime? @db.DateTime
+  remark               String?   @db.VarChar(Max)
+}
+
+model DB_Software_Record_Tester {
+  sw_record_tester_id Int       @id(map: "PK_DB_Software_Record_Tester") @default(autoincrement())
+  sw_record_id        String?   @db.VarChar(50)
+  software_path       String?   @db.VarChar(Max)
+  tester_number_id    String?   @db.VarChar(50)
+  set_date            DateTime? @db.DateTime
+  remark              String?   @db.VarChar(Max)
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model DB_Spring_Testshill {
+  id          String?   @db.NVarChar(100)
+  Serial      String?   @db.NChar(50)
+  Model       String?   @db.NChar(50)
+  Station     String?   @db.NChar(50)
+  location    String?   @db.NChar(10)
+  xml         String?   @db.NVarChar(Max)
+  result      String?   @db.NChar(10)
+  defect_type String?   @db.VarChar(Max)
+  dtime_stamp DateTime? @db.DateTime
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model DB_Test_Config {
+  Test_config_id Int     @default(autoincrement())
+  part_number    String? @db.VarChar(50)
+  test_step      Int?
+  description    String? @db.VarChar(50)
+  high_limit     String? @db.VarChar(50)
+  low_limit      String? @db.VarChar(50)
+  category       String? @db.VarChar(50)
+  config_data    String? @db.VarChar(Max)
+  remark         String? @db.VarChar(Max)
+  upload         Int?
+  config_value   String? @db.VarChar(50)
+
+  @@ignore
+}
+
+model DB_Test_Config_3 {
+  Test_config_id Int     @id(map: "PK_DB_Test_Config_3") @default(autoincrement())
+  part_number    String? @db.VarChar(50)
+  tester_number  String? @db.VarChar(50)
+  test_step      Int?
+  description    String? @db.VarChar(50)
+  high_limit     String? @db.VarChar(50)
+  low_limit      String? @db.VarChar(50)
+  category       String? @db.VarChar(50)
+  config_data    String? @db.VarChar(Max)
+  config_value   String? @db.VarChar(Max)
+  remark         String? @db.VarChar(Max)
+  tester_name    String? @db.VarChar(50)
+  cofig_value    String? @db.VarChar(50)
+
+  @@index([Test_config_id, part_number, tester_number, category], map: "DB_Test_Config_3_Test_config_id_IDX")
+}
+
+model DB_Test_Config_4 {
+  Test_config_id Int     @id(map: "PK_DB_Test_Config_4") @default(autoincrement())
+  description    String? @db.VarChar(50)
+  high_limit     String? @db.VarChar(50)
+  low_limit      String? @db.VarChar(50)
+  remark         String? @db.VarChar(Max)
+}
+
+model DB_Test_Direct_Meas {
+  meas_id       Int     @id(map: "PK_DB_Test_Direct_Meas") @default(autoincrement())
+  record_id     String? @db.VarChar(50)
+  part_number   String? @db.VarChar(50)
+  serial_number String? @db.VarChar(50)
+  step_number   String? @db.VarChar(10)
+  step_name     String? @db.VarChar(100)
+  limit_high    String? @db.VarChar(20)
+  limit_low     String? @db.VarChar(20)
+  meas_value    String? @db.VarChar(500)
+  meas_unit     String? @db.VarChar(50)
+  meas_result   String? @db.VarChar(10)
+  meas_remark   String? @db.NVarChar(Max)
+  upload        Int?
+
+  @@index([record_id, part_number, serial_number, step_number, step_name], map: "DB_Test_Direct_Meas_record_id_IDX")
+  @@index([serial_number], map: "IDX_DB_Test_Direct_Meas_225")
+  @@index([record_id], map: "IDX_DB_Test_Direct_Meas_3046")
+  @@index([serial_number], map: "IDX_DB_Test_Direct_Meas_3748")
+  @@index([serial_number, step_name], map: "IDX_DB_Test_Direct_Meas_3753")
+  @@index([step_name, serial_number], map: "IDX_DB_Test_Direct_Meas_3757")
+  @@index([step_name], map: "IDX_DB_Test_Direct_Meas_3788")
+  @@index([serial_number], map: "IDX_DB_Test_Direct_Meas_3829")
+  @@index([serial_number], map: "udi_ser_num")
+}
+
+model DB_Test_Direct_Meas_ABB {
+  meas_id       Int       @id(map: "PK_DB_Test_Direct_Meas_ABB1") @default(autoincrement())
+  record_id     String?   @db.VarChar(50)
+  time_stamp    DateTime? @db.DateTime
+  part_number   String?   @db.VarChar(50)
+  serial_number String?   @db.VarChar(50)
+  step_number   String?   @db.VarChar(10)
+  step_name     String?   @db.VarChar(100)
+  limit_high    String?   @db.VarChar(20)
+  limit_low     String?   @db.VarChar(20)
+  meas_value    String?   @db.VarChar(500)
+  meas_unit     String?   @db.VarChar(50)
+  meas_result   String?   @db.VarChar(10)
+  meas_remark   String?   @db.VarChar(Max)
+  upload        Int?
+
+  @@index([record_id, step_name], map: "IDX_DB_Test_Direct_Meas_ABB_117")
+  @@index([step_name], map: "IDX_DB_Test_Direct_Meas_ABB_119")
+}
+
+model DB_Test_Direct_Meas_ABB_old {
+  meas_id       Int     @id(map: "PK_DB_Test_Direct_Meas_ABB") @default(autoincrement())
+  record_id     String? @db.VarChar(50)
+  part_number   String? @db.VarChar(50)
+  serial_number String? @db.VarChar(50)
+  step_number   String? @db.VarChar(10)
+  step_name     String? @db.VarChar(100)
+  limit_high    String? @db.VarChar(20)
+  limit_low     String? @db.VarChar(20)
+  meas_value    String? @db.VarChar(500)
+  meas_unit     String? @db.VarChar(50)
+  meas_result   String? @db.VarChar(10)
+  meas_remark   String? @db.NVarChar(Max)
+  upload        Int?
+}
+
+model DB_Test_Direct_Meas_Allegion {
+  meas_id       Int       @id(map: "PK_DB_Test_Direct_Meas_Allegion") @default(autoincrement())
+  record_id     String?   @db.VarChar(50)
+  time_stamp    DateTime? @db.DateTime
+  part_number   String?   @db.VarChar(50)
+  serial_number String?   @db.VarChar(50)
+  step_number   String?   @db.VarChar(10)
+  step_name     String?   @db.VarChar(100)
+  limit_high    String?   @db.VarChar(20)
+  limit_low     String?   @db.VarChar(20)
+  meas_value    String?   @db.VarChar(500)
+  meas_unit     String?   @db.VarChar(50)
+  meas_result   String?   @db.VarChar(10)
+  meas_remark   String?   @db.VarChar(Max)
+  upload        Int?
+}
+
+model DB_Test_Direct_Meas_AllegionMTX {
+  meas_id       Int       @id(map: "PK_DB_Test_Direct_Meas_AllegionMTX") @default(autoincrement())
+  record_id     String?   @db.VarChar(50)
+  time_stamp    DateTime? @db.DateTime
+  part_number   String?   @db.VarChar(50)
+  serial_number String?   @db.VarChar(50)
+  step_number   String?   @db.VarChar(10)
+  step_name     String?   @db.VarChar(100)
+  limit_high    String?   @db.VarChar(20)
+  limit_low     String?   @db.VarChar(20)
+  meas_value    String?   @db.VarChar(500)
+  meas_unit     String?   @db.VarChar(50)
+  meas_result   String?   @db.VarChar(10)
+  meas_remark   String?   @db.VarChar(Max)
+  upload        Int?
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model DB_Test_Direct_Meas_Artemis {
+  meas_id       Int       @default(autoincrement())
+  record_id     String?   @db.VarChar(50)
+  time_stamp    DateTime? @db.DateTime
+  part_number   String?   @db.VarChar(50)
+  serial_number String?   @db.VarChar(50)
+  step_number   String?   @db.VarChar(10)
+  step_name     String?   @db.VarChar(100)
+  limit_high    String?   @db.VarChar(20)
+  limit_low     String?   @db.VarChar(20)
+  meas_value    String?   @db.VarChar(500)
+  meas_unit     String?   @db.VarChar(50)
+  meas_result   String?   @db.VarChar(10)
+  meas_remark   String?   @db.VarChar(Max)
+  upload        Int?
+
+  @@ignore
+}
+
+model DB_Test_Direct_Meas_CAH {
+  meas_id       Int       @id(map: "PK_DB_Test_Direct_Meas_CAH") @default(autoincrement())
+  record_id     String?   @db.VarChar(50)
+  time_stamp    DateTime? @db.DateTime
+  part_number   String?   @db.VarChar(50)
+  serial_number String?   @db.VarChar(50)
+  step_number   String?   @db.VarChar(10)
+  step_name     String?   @db.VarChar(100)
+  limit_high    String?   @db.VarChar(20)
+  limit_low     String?   @db.VarChar(20)
+  meas_value    String?   @db.VarChar(500)
+  meas_unit     String?   @db.VarChar(50)
+  meas_result   String?   @db.VarChar(10)
+  meas_remark   String?   @db.VarChar(Max)
+  upload        Int?
+}
+
+model DB_Test_Direct_Meas_COHO {
+  meas_id       Int     @id(map: "PK_DB_Test_Direct_Meas_COHO_NEW") @default(autoincrement())
+  record_id     String? @db.VarChar(50)
+  part_number   String? @db.VarChar(50)
+  serial_number String? @db.VarChar(50)
+  step_number   String? @db.VarChar(10)
+  step_name     String? @db.VarChar(100)
+  limit_high    String? @db.VarChar(20)
+  limit_low     String? @db.VarChar(20)
+  meas_value    String? @db.VarChar(500)
+  meas_unit     String? @db.VarChar(50)
+  meas_result   String? @db.VarChar(10)
+  meas_remark   String? @db.NVarChar(Max)
+  upload        Int?
+
+  @@index([record_id, serial_number, meas_result], map: "idx_DB_Test_Direct_Meas_COHO_step_number_NEW")
+}
+
+model DB_Test_Direct_Meas_COHO_BACKUP {
+  meas_id       Int     @id(map: "PK_DB_Test_Direct_Meas_COHO") @default(autoincrement())
+  record_id     String? @db.VarChar(50)
+  part_number   String? @db.VarChar(50)
+  serial_number String? @db.VarChar(50)
+  step_number   String? @db.VarChar(10)
+  step_name     String? @db.VarChar(100)
+  limit_high    String? @db.VarChar(20)
+  limit_low     String? @db.VarChar(20)
+  meas_value    String? @db.VarChar(500)
+  meas_unit     String? @db.VarChar(50)
+  meas_result   String? @db.VarChar(10)
+  meas_remark   String? @db.NVarChar(Max)
+  upload        Int?
+
+  @@index([record_id, serial_number, meas_result], map: "idx_DB_Test_Direct_Meas_COHO_step_number")
+}
+
+model DB_Test_Direct_Meas_CUMMINS {
+  meas_id       Int     @id(map: "PK_DB_Test_Direct_Meas_CUMMINS") @default(autoincrement())
+  record_id     String? @db.VarChar(50)
+  part_number   String? @db.VarChar(50)
+  serial_number String? @db.VarChar(50)
+  step_number   String? @db.VarChar(10)
+  step_name     String? @db.VarChar(100)
+  limit_high    String? @db.VarChar(20)
+  limit_low     String? @db.VarChar(20)
+  meas_value    String? @db.VarChar(500)
+  meas_unit     String? @db.VarChar(50)
+  meas_result   String? @db.VarChar(10)
+  meas_remark   String? @db.NVarChar(Max)
+  upload        Int?
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model DB_Test_Direct_Meas_CUMMINS_16Jul2025 {
+  meas_id       Int     @default(autoincrement())
+  record_id     String? @db.VarChar(50)
+  part_number   String? @db.VarChar(50)
+  serial_number String? @db.VarChar(50)
+  step_number   String? @db.VarChar(10)
+  step_name     String? @db.VarChar(100)
+  limit_high    String? @db.VarChar(20)
+  limit_low     String? @db.VarChar(20)
+  meas_value    String? @db.VarChar(500)
+  meas_unit     String? @db.VarChar(50)
+  meas_result   String? @db.VarChar(10)
+  meas_remark   String? @db.NVarChar(Max)
+  upload        Int?
+
+  @@ignore
+}
+
+model DB_Test_Direct_Meas_CUMMINS_2025 {
+  meas_id       Int       @id(map: "PK_DB_Test_Direct_Meas_CUMMINS_2025") @default(autoincrement())
+  record_id     String?   @db.VarChar(50)
+  part_number   String?   @db.VarChar(50)
+  serial_number String?   @db.VarChar(50)
+  step_number   String?   @db.VarChar(10)
+  step_name     String?   @db.VarChar(100)
+  limit_high    String?   @db.VarChar(20)
+  limit_low     String?   @db.VarChar(20)
+  meas_value    String?   @db.VarChar(500)
+  meas_unit     String?   @db.VarChar(50)
+  meas_result   String?   @db.VarChar(10)
+  meas_remark   String?   @db.NVarChar(Max)
+  upload        Int?
+  time_stamp    DateTime? @db.DateTime
+  test_mode     String?   @db.NChar(10)
+}
+
+model DB_Test_Direct_Meas_FRxTrainerFCT {
+  meas_id       Int     @id(map: "PK_DB_Test_Direct_Meas_FRxTrainerFCT") @default(autoincrement())
+  record_id     String? @db.VarChar(50)
+  part_number   String? @db.VarChar(50)
+  serial_number String? @db.VarChar(50)
+  step_number   String? @db.VarChar(10)
+  step_name     String? @db.VarChar(100)
+  limit_high    String? @db.VarChar(20)
+  limit_low     String? @db.VarChar(20)
+  meas_value    String? @db.VarChar(500)
+  meas_unit     String? @db.VarChar(50)
+  meas_result   String? @db.VarChar(10)
+  meas_remark   String? @db.NVarChar(Max)
+  upload        Int?
+}
+
+model DB_Test_Direct_Meas_Inogen {
+  meas_id       Int       @id(map: "PK_DB_Test_Direct_Meas_Inogen") @default(autoincrement())
+  record_id     String?   @db.VarChar(50)
+  time_stamp    DateTime? @db.DateTime
+  part_number   String?   @db.VarChar(50)
+  serial_number String?   @db.VarChar(50)
+  step_number   String?   @db.VarChar(10)
+  step_name     String?   @db.VarChar(100)
+  limit_high    String?   @db.VarChar(20)
+  limit_low     String?   @db.VarChar(20)
+  meas_value    String?   @db.VarChar(500)
+  meas_unit     String?   @db.VarChar(50)
+  meas_result   String?   @db.VarChar(10)
+  meas_remark   String?   @db.VarChar(Max)
+  upload        Int?
+
+  @@index([record_id], map: "IDX_DB_Test_Direct_Meas_Inogen_4416")
+  @@index([time_stamp, serial_number, step_name, meas_result], map: "udi_ser_result_step")
+}
+
+model DB_Test_Direct_Meas_KALEO {
+  meas_id       Int       @id(map: "PK_DB_Test_Direct_Meas_KALEO") @default(autoincrement())
+  record_id     String?   @db.VarChar(50)
+  time_stamp    DateTime? @db.DateTime
+  part_number   String?   @db.VarChar(50)
+  serial_number String?   @db.VarChar(50)
+  step_number   String?   @db.VarChar(10)
+  step_name     String?   @db.VarChar(100)
+  limit_high    String?   @db.VarChar(20)
+  limit_low     String?   @db.VarChar(20)
+  meas_value    String?   @db.VarChar(500)
+  meas_unit     String?   @db.VarChar(50)
+  meas_result   String?   @db.VarChar(10)
+  meas_remark   String?   @db.VarChar(Max)
+  upload        Int?
+
+  @@index([serial_number], map: "IDX_DB_Test_Direct_Meas_KALEO_247")
+  @@index([record_id, serial_number], map: "IDX_DB_Test_Direct_Meas_KALEO_249")
+  @@index([record_id], map: "IDX_DB_Test_Direct_Meas_KALEO_254")
+}
+
+model DB_Test_Direct_Meas_KEIND {
+  meas_id       Int       @id(map: "PK_DB_Test_Direct_Meas_KEIND") @default(autoincrement())
+  record_id     String?   @db.VarChar(50)
+  time_stamp    DateTime? @db.DateTime
+  part_number   String?   @db.VarChar(50)
+  serial_number String?   @db.VarChar(50)
+  step_number   String?   @db.VarChar(10)
+  step_name     String?   @db.VarChar(100)
+  limit_high    String?   @db.VarChar(20)
+  limit_low     String?   @db.VarChar(20)
+  meas_value    String?   @db.VarChar(500)
+  meas_unit     String?   @db.VarChar(50)
+  meas_result   String?   @db.VarChar(10)
+  meas_remark   String?   @db.VarChar(Max)
+  upload        Int?
+}
+
+model DB_Test_Direct_Meas_Nexteer {
+  meas_id       Int       @id(map: "PK_DB_Test_Direct_Meas_Nexteer") @default(autoincrement())
+  record_id     String?   @db.VarChar(50)
+  time_stamp    DateTime? @db.DateTime
+  part_number   String?   @db.VarChar(50)
+  serial_number String?   @db.VarChar(50)
+  step_number   String?   @db.VarChar(10)
+  step_name     String?   @db.VarChar(100)
+  limit_high    String?   @db.VarChar(20)
+  limit_low     String?   @db.VarChar(20)
+  meas_value    String?   @db.VarChar(500)
+  meas_unit     String?   @db.VarChar(50)
+  meas_result   String?   @db.VarChar(10)
+  meas_remark   String?   @db.VarChar(Max)
+  upload        Int?
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model DB_Test_Direct_Meas_ZOLL {
+  meas_id       Int?
+  record_id     String?   @db.VarChar(50)
+  part_number   String?   @db.VarChar(50)
+  serial_number String?   @db.VarChar(50)
+  step_number   String?   @db.VarChar(10)
+  step_name     String?   @db.VarChar(100)
+  limit_high    String?   @db.VarChar(20)
+  limit_low     String?   @db.VarChar(20)
+  meas_value    String?   @db.VarChar(500)
+  meas_unit     String?   @db.VarChar(50)
+  meas_result   String?   @db.VarChar(10)
+  meas_remark   String?   @db.NVarChar(Max)
+  upload        Int?
+  time_stamp    DateTime? @db.DateTime
+  test_mode     String?   @db.NChar(10)
+
+  @@ignore
+}
+
+model DB_Test_Direct_Meas_Zoll_G5 {
+  meas_id       Int     @id(map: "PK_DB_Test_Direct_Meas_Zoll_G5") @default(autoincrement())
+  record_id     String? @db.VarChar(50)
+  part_number   String? @db.VarChar(50)
+  serial_number String? @db.VarChar(50)
+  step_number   String? @db.VarChar(10)
+  step_name     String? @db.VarChar(100)
+  limit_high    String? @db.VarChar(20)
+  limit_low     String? @db.VarChar(20)
+  meas_value    String? @db.VarChar(500)
+  meas_unit     String? @db.VarChar(50)
+  meas_result   String? @db.VarChar(10)
+  meas_remark   String? @db.NVarChar(Max)
+  upload        Int?
+}
+
+model DB_Test_Direct_Record {
+  record_id             String    @id(map: "PK_DB_Test_Direct_Record") @db.VarChar(50)
+  history_id            String?   @db.VarChar(50)
+  machine_name          String?   @db.VarChar(200)
+  part_number           String?   @db.VarChar(50)
+  process               String?   @db.VarChar(50)
+  serial_number         String?   @db.VarChar(50)
+  ent_time              DateTime? @db.DateTime
+  ext_time              DateTime? @db.DateTime
+  mode                  String?   @db.VarChar(20)
+  status                String?   @db.VarChar(20)
+  run_time              String?   @db.VarChar(20)
+  fixture               String?   @db.VarChar(100)
+  failure_name          String?   @db.VarChar(500)
+  failure_description   String?   @db.VarChar(Max)
+  extend                String?   @db.NVarChar(Max)
+  operator_id           String?   @db.VarChar(20)
+  production_number     String?   @db.VarChar(20)
+  po_number             String?   @db.VarChar(20)
+  test_software_name    String?   @db.VarChar(100)
+  test_software_version String?   @db.VarChar(20)
+  document_number       String?   @db.VarChar(50)
+  document_description  String?   @db.VarChar(Max)
+  document_version      String?   @db.VarChar(20)
+  upload                Int?
+  meas_table            String?   @db.VarChar(Max)
+
+  @@index([history_id, machine_name, part_number, process], map: "DB_Test_Direct_Record_history_id_IDX")
+  @@index([serial_number], map: "IDX_DB_Test_Direct_Record_245")
+  @@index([part_number], map: "IDX_DB_Test_Direct_Record_512")
+  @@index([part_number, mode, status, serial_number, failure_name], map: "IDX_DB_Test_Direct_Record_6737")
+}
+
+model DefectActionResponse {
+  action_id                       Int                               @id(map: "PK__DefectAc__74EFC2176D7A616D") @default(autoincrement())
+  report_id                       String                            @db.NVarChar(80)
+  customer                        String                            @db.NVarChar(80)
+  process_station                 String?                           @db.NVarChar(120)
+  model_part                      String?                           @db.NVarChar(120)
+  defective                       String?                           @db.NVarChar(200)
+  board_sn                        String?                           @db.NVarChar(80)
+  panel_id_1                      String?                           @db.NVarChar(80)
+  panel_id_2                      String?                           @db.NVarChar(80)
+  cavity                          String?                           @db.NVarChar(40)
+  action_smt                      Boolean                           @default(false, map: "DF__DefectAct__actio__29971E47")
+  action_wave                     Boolean                           @default(false, map: "DF__DefectAct__actio__2A8B4280")
+  action_hand                     Boolean                           @default(false, map: "DF__DefectAct__actio__2B7F66B9")
+  action_ict                      Boolean                           @default(false, map: "DF__DefectAct__actio__2C738AF2")
+  action_coating                  Boolean                           @default(false, map: "DF__DefectAct__actio__2D67AF2B")
+  action_fct_eol                  Boolean                           @default(false, map: "DF__DefectAct__actio__2E5BD364")
+  action_packing                  Boolean                           @default(false, map: "DF__DefectAct__actio__2F4FF79D")
+  action_other                    Boolean                           @default(false, map: "DF__DefectAct__actio__30441BD6")
+  action_details                  String?                           @db.NVarChar(Max)
+  responder_email                 String?                           @db.NVarChar(120)
+  created_at                      DateTime                          @default(dbgenerated("sysdatetime()"), map: "DF__DefectAct__creat__3138400F")
+  orig_subject                    String?                           @db.NVarChar(500)
+  orig_from                       String?                           @db.NVarChar(320)
+  orig_to                         String?                           @db.NVarChar(Max)
+  orig_cc                         String?                           @db.NVarChar(Max)
+  internet_message_id             String?                           @db.NVarChar(998)
+  conversation_id                 String?                           @db.NVarChar(200)
+  reply_status                    String?                           @db.NVarChar(20)
+  reply_sent_at                   DateTime?
+  reply_error                     String?                           @db.NVarChar(Max)
+  DefectActionResponse_Attachment DefectActionResponse_Attachment[]
+}
+
+model DefectActionResponse_Attachment {
+  attach_id            Int                  @id(map: "PK__DefectAc__7AA340B067D71225") @default(autoincrement())
+  action_id            Int
+  file_name            String               @db.NVarChar(260)
+  mime_type            String?              @db.NVarChar(100)
+  file_size            Int?
+  file_content         Bytes?
+  created_at           DateTime             @default(dbgenerated("sysdatetime()"), map: "DF__DefectAct__creat__3414ACBA")
+  DefectActionResponse DefectActionResponse @relation(fields: [action_id], references: [action_id], onUpdate: NoAction, map: "FK_DefectActionResponse_Attachment_Action")
+}
+
+model DefectLog {
+  DefectLogID        Int                  @id(map: "PK__DefectLo__0693F6313F7E02A9") @default(autoincrement())
+  Customer           String               @db.NVarChar(200)
+  Process            String               @db.NChar(10)
+  ModelPartNumber    String               @db.NVarChar(100)
+  BoardSN            String               @db.NVarChar(100)
+  DefectiveCode      String?              @db.NVarChar(Max)
+  Defective          String?              @db.NVarChar(Max)
+  Evidence           String?              @db.NVarChar(Max)
+  Note               String?              @db.NVarChar(Max)
+  Date               DateTime             @db.Date
+  DefectLog_image    DefectLog_image[]
+  DefectLogEmailMeta DefectLogEmailMeta[]
+}
+
+model DefectLog_image {
+  image_id        Int       @id(map: "PK__DefectLo__DC9AC9550515D57F") @default(autoincrement())
+  defect_log_id   Int
+  file_name       String    @db.NVarChar(260)
+  mime_type       String?   @db.NVarChar(100)
+  file_size_bytes Int?
+  file_content    Bytes
+  created_at      DateTime  @default(dbgenerated("sysdatetime()"), map: "DF__DefectLog__creat__407A839F")
+  DefectLog       DefectLog @relation(fields: [defect_log_id], references: [DefectLogID], onUpdate: NoAction, map: "FK_DefectLog_image_DefectLog")
+
+  @@index([defect_log_id, created_at(sort: Desc)], map: "IX_DefectLog_image_defect_log_id")
+}
+
+model DefectLogEmailMeta {
+  email_meta_id       Int       @id(map: "PK__DefectLo__4150B2736B7AC1F7") @default(autoincrement())
+  defect_log_id       Int
+  report_id           String?   @db.NVarChar(80)
+  orig_subject        String?   @db.NVarChar(500)
+  orig_from           String?   @db.NVarChar(320)
+  orig_to             String?   @db.NVarChar(Max)
+  orig_cc             String?   @db.NVarChar(Max)
+  internet_message_id String?   @db.NVarChar(998)
+  conversation_id     String?   @db.NVarChar(200)
+  created_at          DateTime  @default(dbgenerated("sysdatetime()"), map: "DF__DefectLog__creat__3CA9F2BB")
+  DefectLog           DefectLog @relation(fields: [defect_log_id], references: [DefectLogID], onUpdate: NoAction, map: "FK_DefectLogEmailMeta_DefectLog")
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model Downtime_CT_ST {
+  dmachine          String?   @db.NVarChar(500)
+  Full_Station_Name String?   @db.NVarChar(4000)
+  dcode             String?   @db.NVarChar(100)
+  dDescription      String?   @db.NVarChar(4000)
+  dStart            DateTime? @db.DateTime
+  dStop             DateTime? @db.DateTime
+  date_diff         String?   @db.NVarChar(500)
+  dAction           String?   @db.NVarChar(4000)
+  finished_part_num String?   @db.NVarChar(4000)
+  Product           String?
+  date_diff_work    String?   @db.NVarChar(500)
+  Sta_id            String?   @db.NVarChar(100)
+  MachineID         String?   @db.NVarChar(100)
+  WorkCentr         String?   @db.NVarChar(100)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model Downtime_MTBF_MTTR_data {
+  dmachine          String?
+  Full_Station_Name String?   @db.NVarChar(4000)
+  dcode             String?   @db.NVarChar(100)
+  dDescription      String?   @db.NVarChar(4000)
+  dStart            DateTime? @db.DateTime
+  dStop             DateTime? @db.DateTime
+  date_diff         String?   @db.NVarChar(500)
+  dAction           String?   @db.NVarChar(4000)
+  finished_part_num String?   @db.NVarChar(4000)
+  Product           String?
+  date_diff_work    String?   @db.NVarChar(500)
+  Sta_id            String?   @db.NVarChar(100)
+  MachineID         String?   @db.NVarChar(100)
+  WorkCentr         String?   @db.NVarChar(100)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model Email_Contact {
+  Section   String? @db.NVarChar(50)
+  Code_Send String? @db.NVarChar(50)
+  Email     String? @db.NVarChar(50)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model Email_Contact_TS {
+  Section   String? @db.NVarChar(50)
+  Code_Send String? @db.NVarChar(50)
+  Email     String? @db.NVarChar(50)
+
+  @@ignore
+}
+
+model Equipment_master_list {
+  fct_equipment_id          Int       @id(map: "PK_Equipment_master_list") @default(autoincrement())
+  eff_date                  DateTime? @db.Date
+  Department                String?   @db.VarChar(50)
+  equipment_type            String?   @db.VarChar(50)
+  equipment_status          String?   @db.VarChar(50)
+  equipment_id              String?   @db.VarChar(50)
+  equipment_name            String?   @db.VarChar(50)
+  equipment_model           String?   @db.VarChar(50)
+  embedded_software_name    String?   @db.VarChar(50)
+  embedded_software_version String?   @db.VarChar(50)
+  Specification_MC          String?   @db.VarChar(50)
+  product_model             String?   @db.VarChar(50)
+  sn                        String?   @db.VarChar(50)
+  asset_no                  String?   @db.VarChar(50)
+  volt_phase                String?   @db.VarChar(50)
+  hp                        String?   @db.VarChar(50)
+  kva                       String?   @db.VarChar(50)
+  kw                        String?   @db.VarChar(50)
+  amp                       String?   @db.VarChar(50)
+  pressure_vacuum           String?   @db.VarChar(50)
+  machine_class             String?   @db.VarChar(50)
+  area                      String?   @db.VarChar(50)
+  property                  String?   @db.VarChar(50)
+  Period_PM                 String?   @db.VarChar(50)
+  Period_GRR                String?   @db.VarChar(50)
+  Period_CPK                String?   @db.VarChar(50)
+  Period_CAL                String?   @db.VarChar(50)
+  PM_FRQ                    String?   @db.VarChar(50)
+  remark                    String?   @db.VarChar(Max)
+  PM_date                   DateTime? @db.Date
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model FAULT_GENERAL {
+  fault_general_id  Int
+  dtime_stamp       DateTime @db.DateTime
+  logged_by         String   @db.VarChar(255)
+  fault_id_num      Int?
+  fault_description String   @db.VarChar(255)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model FAULT_GENERAL_EXT {
+  fault_general_id Int
+  info             String @db.VarChar(255)
+  line_num         Int
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model FedEx_Rescreen_Info {
+  id           BigInt    @default(autoincrement())
+  serial_units String?   @db.NVarChar(70)
+  serial_bag   String?   @db.NVarChar(50)
+  mac_address  String?   @db.NVarChar(50)
+  profile_type String?   @db.NVarChar(20)
+  datetime     DateTime? @db.DateTime
+
+  @@ignore
+}
+
+model files {
+  Id              Int       @id(map: "PK_firmwareFile") @default(autoincrement())
+  ProgramFile     Bytes?    @db.Image
+  ProgramFileName String?   @db.VarChar(255)
+  ProgramFileLen  String?   @db.VarChar(255)
+  ProgramFileMD5  String?   @db.VarChar(255)
+  ProgramFileType String?   @db.VarChar(255)
+  Released        DateTime? @db.DateTime
+  Comment         String?   @db.VarChar(255)
+  Status          String?   @db.VarChar(255)
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model Files1 {
+  Id              Int       @default(autoincrement())
+  ProgramFile     Bytes?
+  ProgramFileName String?   @db.VarChar(255)
+  ProgramFileLen  String?   @db.VarChar(255)
+  ProgramFileMD5  String?   @db.VarChar(255)
+  ProgramFileType String?   @db.VarChar(255)
+  Released        DateTime? @db.DateTime
+  Comment         String?   @db.VarChar(255)
+  Status          String?   @db.VarChar(255)
+
+  @@ignore
+}
+
+model HDD_Alert_Log {
+  Id        Int       @id(map: "PK__HDD_Aler__3214EC07E177572E") @default(autoincrement())
+  AlertDate DateTime? @db.Date
+  AlertType String?   @db.NVarChar(20)
+  PCName    String?   @db.NVarChar(100)
+  Drive     String?   @db.NVarChar(10)
+  CreatedAt DateTime? @default(now(), map: "DF__HDD_Alert__Creat__444B1483") @db.DateTime
+  IsSent    Boolean?  @default(false, map: "DF__HDD_Alert__IsSen__4727812E")
+
+  @@unique([AlertDate, AlertType, PCName, Drive], map: "IX_HDD_ALERT_LOG_UNIQUE")
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model HDD_Monitor {
+  PC_name     String?   @db.NVarChar(50)
+  PC_Desc     String?   @db.NVarChar(50)
+  Drive       String?   @db.NVarChar(50)
+  HDDTotal    Int?
+  CapHDD      Int?
+  PerUSE_HDD  Int?
+  CapFree     Int?
+  PerFree_HDD Int?
+  TimeS       DateTime? @db.DateTime
+  Status      String?   @db.NVarChar(50)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model HDD_Monitor_History {
+  PC_name     String?   @db.NVarChar(50)
+  PC_Desc     String?   @db.NVarChar(50)
+  Drive       String?   @db.NVarChar(50)
+  HDDTotal    Int?
+  CapHDD      Int?
+  PerUSE_HDD  Int?
+  CapFree     Int?
+  PerFree_HDD Int?
+  TimeS       DateTime? @db.DateTime
+  Status      String?   @db.NVarChar(50)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model HOST_MASTER {
+  id                Int
+  host              String  @db.NVarChar(50)
+  test_station_name String? @db.NVarChar(50)
+  Info              String? @db.NVarChar(100)
+  LogFilePath       String? @db.NVarChar(50)
+  ProgFilePath      String? @db.NVarChar(50)
+  SVersion          String? @db.NVarChar(50)
+  EMtabLogPath      String? @db.NVarChar(50)
+  EMtabSamPath      String? @db.NVarChar(50)
+  ICT_Manage_Ver    String? @db.NVarChar(50)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ICT_False_Fail {
+  Date_Time   DateTime? @db.DateTime
+  Customer    String?   @db.NVarChar(50)
+  Tester_Name String?   @db.NVarChar(50)
+  Model       String?   @db.NVarChar(50)
+  Total       Int?
+  False_Fail  Int?
+  FF_Model    Float?
+  FF_all      Float?
+  True_Fail   Int?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ICT_False_Failold {
+  Date_Time   String? @db.NVarChar(50)
+  Customer    String? @db.NVarChar(50)
+  Tester_Name String? @db.NVarChar(50)
+  Model       String? @db.NVarChar(50)
+  Total       Int?
+  False_Fail  Int?
+  FF_Model    Float?
+  FF_all      Float?
+  True_Fail   Int?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ICT_Master_Symptoms {
+  id        Int      @default(autoincrement())
+  sernum    String   @db.NVarChar(50)
+  product   String   @db.NVarChar(50)
+  model     String   @db.NVarChar(50)
+  board_num Int
+  symptomsF String   @db.NVarChar(200)
+  TimeStam  DateTime @db.DateTime
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ICT_Para_Change {
+  Tester_name String?   @db.NVarChar(50)
+  Customer    String?   @db.NVarChar(50)
+  Pro_name    String?   @db.NVarChar(50)
+  model       String?   @db.NVarChar(50)
+  Part_num    String?   @db.NVarChar(50)
+  Location    String?   @db.NVarChar(50)
+  Pa_old      String?   @db.NVarChar(300)
+  Pa_new      String?   @db.NVarChar(300)
+  Para_Change String?   @db.NVarChar(300)
+  By_name     String?   @db.NVarChar(50)
+  Reason      String?   @db.NVarChar(50)
+  Date_Time   DateTime? @db.DateTime
+  remark      String?   @db.NVarChar(100)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ICT_Record_ChangePro {
+  Tester       String?   @db.NVarChar(50)
+  model        String?   @db.NVarChar(50)
+  Test_program String?   @db.NVarChar(50)
+  ByName       String?   @db.NVarChar(50)
+  Change_Time  DateTime? @db.DateTime
+  VersionC     String?   @db.NVarChar(50)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ICT_scrap_Blocktest {
+  testerName      String   @db.NVarChar(50)
+  model           String   @db.NVarChar(50)
+  ser_num         String   @db.NVarChar(50)
+  time_test       Int
+  date_timeBefore DateTime @db.DateTime
+  status          Int
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ICT_scrap_Log {
+  testerName String   @db.NVarChar(50)
+  model      String   @db.NVarChar(50)
+  ser_num    String   @db.NVarChar(50)
+  tech_id    String   @db.NVarChar(50)
+  Name       String   @db.NVarChar(50)
+  Sur        String   @db.NVarChar(50)
+  date_time  DateTime @db.DateTime
+  statusF    String?  @db.NVarChar(50)
+  board      String?  @db.NVarChar(50)
+  Loc        String?  @db.NVarChar(50)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ICT_Slip_Failure {
+  NumBerBoard   Int?
+  sernum        String?   @db.NVarChar(500)
+  Full_Name     String?   @db.NVarChar(500)
+  DataF         Bytes?
+  dateTimeS     DateTime? @db.DateTime
+  Link          String?   @db.NVarChar(500)
+  dateTime_Test DateTime? @db.DateTime
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ICT_start_stop_Time {
+  testerName String?   @db.NVarChar(50)
+  customer   String?   @db.NVarChar(50)
+  modelName  String?   @db.NVarChar(50)
+  Start_time DateTime? @db.DateTime
+  End_time   DateTime? @db.DateTime
+  PartNum    String?   @db.NVarChar(50)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ICT_XML_Validate {
+  ICT_Name   String?   @db.NChar(10)
+  File_name  String?   @db.NChar(40)
+  Result_mea String?   @db.NChar(200)
+  Date_val   DateTime? @db.DateTime
+  Result_val String?   @db.NChar(10)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ICTSoftware_Major_version {
+  TesterName   String   @db.NVarChar(50)
+  Customer     String   @db.NVarChar(50)
+  ProJ         String   @db.NVarChar(50)
+  ProGname     String   @db.NVarChar(50)
+  LastVer      String   @db.NVarChar(50)
+  timeStamp    DateTime @db.DateTime
+  Status       String?  @db.NVarChar(50)
+  Part_Num     String?  @db.NVarChar(50)
+  AppBy        String?  @db.NVarChar(50)
+  Testplan_Rev String?  @db.NVarChar(50)
+
+  @@index([TesterName, Customer, ProJ, Part_Num, ProGname], map: "IX_ICTSoftware_Major_version_DeleteProg")
+  @@index([TesterName, Customer, ProJ, Part_Num, LastVer(sort: Desc)], map: "IX_ICTSoftware_Major_version_Last")
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ICTSoftware_version {
+  TesterName   String   @db.NVarChar(50)
+  Customer     String   @db.NVarChar(50)
+  ProJ         String   @db.NVarChar(50)
+  ProGname     String   @db.NVarChar(50)
+  LastVer      String   @db.NVarChar(50)
+  timeStamp    DateTime @db.DateTime
+  Status       String?  @db.NVarChar(50)
+  Part_Num     String?  @db.NVarChar(50)
+  AppBy        String?  @db.NVarChar(50)
+  Testplan_Rev String?  @db.NChar(10)
+  Fixid        String?  @db.NChar(10)
+
+  @@index([TesterName, ProJ, Part_Num, Status, LastVer(sort: Desc)], map: "IX_ICTSoftware_version_Pending_Last")
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model Insert_ICT_SampleBoard_test_Process {
+  customer        String?   @db.NVarChar(50)
+  PartNum         String?   @db.NVarChar(50)
+  ser_num         String?   @db.NVarChar(50)
+  StationName     String?   @db.NVarChar(50)
+  Station_Func    String?   @db.NVarChar(50)
+  entTime         DateTime? @db.DateTime
+  extTime         DateTime? @db.DateTime
+  status_PassFail Boolean?
+  Serial_samp     String?   @db.NVarChar(50)
+  Board_num       Int?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model Insert_ICTdeleteLink {
+  software_name String?   @db.NVarChar(50)
+  LinkFile      String?   @db.NVarChar(200)
+  timeSt        DateTime? @db.DateTime
+
+  @@ignore
+}
+
+model Insert_ICTsoftwareFile {
+  id          Int      @id(map: "PK_Insert_ICTsoftwareFile") @default(autoincrement())
+  fixture_id  String   @db.NChar(10)
+  tester_name String   @db.NVarChar(50)
+  customer    String   @db.NVarChar(50)
+  Project     String   @db.NVarChar(50)
+  pro_name    String   @db.NVarChar(100)
+  versionS    String   @db.NVarChar(50)
+  software    Bytes    @db.Image
+  timeStamp   DateTime @db.DateTime
+  Proname_ver String?  @db.NVarChar(100)
+  linkFile    String   @db.NVarChar(500)
+  PartNum     String?  @db.NVarChar(50)
+}
+
+model Insert_ICTsoftwareFile_A123 {
+  id          Int      @id(map: "PK_Insert_ICTsoftwareFile_A123") @default(autoincrement())
+  fixture_id  String   @db.NChar(10)
+  tester_name String   @db.NVarChar(50)
+  customer    String   @db.NVarChar(50)
+  Project     String   @db.NVarChar(50)
+  pro_name    String   @db.NVarChar(100)
+  versionS    String   @db.NVarChar(50)
+  software    Bytes    @db.Image
+  timeStamp   DateTime @db.DateTime
+  Proname_ver String?  @db.NVarChar(100)
+  linkFile    String   @db.NVarChar(500)
+  PartNum     String?  @db.NVarChar(50)
+}
+
+model Insert_ICTsoftwareFile_ABB {
+  id          Int      @id(map: "PK_Insert_ICTsoftwareFile_ITT") @default(autoincrement())
+  fixture_id  String   @db.NChar(10)
+  tester_name String   @db.NVarChar(50)
+  customer    String   @db.NVarChar(50)
+  Project     String   @db.NVarChar(50)
+  pro_name    String   @db.NVarChar(100)
+  versionS    String   @db.NVarChar(50)
+  software    Bytes    @db.Image
+  timeStamp   DateTime @db.DateTime
+  Proname_ver String?  @db.NVarChar(100)
+  linkFile    String   @db.NVarChar(500)
+  PartNum     String?  @db.NVarChar(50)
+
+  @@index([tester_name, customer, Project, PartNum, versionS, timeStamp(sort: Desc)], map: "IX_File_ABB_Key_Version_Time")
+  @@index([tester_name, customer, Project, PartNum, timeStamp(sort: Desc)], map: "IX_File_ABB_Partition_Time")
+  @@index([tester_name, customer, Project, PartNum, timeStamp(sort: Desc), id(sort: Desc)], map: "IX_ICT_File_GroupTime")
+}
+
+model Insert_ICTsoftwareFile_Allegion {
+  id          Int      @id(map: "PK_Insert_ICTsoftwareFile_Allegion") @default(autoincrement())
+  fixture_id  String   @db.NChar(10)
+  tester_name String   @db.NVarChar(50)
+  customer    String   @db.NVarChar(50)
+  Project     String   @db.NVarChar(50)
+  pro_name    String   @db.NVarChar(100)
+  versionS    String   @db.NVarChar(50)
+  software    Bytes    @db.Image
+  timeStamp   DateTime @db.DateTime
+  Proname_ver String?  @db.NVarChar(100)
+  linkFile    String   @db.NVarChar(500)
+  PartNum     String?  @db.NVarChar(50)
+
+  @@index([tester_name, customer, Project, PartNum, versionS, timeStamp(sort: Desc)], map: "IX_File_Allegion_Key_Version_Time")
+  @@index([tester_name, customer, Project, PartNum, timeStamp(sort: Desc)], map: "IX_File_Allegion_Partition_Time")
+  @@index([tester_name, customer, Project, PartNum, timeStamp(sort: Desc), id(sort: Desc)], map: "IX_ICT_File_GroupTime")
+}
+
+model Insert_ICTsoftwareFile_Cardinal_Health {
+  id          Int      @id(map: "PK_Insert_ICTsoftwareFile_Cardinal Health") @default(autoincrement())
+  fixture_id  String   @db.NChar(10)
+  tester_name String   @db.NVarChar(50)
+  customer    String   @db.NVarChar(50)
+  Project     String   @db.NVarChar(50)
+  pro_name    String   @db.NVarChar(100)
+  versionS    String   @db.NVarChar(50)
+  software    Bytes    @db.Image
+  timeStamp   DateTime @db.DateTime
+  Proname_ver String?  @db.NVarChar(100)
+  linkFile    String   @db.NVarChar(500)
+  PartNum     String?  @db.NVarChar(50)
+
+  @@index([tester_name, customer, Project, PartNum, timeStamp(sort: Desc), id(sort: Desc)], map: "IX_ICT_File_GroupTime")
+  @@map("Insert_ICTsoftwareFile_Cardinal Health")
+}
+
+model Insert_ICTsoftwareFile_CSC {
+  id          Int      @id(map: "PK_Insert_ICTsoftwareFile_CSC") @default(autoincrement())
+  fixture_id  String   @db.NChar(10)
+  tester_name String   @db.NVarChar(50)
+  customer    String   @db.NVarChar(50)
+  Project     String   @db.NVarChar(50)
+  pro_name    String   @db.NVarChar(100)
+  versionS    String   @db.NVarChar(50)
+  software    Bytes    @db.Image
+  timeStamp   DateTime @db.DateTime
+  Proname_ver String?  @db.NVarChar(100)
+  linkFile    String   @db.NVarChar(500)
+  PartNum     String?  @db.NVarChar(50)
+}
+
+model Insert_ICTsoftwareFile_Cummins {
+  id          Int      @id(map: "PK_Insert_ICTsoftwareFile_Cummins") @default(autoincrement())
+  fixture_id  String   @db.NChar(10)
+  tester_name String   @db.NVarChar(50)
+  customer    String   @db.NVarChar(50)
+  Project     String   @db.NVarChar(50)
+  pro_name    String   @db.NVarChar(100)
+  versionS    String   @db.NVarChar(50)
+  software    Bytes    @db.Image
+  timeStamp   DateTime @db.DateTime
+  Proname_ver String?  @db.NVarChar(100)
+  linkFile    String   @db.NVarChar(500)
+  PartNum     String?  @db.NVarChar(50)
+
+  @@index([tester_name, customer, Project, PartNum, versionS, timeStamp(sort: Desc)], map: "IX_File_Cummins_Key_Version_Time")
+  @@index([tester_name, customer, Project, PartNum, timeStamp(sort: Desc)], map: "IX_File_Cummins_Partition_Time")
+  @@index([tester_name, customer, Project, PartNum, timeStamp(sort: Desc), id(sort: Desc)], map: "IX_ICT_File_GroupTime")
+}
+
+model Insert_ICTsoftwareFile_FedEx {
+  id          Int      @id(map: "PK_Insert_ICTsoftwareFile_FedEx") @default(autoincrement())
+  fixture_id  String   @db.NChar(10)
+  tester_name String   @db.NVarChar(50)
+  customer    String   @db.NVarChar(50)
+  Project     String   @db.NVarChar(50)
+  pro_name    String   @db.NVarChar(100)
+  versionS    String   @db.NVarChar(50)
+  software    Bytes    @db.Image
+  timeStamp   DateTime @db.DateTime
+  Proname_ver String?  @db.NVarChar(100)
+  linkFile    String   @db.NVarChar(500)
+  PartNum     String?  @db.NVarChar(50)
+}
+
+model Insert_ICTsoftwareFile_FLIR {
+  id          Int      @id(map: "PK_Insert_ICTsoftwareFile_FLIR") @default(autoincrement())
+  fixture_id  String   @db.NChar(10)
+  tester_name String   @db.NVarChar(50)
+  customer    String   @db.NVarChar(50)
+  Project     String   @db.NVarChar(50)
+  pro_name    String   @db.NVarChar(100)
+  versionS    String   @db.NVarChar(50)
+  software    Bytes    @db.Image
+  timeStamp   DateTime @db.DateTime
+  Proname_ver String?  @db.NVarChar(100)
+  linkFile    String   @db.NVarChar(500)
+  PartNum     String?  @db.NVarChar(50)
+}
+
+model Insert_ICTsoftwareFile_Grundfos {
+  id          Int      @id(map: "PK_Insert_ICTsoftwareFile_Grundfos") @default(autoincrement())
+  fixture_id  String   @db.NChar(10)
+  tester_name String   @db.NVarChar(50)
+  customer    String   @db.NVarChar(50)
+  Project     String   @db.NVarChar(50)
+  pro_name    String   @db.NVarChar(100)
+  versionS    String   @db.NVarChar(50)
+  software    Bytes    @db.Image
+  timeStamp   DateTime @db.DateTime
+  Proname_ver String?  @db.NVarChar(100)
+  linkFile    String   @db.NVarChar(500)
+  PartNum     String?  @db.NVarChar(50)
+}
+
+model Insert_ICTsoftwareFile_Kaleo {
+  id          Int      @id(map: "PK_Insert_ICTsoftwareFile_Kaleo") @default(autoincrement())
+  fixture_id  String   @db.NChar(10)
+  tester_name String   @db.NVarChar(50)
+  customer    String   @db.NVarChar(50)
+  Project     String   @db.NVarChar(50)
+  pro_name    String   @db.NVarChar(100)
+  versionS    String   @db.NVarChar(50)
+  software    Bytes    @db.Image
+  timeStamp   DateTime @db.DateTime
+  Proname_ver String?  @db.NVarChar(100)
+  linkFile    String   @db.NVarChar(500)
+  PartNum     String?  @db.NVarChar(50)
+}
+
+model Insert_ICTsoftwareFile_KEIND {
+  id          Int      @id(map: "PK_Insert_ICTsoftwareFile_KEIND") @default(autoincrement())
+  fixture_id  String   @db.NChar(10)
+  tester_name String   @db.NVarChar(50)
+  customer    String   @db.NVarChar(50)
+  Project     String   @db.NVarChar(50)
+  pro_name    String   @db.NVarChar(100)
+  versionS    String   @db.NVarChar(50)
+  software    Bytes    @db.Image
+  timeStamp   DateTime @db.DateTime
+  Proname_ver String?  @db.NVarChar(100)
+  linkFile    String   @db.NVarChar(500)
+  PartNum     String?  @db.NVarChar(50)
+
+  @@index([tester_name, customer, Project, PartNum, versionS, timeStamp(sort: Desc)], map: "IX_File_KEIND_Key_Version_Time")
+  @@index([tester_name, customer, Project, PartNum, timeStamp(sort: Desc)], map: "IX_File_KEIND_Partition_Time")
+  @@index([tester_name, customer, Project, PartNum, timeStamp(sort: Desc), id(sort: Desc)], map: "IX_ICT_File_GroupTime")
+}
+
+model Insert_ICTsoftwareFile_Nexteer {
+  id          Int      @id(map: "PK_Insert_ICTsoftwareFile_Nexteer") @default(autoincrement())
+  fixture_id  String   @db.NChar(10)
+  tester_name String   @db.NVarChar(50)
+  customer    String   @db.NVarChar(50)
+  Project     String   @db.NVarChar(50)
+  pro_name    String   @db.NVarChar(100)
+  versionS    String   @db.NVarChar(50)
+  software    Bytes    @db.Image
+  timeStamp   DateTime @db.DateTime
+  Proname_ver String?  @db.NVarChar(100)
+  linkFile    String   @db.NVarChar(500)
+  PartNum     String?  @db.NVarChar(50)
+
+  @@index([tester_name, customer, Project, PartNum, versionS, timeStamp(sort: Desc)], map: "IX_File_Nexteer_Key_Version_Time")
+  @@index([tester_name, customer, Project, PartNum, timeStamp(sort: Desc)], map: "IX_File_Nexteer_Partition_Time")
+  @@index([tester_name, customer, Project, PartNum, timeStamp(sort: Desc), id(sort: Desc)], map: "IX_ICT_File_GroupTime")
+}
+
+model Insert_ICTsoftwareFile_OrthoAccel {
+  id          Int      @id(map: "PK_Insert_ICTsoftwareFile_OrthoAccel") @default(autoincrement())
+  fixture_id  String   @db.NChar(10)
+  tester_name String   @db.NVarChar(50)
+  customer    String   @db.NVarChar(50)
+  Project     String   @db.NVarChar(50)
+  pro_name    String   @db.NVarChar(100)
+  versionS    String   @db.NVarChar(50)
+  software    Bytes    @db.Image
+  timeStamp   DateTime @db.DateTime
+  Proname_ver String?  @db.NVarChar(100)
+  linkFile    String   @db.NVarChar(500)
+  PartNum     String?  @db.NVarChar(50)
+}
+
+model Insert_ICTsoftwareFile_Philips_ECR {
+  id          Int      @id(map: "PK_Insert_ICTsoftwareFile_Philips ECR") @default(autoincrement())
+  fixture_id  String   @db.NChar(10)
+  tester_name String   @db.NVarChar(50)
+  customer    String   @db.NVarChar(50)
+  Project     String   @db.NVarChar(50)
+  pro_name    String   @db.NVarChar(100)
+  versionS    String   @db.NVarChar(50)
+  software    Bytes    @db.Image
+  timeStamp   DateTime @db.DateTime
+  Proname_ver String?  @db.NVarChar(100)
+  linkFile    String   @db.NVarChar(500)
+  PartNum     String?  @db.NVarChar(50)
+
+  @@index([tester_name, customer, Project, PartNum, timeStamp(sort: Desc), id(sort: Desc)], map: "IX_ICT_File_GroupTime")
+  @@map("Insert_ICTsoftwareFile_Philips ECR")
+}
+
+model Insert_ICTsoftwareFile_Respironics {
+  id          Int      @id(map: "PK_Insert_ICTsoftwareFile_Respironics") @default(autoincrement())
+  fixture_id  String   @db.NChar(10)
+  tester_name String   @db.NVarChar(50)
+  customer    String   @db.NVarChar(50)
+  Project     String   @db.NVarChar(50)
+  pro_name    String   @db.NVarChar(100)
+  versionS    String   @db.NVarChar(50)
+  software    Bytes    @db.Image
+  timeStamp   DateTime @db.DateTime
+  Proname_ver String?  @db.NVarChar(100)
+  linkFile    String   @db.NVarChar(500)
+  PartNum     String?  @db.NVarChar(50)
+
+  @@index([tester_name, customer, Project, PartNum, versionS, timeStamp(sort: Desc)], map: "IX_File_Respironics_Key_Version_Time")
+  @@index([tester_name, customer, Project, PartNum, timeStamp(sort: Desc)], map: "IX_File_Respironics_Partition_Time")
+  @@index([tester_name, customer, Project, PartNum, timeStamp(sort: Desc), id(sort: Desc)], map: "IX_ICT_File_GroupTime")
+}
+
+model Insert_ICTsoftwareFile_Smith_Nephew {
+  id          Int      @id(map: "PK_Insert_ICTsoftwareFile_Smith&Nephew") @default(autoincrement())
+  fixture_id  String   @db.NChar(10)
+  tester_name String   @db.NVarChar(50)
+  customer    String   @db.NVarChar(50)
+  Project     String   @db.NVarChar(50)
+  pro_name    String   @db.NVarChar(100)
+  versionS    String   @db.NVarChar(50)
+  software    Bytes    @db.Image
+  timeStamp   DateTime @db.DateTime
+  Proname_ver String?  @db.NVarChar(100)
+  linkFile    String   @db.NVarChar(500)
+  PartNum     String?  @db.NVarChar(50)
+
+  @@index([tester_name, customer, Project, PartNum, timeStamp(sort: Desc), id(sort: Desc)], map: "IX_ICT_File_GroupTime")
+  @@map("Insert_ICTsoftwareFile_Smith&Nephew")
+}
+
+model Insert_ICTsoftwareFile_Thermo_King {
+  id          Int      @id(map: "PK_Insert_ICTsoftwareFile_Thermo-King") @default(autoincrement())
+  fixture_id  String   @db.NChar(10)
+  tester_name String   @db.NVarChar(50)
+  customer    String   @db.NVarChar(50)
+  Project     String   @db.NVarChar(50)
+  pro_name    String   @db.NVarChar(100)
+  versionS    String   @db.NVarChar(50)
+  software    Bytes    @db.Image
+  timeStamp   DateTime @db.DateTime
+  Proname_ver String?  @db.NVarChar(100)
+  linkFile    String   @db.NVarChar(500)
+  PartNum     String?  @db.NVarChar(50)
+
+  @@index([tester_name, customer, Project, PartNum, timeStamp(sort: Desc), id(sort: Desc)], map: "IX_ICT_File_GroupTime")
+  @@map("Insert_ICTsoftwareFile_Thermo King")
+}
+
+model Insert_ICTsoftwareFile_ZOLL {
+  id          Int      @id(map: "PK_Insert_ICTsoftwareFile_ZOLL") @default(autoincrement())
+  fixture_id  String   @db.NChar(10)
+  tester_name String   @db.NVarChar(50)
+  customer    String   @db.NVarChar(50)
+  Project     String   @db.NVarChar(50)
+  pro_name    String   @db.NVarChar(100)
+  versionS    String   @db.NVarChar(50)
+  software    Bytes    @db.Image
+  timeStamp   DateTime @db.DateTime
+  Proname_ver String?  @db.NVarChar(100)
+  linkFile    String   @db.NVarChar(500)
+  PartNum     String?  @db.NVarChar(50)
+
+  @@index([tester_name, customer, Project, PartNum, versionS, timeStamp(sort: Desc)], map: "IX_File_ZOLL_Key_Version_Time")
+  @@index([tester_name, customer, Project, PartNum, timeStamp(sort: Desc)], map: "IX_File_ZOLL_Partition_Time")
+  @@index([tester_name, customer, Project, PartNum, timeStamp(sort: Desc), id(sort: Desc)], map: "IX_ICT_File_GroupTime")
+}
+
+model Insert_ICTsoftwareFile_ZOLL_DEERFIELD {
+  id          Int      @id(map: "PK_Insert_ICTsoftwareFile_ZOLL DEERFIELD") @default(autoincrement())
+  fixture_id  String   @db.NChar(10)
+  tester_name String   @db.NVarChar(50)
+  customer    String   @db.NVarChar(50)
+  Project     String   @db.NVarChar(50)
+  pro_name    String   @db.NVarChar(100)
+  versionS    String   @db.NVarChar(50)
+  software    Bytes    @db.Image
+  timeStamp   DateTime @db.DateTime
+  Proname_ver String?  @db.NVarChar(100)
+  linkFile    String   @db.NVarChar(500)
+  PartNum     String?  @db.NVarChar(50)
+
+  @@map("Insert_ICTsoftwareFile_ZOLL DEERFIELD")
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model Insert_Sample_Obsolete {
+  Customer        String?   @db.NVarChar(50)
+  Model           String?   @db.NVarChar(50)
+  Sstatus         String?   @db.NVarChar(50)
+  Sser_num        String?   @db.NVarChar(50)
+  Tlocation       String?   @db.NVarChar(50)
+  duedateVer      DateTime? @db.DateTime
+  VerF_by         String?   @db.NVarChar(50)
+  Location_Locker String?   @db.NVarChar(50)
+  Sernum_board    String?   @db.NVarChar(100)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model KETL_process_owner {
+  id         Int     @default(autoincrement())
+  sections   String? @db.NVarChar(50)
+  stations   String
+  owner      String? @db.NVarChar(50)
+  Remarkdata String? @db.NVarChar(500)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model KETL_TEST_LOG {
+  history_id         BigInt   @default(autoincrement())
+  datetime_test      DateTime @db.DateTime
+  UUTResultID        Int?
+  ser_num            String   @db.NVarChar(50)
+  FamilyName         String?  @db.NVarChar(25)
+  operator_id        String   @db.NVarChar(15)
+  station_id         String?  @db.NVarChar(25)
+  step_id            String?  @db.NVarChar(50)
+  limit_max          Float?
+  limit_min          Float?
+  meas_value         Float?
+  result             Int?     @db.SmallInt
+  Socket             Int?
+  FailureDescription String?
+  StepName           String   @db.NVarChar(500)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model KETL_TEST_LOG_Temp {
+  history_id         BigInt   @default(autoincrement())
+  datetime_test      DateTime @db.DateTime
+  UUTResultID        Int?
+  ser_num            String   @db.NVarChar(50)
+  FamilyName         String?  @db.NVarChar(25)
+  operator_id        String   @db.NVarChar(15)
+  station_id         String?  @db.NVarChar(25)
+  step_id            String?  @db.NVarChar(50)
+  limit_max          Float?
+  limit_min          Float?
+  meas_value         Float?
+  result             Int?     @db.SmallInt
+  Socket             Int?
+  FailureDescription String?
+  StepName           String   @db.NVarChar(500)
+
+  @@ignore
+}
+
+model KETL_Tester_Yeilds {
+  Id                    Int       @id(map: "PK_KETL_Tester_Yeilds") @default(autoincrement())
+  Date                  DateTime? @db.Date
+  CustomerName          String?   @db.NVarChar(50)
+  PartNumber            String?   @db.NVarChar(50)
+  TesterName            String?   @db.NVarChar(50)
+  TotalRun              Int?
+  TotalFreshRun         Int
+  First_Test_Pass       Int
+  Second_Test_Pass      Int
+  First_Test_Fail       Int
+  Second_Test_Fail      Int
+  RepeatTest            Int
+  Percent1stPassYield   Float
+  Percent2stPassYield   Float
+  PercentOperationYield Float
+  PercentRepeatTest     Float
+  Comments              String    @db.NVarChar(100)
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model Link_ICT_LogFile {
+  id           Int     @default(autoincrement())
+  customerName String? @db.NVarChar(50)
+  part_num     String? @db.NVarChar(50)
+  ser_num      String? @db.NVarChar(50)
+  fileName     String? @db.NVarChar(100)
+  PathFile     String? @db.NVarChar(500)
+
+  @@ignore
+}
+
+model Log_PassSQL {
+  run_id   Int     @id(map: "PK_Log_PassSQL") @default(autoincrement())
+  user_id  String  @db.NVarChar(50)
+  pass_id  String  @db.NVarChar(50)
+  level_id String? @db.NChar(10)
+}
+
+model maintenance_history {
+  id             Int       @id(map: "PK__maintena__3213E83F34926C05") @default(autoincrement())
+  testbed        String?   @db.NVarChar(50)
+  reset_date     DateTime? @db.Date
+  counter_before Int?
+  counter_after  Int?      @default(0, map: "DF__maintenan__count__41A3B202")
+  notes          String?   @db.NVarChar(500)
+  reset_by       String?   @db.NVarChar(100)
+
+  @@index([testbed, reset_date], map: "IX_maintenance_history_testbed")
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model Masage_send_line {
+  Tester_name String?   @db.NVarChar(50)
+  Customer    String?   @db.NVarChar(50)
+  model       String?   @db.NVarChar(50)
+  Pro_name    String?   @db.NVarChar(50)
+  Part_num    String?   @db.NVarChar(50)
+  Location    String?   @db.NVarChar(50)
+  Pa_old      String?   @db.NVarChar(300)
+  Pa_new      String?   @db.NVarChar(300)
+  Para_Change String?   @db.NVarChar(300)
+  By_name     String?   @db.NVarChar(50)
+  Reason      String?   @db.NVarChar(50)
+  Date_Time   DateTime? @db.DateTime
+  remark      String?   @db.NVarChar(100)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model Master_Ref_ICs_Prog {
+  Cm_name       String?   @db.NChar(20)
+  KE_pn         String?   @db.NChar(40)
+  Ic_mpn        String?   @db.NChar(35)
+  Loca_ic_Pro   String?   @db.NChar(10)
+  Bank_ic_mater String?   @db.NChar(15)
+  Ic_prog_pn    String?   @db.NChar(50)
+  Fw_File_name  String?   @db.NChar(80)
+  checksum      String?   @db.NChar(10)
+  Spcial_bit    String?   @db.NChar(150)
+  IC_IDENTITY   String?   @db.NChar(10)
+  Date_time_add DateTime? @db.DateTime
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model Monitor_Yield {
+  Station    String? @db.NVarChar(50)
+  Total      String? @db.NChar(10)
+  Passed     String? @db.NChar(10)
+  Failed     String? @db.NChar(10)
+  True_Fail  String? @db.NChar(10)
+  False_Fail String? @db.NChar(10)
+  Yield      String? @db.NVarChar(50)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model MultipleTest {
+  StepResultsId       BigInt
+  ResultIndex         BigInt
+  MeasurementName     String
+  StatusId            BigInt
+  ResultTypeId        BigInt
+  BooleanResult       Boolean?
+  NumericResult       Float?
+  NumericLimitLow     Float?
+  NumericLimitHigh    Float?
+  NumericComparisonId BigInt?
+  NumericUnits        String?
+  StringResult        String?
+  StringLimit         String?
+  StringComparisonId  BigInt?
+  MultipleTestId      Int
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model Nexteer_ICT_PW {
+  Part_num String?   @db.NChar(15)
+  Panel_sn String?   @db.NChar(10)
+  Bd_num   String?   @db.NChar(1)
+  pn_sn    String?   @db.NChar(21)
+  OCD_ID   String?   @db.NChar(64)
+  DT       DateTime? @db.DateTime
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model Philips_SRC_PCA_Test {
+  id          String?   @db.NVarChar(100)
+  Serial      String?   @db.NChar(50)
+  Model       String?   @db.NChar(50)
+  Station     String?   @db.NChar(50)
+  data        String?   @db.NVarChar(Max)
+  result      String?   @db.NChar(10)
+  defect_type String?   @db.NChar(100)
+  dtime_stamp DateTime? @db.DateTime
+  filename    String?   @db.NChar(100)
+
+  @@ignore
+}
+
+model processed_logs {
+  filename       String    @db.NVarChar(255)
+  testbed        String    @db.NVarChar(50)
+  result_type    String?   @db.NVarChar(10)
+  processed_date DateTime? @default(now(), map: "DF__processed__proce__3EC74557") @db.Date
+
+  @@id([filename, testbed], map: "PK__processe__73C75C0CB875507F")
+  @@index([testbed, processed_date], map: "IX_processed_logs_testbed_date")
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model Production_Report {
+  downtime_history_id Int       @default(autoincrement())
+  Downtime_no         String    @db.VarChar(20)
+  station_id          Int
+  dCode               String?   @db.VarChar(10)
+  dMachine            String?   @db.NVarChar(200)
+  dDescription        String?   @db.NVarChar(500)
+  dStart              DateTime  @db.DateTime
+  dStop               DateTime? @db.DateTime
+  dAction             String?
+  update_time         DateTime  @db.DateTime
+  user                String?   @db.NVarChar(100)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ProG_type_count {
+  Product     String?   @db.NVarChar(100)
+  Socket_type String?
+  count       String?   @db.NChar(30)
+  verify_date DateTime? @db.DateTime
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model Programmingonbd {
+  PanelSR  String?   @db.NVarChar(255)
+  Bd1      String?   @db.NVarChar(255)
+  Bd2      String?   @db.NVarChar(255)
+  Bd3      String?   @db.NVarChar(255)
+  Bd4      String?   @db.NVarChar(255)
+  ent_time DateTime? @db.DateTime
+  datetime DateTime? @db.DateTime
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ProgrammingonbdManual {
+  PanelSR  String?   @db.NVarChar(255)
+  Bd1      String?   @db.NVarChar(255)
+  Bd2      String?   @db.NVarChar(255)
+  Bd3      String?   @db.NVarChar(255)
+  Bd4      String?   @db.NVarChar(255)
+  ent_time DateTime? @db.DateTime
+  datetime DateTime? @db.DateTime
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model QA_DataRegister {
+  Serial_Number       String   @db.NVarChar(50)
+  Area                String   @db.NVarChar(100)
+  Customer            String   @db.NVarChar(50)
+  Compoenent_Model_PN String   @db.NVarChar(50)
+  Menufacture_PN      String   @db.NVarChar(300)
+  Register_Date       DateTime @db.DateTime
+  Verify_Date         DateTime @db.DateTime
+  Expired_Date        DateTime @db.DateTime
+  Remark              String?  @db.NVarChar(200)
+
+  @@index([Compoenent_Model_PN], map: "IDX_QA_DataRegister_47")
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model QA_LogData {
+  UserID   String    @db.NVarChar(50)
+  FileName String    @db.NVarChar(50)
+  Picture  Bytes     @db.Image
+  DateTime DateTime? @db.DateTime
+  Note     String?   @db.NText
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model Record_10129 {
+  oper_id      String    @db.NChar(10)
+  ser_num      String    @db.NVarChar(50)
+  measure1_for String    @db.NVarChar(50)
+  measure2_re  String    @db.NVarChar(50)
+  status_for   String    @db.NVarChar(50)
+  status_re    String    @db.NVarChar(50)
+  date_time    DateTime? @db.DateTime
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model Record_11250 {
+  ser_num   String    @db.NVarChar(50)
+  measure   String    @db.NVarChar(50)
+  status    String    @db.NVarChar(50)
+  date_time DateTime? @db.DateTime
+  oper      String?   @db.NChar(10)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ResultType {
+  ResultTypeId   BigInt
+  ResultTypeName String
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model RTY_DATA {
+  Station_Function_id String?   @db.NVarChar(50)
+  Station_ID          String?   @db.NChar(10)
+  Test_Station_Name   String?   @db.NVarChar(50)
+  Description         String?   @db.NVarChar(200)
+  Station_Name        String?   @db.NVarChar(200)
+  Product             String?   @db.NVarChar(50)
+  Serial_Number       String?   @db.NVarChar(50)
+  finished_part_num   String?   @db.NVarChar(50)
+  Total               String?   @db.NChar(10)
+  Pass_Fail           String?   @db.NChar(10)
+  Component_Defect    String?   @db.NVarChar(100)
+  Date_Time           DateTime? @db.DateTime
+  Defect_Desc         String?   @db.NVarChar(100)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model RunQA_PrefixID {
+  Customer       String   @db.NVarChar(50)
+  Ser_num        String   @db.NVarChar(50)
+  product_prefix String   @db.NVarChar(50)
+  run_id         String   @db.NVarChar(50)
+  date_time      DateTime @db.DateTime
+  register_by    String   @db.NVarChar(50)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model SalesData {
+  ProductName String? @db.NVarChar(50)
+  SalesAmount Int?
+  Sales2      Int?
+  Sales3      Int?
+  Sales4      Int?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model Sample_Board_Picture {
+  Customer    String  @db.NVarChar(50)
+  Part_Number String  @db.NVarChar(50)
+  Ser_num     String  @db.NVarChar(50)
+  status      String  @db.NVarChar(50)
+  Picture     Bytes   @db.Image
+  Tester      String? @db.NVarChar(50)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model Sample_Board_Picture_DEMO {
+  Customer    String  @db.NVarChar(50)
+  Part_Number String  @db.NVarChar(50)
+  Ser_num     String  @db.NVarChar(50)
+  status      String  @db.NVarChar(50)
+  Picture     Bytes   @db.Image
+  Tester      String? @db.NVarChar(50)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model Sample_board_Record {
+  customer     String?   @db.NVarChar(50)
+  model        String?   @db.NVarChar(50)
+  ser_num_PASS String?   @db.NVarChar(50)
+  ser_num_FAIL String?   @db.NVarChar(50)
+  operID       String?   @db.NVarChar(50)
+  date_time    DateTime? @db.DateTime
+  ICT          Boolean?
+  FCT          Boolean?
+  Sample_PASS  Boolean?
+  sample_FAIL  Boolean?
+  send         Boolean?
+  bowrow       Boolean?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model Sample_Records {
+  customer         String   @db.NVarChar(50)
+  DescriptionT     String?  @db.NVarChar(50)
+  CusPrefix        String   @db.NVarChar(50)
+  Used_notUsed     String   @db.NVarChar(50)
+  Model            String?  @db.NVarChar(50)
+  StatusT          String?  @db.NVarChar(50)
+  ser_num          String   @db.NVarChar(50)
+  Tester           String
+  VerifyDate       DateTime @db.DateTime
+  DueDate          DateTime @db.DateTime
+  Verify_ByOff     String   @db.NVarChar(50)
+  Locker           String?  @db.NVarChar(50)
+  Remark           String?  @db.NVarChar(300)
+  PCB_Barcode      String?  @db.NVarChar(50)
+  Program_name     String?  @db.NVarChar(50)
+  Software_version String?  @db.NVarChar(50)
+  Use_on_Tester    String?  @db.NVarChar(50)
+  OMD              String?  @db.NVarChar(50)
+  process          String?  @db.NVarChar(2000)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model Sample_Records_bk {
+  customer         String   @db.NVarChar(50)
+  DescriptionT     String?  @db.NVarChar(50)
+  CusPrefix        String   @db.NVarChar(50)
+  Used_notUsed     String   @db.NVarChar(50)
+  Model            String?  @db.NVarChar(50)
+  StatusT          String?  @db.NVarChar(50)
+  ser_num          String   @db.NVarChar(50)
+  Tester           String?
+  VerifyDate       DateTime @db.DateTime
+  DueDate          DateTime @db.DateTime
+  Verify_ByOff     String   @db.NVarChar(50)
+  Locker           String?  @db.NVarChar(50)
+  Remark           String?  @db.NVarChar(300)
+  PCB_Barcode      String?  @db.NVarChar(50)
+  Program_name     String?  @db.NVarChar(50)
+  Software_version String?  @db.NVarChar(50)
+  Use_on_Tester    String?  @db.NVarChar(50)
+  OMD              String?  @db.NVarChar(50)
+  process          String?  @db.NVarChar(2000)
+
+  @@ignore
+}
+
+model SERIAL_NUMBERS_DESCRIPTION {
+  id          Int      @default(autoincrement())
+  ser_num     String   @unique(map: "UQ__SERIAL_N__E04D99559DA3ED28") @db.VarChar(50)
+  Mac_address String?  @unique(map: "UQ__SERIAL_N__D54C4322A450E753") @db.VarChar(50)
+  ICC_ID      String?  @db.VarChar(50)
+  IMEI_ID     String?  @db.VarChar(50)
+  Remarks     String?  @db.VarChar(50)
+  dtime_stamp DateTime @db.DateTime
+
+  @@index([ICC_ID], map: "IDX_SERIAL_NUMBERS_DESCRIPTION_6648")
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model Setup_Record {
+  testerName   String?   @db.NVarChar(50)
+  customerName String?   @db.NVarChar(50)
+  modelName    String?   @db.NVarChar(50)
+  techid       String?   @db.NVarChar(50)
+  date_time    DateTime? @db.DateTime
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model SmithNephew_Log_FCT {
+  TestRecordPath String   @db.VarChar(255)
+  InUse          Boolean?
+
+  @@ignore
+}
+
+model software_ver {
+  id            Int     @id(map: "PK_software_ver1") @default(autoincrement())
+  Software_ver  String? @db.NVarChar(50)
+  Software_name String? @db.NVarChar(50)
+}
+
+model SparePartManagement {
+  ID                 Int     @id(map: "PK__SparePar__3214EC279C3DFA14")
+  MFGPartNumber      String? @db.VarChar(255)
+  CustomerPartNumber String? @db.VarChar(255)
+  KimballPartNumber  String? @db.VarChar(255)
+  Description        String? @db.VarChar(255)
+  Manufacturer       String? @db.VarChar(255)
+  Category           String? @db.VarChar(255)
+  Customer           String? @db.VarChar(255)
+  ProductGroup       String? @db.VarChar(255)
+  CustomerProperty   String? @db.VarChar(255)
+  TesterNumber       String? @db.VarChar(255)
+  ControlType        String? @db.VarChar(255)
+  SAPNumber          String? @db.VarChar(255)
+  Price              Float?
+  OnHand             Int?
+  InUse              Int?
+  ControlQuantity    Int?
+  PictureLink        String? @db.VarChar(255)
+  DeliveryLeadTime   Int?
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model SPC_ATB_DATA {
+  test_info_id Int
+  test_id      Int
+  test_order   Int
+  pass_fail    Boolean
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model SPC_DESCRIPTION {
+  test_id      Int
+  test         String  @db.VarChar(50)
+  station_id   Int
+  operation_id Int
+  description  String? @db.VarChar(255)
+  data_type    String  @db.VarChar(9)
+  unit_type_id Int
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model SPC_INFO {
+  test_info_id  Int
+  operation_id  Int
+  serial_number String   @db.VarChar(50)
+  part_number   String?  @db.VarChar(50)
+  product_id    Int
+  dtime_stamp   DateTime @db.DateTime
+  times_tested  Int
+  nest_location String   @db.VarChar(10)
+  operator      String?  @db.VarChar(50)
+  station_id    Int
+  comment_file  String?  @db.VarChar(255)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model SPC_LIMITS {
+  test_limits_id Int
+  test_id        Int
+  max_val        Float
+  min_val        Float
+  dtime_stamp    DateTime @db.DateTime
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model SPC_UNITS {
+  unit_type_id Int
+  unit_desc    String @db.VarChar(25)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model SPC_VAR_DATA {
+  test_info_id   Int
+  test_limits_id Int
+  test_order     Int
+  test_value     Float
+  pass_fail      Boolean
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model Status {
+  StatusId   BigInt
+  StatusName String
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model StepRequirement {
+  RequirementId BigInt
+  StepResultsId BigInt
+  Requirement   String
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model StepResults {
+  StepResultsId             BigInt
+  UUTResultsId              BigInt
+  SequenceCallStepResultsId BigInt?
+  StepName                  String
+  StepSequence              String
+  StepNumber                BigInt?
+  StepId                    String
+  LookUpString              String
+  StepTypeName              String
+  SequenceFilePath          String
+  StatusId                  BigInt
+  FailureCode               BigInt?
+  FailureDescription        String?  @db.NVarChar(4000)
+  ErrorCode                 BigInt?
+  ErrorDescription          String?  @db.NVarChar(4000)
+  ResultTypeId              BigInt
+  BooleanResult             Boolean?
+  NumericResult             Float?
+  NumericLimitLow           Float?
+  NumericLimitHigh          Float?
+  NumericComparisonId       BigInt?
+  NumericUnits              String?
+  StringResult              String?
+  StringLimit               String?
+  StringComparisonId        BigInt?
+  ExecutionTime             Float?
+
+  @@ignore
+}
+
+model sysdiagrams {
+  name         String @db.NVarChar(128)
+  principal_id Int
+  diagram_id   Int    @id(map: "PK__sysdiagr__C2B05B616809D03C") @default(autoincrement())
+  version      Int?
+  definition   Bytes?
+
+  @@unique([principal_id, name], map: "UK_principal_name")
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model TEMP_Downtime {
+  dmachine          String?   @db.NVarChar(100)
+  Full_Station_Name String?   @db.NVarChar(100)
+  dcode             String?   @db.NVarChar(100)
+  dDescription      String?   @db.NVarChar(100)
+  dStart            DateTime? @db.DateTime
+  dStop             DateTime? @db.DateTime
+  date_diff         Int?
+  dAction           String?   @db.NVarChar(100)
+  finished_part_num String?   @db.NVarChar(100)
+  Product           String?   @db.NVarChar(100)
+  date_diff_work    Int?
+  station_id        String?   @db.NVarChar(100)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model Temp_DownTime_Work {
+  Product             String?   @db.NVarChar(50)
+  finished_part_num   String?   @db.NVarChar(50)
+  workorder           String?   @db.NVarChar(50)
+  dStart              DateTime? @db.DateTime
+  dStop               DateTime? @db.DateTime
+  process             String?   @db.NVarChar(50)
+  pass                String?   @db.NVarChar(50)
+  station_id          Int?
+  station_function_id Int?
+  sap_part_num        String?   @db.NVarChar(50)
+  defect              String?   @db.VarChar(50)
+  date_diff_work      Int?
+
+  @@ignore
+}
+
+model TEMP_TEST_RESULTS_ICTDET {
+  id            Int       @id(map: "PK_TEMP_TEST_RESULTS_ICTDET") @default(autoincrement())
+  hostid        Int       @db.SmallInt
+  ultimate      Boolean
+  compdes       String    @db.VarChar(50)
+  prefix        String    @db.VarChar(10)
+  status        Int       @db.SmallInt
+  measuredvalue Float?
+  subtest       String?   @db.VarChar(50)
+  nominalvalue  Float?
+  maxvalue      Float?
+  minvalue      Float?
+  node          String?   @db.VarChar(100)
+  device        Int?
+  sourcenode    String?   @db.VarChar(100)
+  destnode      String?   @db.VarChar(100)
+  deviation     Float?
+  model         String?   @db.VarChar(20)
+  ser_num       String?   @db.VarChar(1000)
+  ent_time      DateTime? @db.DateTime
+  ext_time      DateTime? @db.DateTime
+  tester_name   String?   @db.VarChar(20)
+  customer      String?   @db.VarChar(50)
+  tech_id       String?   @db.NVarChar(50)
+  Serial_Board  String?
+
+  @@index([tester_name, ent_time], map: "IDX_TEMP_TEST_RESULTS_ICTDET_1117")
+  @@index([compdes, model, tester_name, ent_time], map: "IDX_TEMP_TEST_RESULTS_ICTDET_1265")
+  @@index([ent_time], map: "IDX_TEMP_TEST_RESULTS_ICTDET_1369")
+  @@index([compdes, tester_name, ent_time], map: "IDX_TEMP_TEST_RESULTS_ICTDET_150")
+  @@index([model, tester_name, ent_time], map: "IDX_TEMP_TEST_RESULTS_ICTDET_186")
+  @@index([model, tester_name, ent_time], map: "IDX_TEMP_TEST_RESULTS_ICTDET_188")
+  @@index([tester_name, ent_time], map: "IDX_TEMP_TEST_RESULTS_ICTDET_3924")
+  @@index([Serial_Board], map: "IDX_TEMP_TEST_RESULTS_ICTDET_6520")
+  @@index([ent_time], map: "idx_TEMP_TEST_RESULTS_ICTDET_ent_time")
+  @@index([Serial_Board], map: "idx_TEMP_TEST_RESULTS_ICTDET_SN")
+  @@index([ent_time, Serial_Board], map: "idx_TEMP_TEST_RESULTS_ICTDET_SN_ENT_TIME")
+}
+
+model TEMP_TEST_RESULTS_ICTDET_Sample_Symptoms {
+  id            Int       @id(map: "PK_TEMP_TEST_RESULTS_ICTDET_Sample_Symptoms") @default(autoincrement())
+  hostid        Int       @db.SmallInt
+  ultimate      Boolean
+  compdes       String    @db.VarChar(50)
+  prefix        String    @db.VarChar(10)
+  status        Int       @db.SmallInt
+  measuredvalue Float?
+  subtest       String?   @db.VarChar(50)
+  nominalvalue  Float?
+  maxvalue      Float?
+  minvalue      Float?
+  node          String?   @db.VarChar(100)
+  device        Int?
+  sourcenode    String?   @db.VarChar(100)
+  destnode      String?   @db.VarChar(100)
+  deviation     Float?
+  model         String?   @db.VarChar(20)
+  ser_num       String?
+  ent_time      DateTime? @db.DateTime
+  ext_time      DateTime? @db.DateTime
+  tester_name   String?   @db.VarChar(20)
+  customer      String?   @db.VarChar(50)
+  tech_id       String?   @db.NVarChar(50)
+  Serial_Board  String?   @db.NVarChar(50)
+}
+
+model TEMP_TEST_RESULTS_ICTDET_SN {
+  id            Int      @id(map: "PK_TEMP_TEST_RESULTS_ICTDET_SN") @default(autoincrement())
+  PanelOrSN     String   @db.VarChar(50)
+  timestamp     DateTime @db.DateTime
+  compdes       String   @db.VarChar(50)
+  prefix        String   @db.VarChar(10)
+  status        Int      @db.SmallInt
+  measuredvalue Float?
+  subtest       String?  @db.VarChar(50)
+  nominalvalue  Float?
+  maxvalue      Float?
+  minvalue      Float?
+  node          String?  @db.VarChar(100)
+  device        Int?
+  sourcenode    String?  @db.VarChar(100)
+  destnode      String?  @db.VarChar(100)
+  deviation     Float?
+}
+
+model TEMP_TEST_RESULTS_ICTDET123 {
+  id            Int       @id(map: "PK_TEMP_TEST_RESULTS_ICTDET123") @default(autoincrement())
+  hostid        Int       @db.SmallInt
+  ultimate      Boolean
+  compdes       String    @db.VarChar(50)
+  prefix        String    @db.VarChar(20)
+  status        Int       @db.SmallInt
+  measuredvalue Float?
+  subtest       String?   @db.VarChar(50)
+  nominalvalue  Float?
+  maxvalue      Float?
+  minvalue      Float?
+  node          String?   @db.VarChar(100)
+  device        Int?
+  sourcenode    String?   @db.VarChar(100)
+  destnode      String?   @db.VarChar(100)
+  deviation     Float?
+  model         String?   @db.VarChar(50)
+  ser_num       String?   @db.VarChar(50)
+  ent_time      DateTime? @db.DateTime
+  ext_time      DateTime? @db.DateTime
+  tester_name   String?   @db.VarChar(50)
+  customer      String?   @db.VarChar(50)
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model Temp_Work {
+  Product             String?   @db.NVarChar(50)
+  finished_part_num   String?   @db.NVarChar(50)
+  workorder           String?   @db.NVarChar(50)
+  dStart              DateTime? @db.DateTime
+  dStop               DateTime? @db.DateTime
+  process             String?   @db.NVarChar(50)
+  pass                String?   @db.NVarChar(50)
+  station_id          Int?
+  station_function_id Int?
+  sap_part_num        String?   @db.NVarChar(50)
+  defect              String?   @db.VarChar(50)
+  date_diff_work      Int?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model Temp_WT_BackEnd {
+  workingdate         DateTime? @db.DateTime
+  startdate           DateTime? @db.DateTime
+  stopdate            DateTime? @db.DateTime
+  product             String?   @db.NVarChar(50)
+  partnumber          String?   @db.NVarChar(50)
+  workcenter          String?   @db.NVarChar(50)
+  diff_time           Int?
+  wo                  String?   @db.NVarChar(50)
+  wo_shift            String?   @db.NVarChar(50)
+  station_function_id Int?
+  station_id          Int?
+  finished_part_num   String?   @db.NVarChar(50)
+  oper_work_hr        String?   @db.NChar(10)
+
+  @@ignore
+}
+
+model testbeds {
+  name          String    @id(map: "PK__testbeds__72E12F1AE42A7168") @db.NVarChar(50)
+  form_factor   String?   @db.NVarChar(50)
+  current_count Int?      @default(0, map: "DF__testbeds__curren__3A02903A")
+  total_count   Int?      @default(0, map: "DF__testbeds__total___3AF6B473")
+  max_count     Int?
+  last_reset    DateTime? @db.Date
+  created_date  DateTime? @default(now(), map: "DF__testbeds__create__3BEAD8AC") @db.Date
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model TPP_ICs_Prog_result {
+  Tech_eng_ID      String?   @db.NChar(20)
+  Oper_id          String?   @db.NChar(20)
+  Key_In_Count     String?   @db.NChar(10)
+  Lot_id           String?   @db.NChar(25)
+  WO               String?   @db.NChar(20)
+  Week_num         String?   @db.NChar(10)
+  St_ses           String?   @db.NChar(50)
+  End_ses          String?   @db.NChar(50)
+  Creator_Name     String?   @db.NChar(20)
+  Proj_name        String?   @db.NChar(150)
+  Task_name        String?   @db.NChar(150)
+  Socket           String?   @db.NChar(50)
+  Prog_Flow        String?   @db.NChar(150)
+  Ic_mpn           String?   @db.NChar(50)
+  Data_File        String?   @db.NChar(100)
+  CM_name          String?   @db.NChar(50)
+  Family           String?   @db.NChar(80)
+  Ketl_pn          String?   @db.NChar(80)
+  Ic_bank          String?   @db.NChar(20)
+  IcProg_pn        String?   @db.NChar(50)
+  Fw_filename      String?   @db.NChar(80)
+  checksum         String?   @db.NChar(10)
+  Sp_bit           String?   @db.NChar(150)
+  pass             String?   @db.NChar(10)
+  fail             String?   @db.NChar(10)
+  Total            String?   @db.NChar(10)
+  Result           String?   @db.NChar(6)
+  Date_time_update DateTime? @db.DateTime
+  PC_Host          String?   @db.NChar(20)
+
+  @@index([Date_time_update], map: "IDX_TPP_ICs_Prog_result_791")
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model TPP05_ICs_Pro_result {
+  PCA_pn           String?   @db.NChar(25)
+  Oper_id          String?   @db.NChar(20)
+  Qty              String?   @db.NChar(10)
+  Lot_id           String?   @db.NChar(25)
+  WO               String?   @db.NChar(20)
+  Week_num         String?   @db.NChar(10)
+  St_ses           String?   @db.NChar(50)
+  End_ses          String?   @db.NChar(50)
+  Proj_name        String?   @db.NChar(50)
+  Socket           String?   @db.NChar(50)
+  Task_name        String?   @db.NChar(50)
+  IcPro_pn         String?   @db.NChar(50)
+  data_file        String?   @db.NChar(80)
+  pass             String?   @db.NChar(10)
+  fail             String?   @db.NChar(10)
+  Total            String?   @db.NChar(10)
+  checksum         String?   @db.NChar(10)
+  Date_time_update DateTime? @db.DateTime
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model UserPass {
+  oper_id    String? @db.NVarChar(50)
+  User_logIn String? @db.NVarChar(50)
+  Pass1      String? @db.NVarChar(50)
+  PassConf   String? @db.NVarChar(50)
+  owner      String? @db.NVarChar(50)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model UUTResults {
+  UUTResultsId        BigInt
+  Station             String
+  Operator            String
+  FamilyName          String
+  FixtureId           String
+  FixtureSerialNumber String
+  ProjectRevision     String?
+  ProjectReleased     Boolean
+  VariantCode         String
+  VariantReleased     Boolean
+  EC                  String
+  Socket              BigInt
+  SerialNumber        String
+  DateTime            DateTime @db.DateTime
+  Date                DateTime @db.DateTime
+  Time                DateTime @db.Time
+  StatusId            BigInt
+  FailureCode         BigInt?
+  FailureDescription  String?  @db.NVarChar(4000)
+  ErrorCode           BigInt?
+  ErrorDescription    String?  @db.NVarChar(4000)
+  ExecutionTime       Float?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model VariableTypes {
+  VariableTypeId BigInt
+  VariableType   String
+
+  @@ignore
+}
+
+model VersajetOperator {
+  OperatorID    String  @id(map: "PK__Versajet__7BB12F8EE0850798") @db.NVarChar(255)
+  OperatorLevel String? @db.NVarChar(255)
+}
+
+model VersajetTester {
+  TesterID      String  @id(map: "PK__Versajet__61EB7DFB953B84D1") @db.NVarChar(255)
+  TesterName    String? @db.NVarChar(255)
+  TestSWVersion Float?
+  INIVersion    Float?
+}
+
+model VersajetTestResultDetail {
+  TestResultID          String  @id(map: "PK__Versajet__E2463A675EC19793") @db.NVarChar(255)
+  TestResultDescription String? @db.NVarChar(255)
+}
+
+model VersajetTestStepDetail {
+  TestStepID   String  @id(map: "PK__Versajet__68004AAFD52BB39F") @db.NVarChar(255)
+  TestStepName String  @db.NVarChar(255)
+  LowLimit     Float?
+  HighLimit    Float?
+  STR          String? @db.NVarChar(50)
+}
+
+model VersajetUUTTestResult {
+  UUTTestID          String   @id(map: "PK__Versajet__A267F46869D5739C") @db.NVarChar(255)
+  SerialNumber       String   @db.NVarChar(255)
+  Model              String?  @db.NVarChar(255)
+  TesterID           String   @db.NVarChar(255)
+  OperatorID         String   @db.NVarChar(255)
+  TestResultID       String   @db.NVarChar(255)
+  FailureCode        String?  @db.NVarChar(255)
+  FailureDescription String?  @db.NVarChar(255)
+  TotalTestTime      Float?
+  TestDateTime       DateTime @db.DateTime
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model VersajetUUTTestStepResult {
+  UUTTestID        String  @db.NVarChar(255)
+  TestStepID       String  @db.NVarChar(255)
+  MeasurementValue String? @db.NVarChar(255)
+  TestResultID     String  @db.NVarChar(255)
+  TestStepTime     Float
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ZOLL_AED_FCT {
+  Ser_num             String   @db.NChar(10)
+  Date_time           DateTime @db.DateTime
+  Result              Int
+  CAL_10              Int
+  CAL_35              Int
+  CAL_300             Int
+  Tester_Name         String   @db.NChar(15)
+  Boot_Code           String   @db.NChar(10)
+  Application_Code    String   @db.NChar(10)
+  Language_Code       String   @db.NChar(10)
+  CPLD_Code           String   @db.NChar(10)
+  hardware_version    String   @db.NChar(10)
+  Software_Rev        String?  @db.NVarChar(10)
+  Limits_Rev          String?  @db.NVarChar(10)
+  Patient_Relay_Plus  String?  @db.NVarChar(10)
+  Patient_Relay_Minus String?  @db.NVarChar(10)
+  ECG_Lead_Res        String?  @db.NVarChar(10)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model ZOLL_NGSB_FCT {
+  station_id   String?   @db.NChar(15)
+  batch_sn     String?   @db.NChar(15)
+  socket_index String?   @db.NChar(2)
+  ser_num      String?   @db.NChar(10)
+  dtime_test   DateTime? @db.DateTime
+  Result       String?   @db.NChar(10)
+  step_fail    String?   @db.NChar(100)
+  sequence     String?   @db.NChar(100)
+  operator_ID  String?   @db.NVarChar(50)
+
+  @@ignore
+}
+
+// ==========================================
+// AssetIntel CMMS Custom Models
+// ==========================================
+
+model Department {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+  @@map("cmms_departments")
+}
+
+model Product {
+  id        String   @id
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+  @@map("cmms_products")
+}
+
+model User {
+  employeeId   String   @id @map("employee_id")
+  name         String
+  initials     String
+  passwordHash String   @map("password_hash")
+  baseRole     String   @map("base_role") // 'admin', 'manager', 'engineer', 'technician'
+  roleLabel    String   @map("role_label")
+  department   String
+  permissions  String   @default("[]") @db.NVarChar(Max)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  ownedProducts UserOwnedProduct[]
+  @@map("cmms_users")
+}
+
+model UserOwnedProduct {
+  employeeId String @map("employee_id")
+  productId  String @map("product_id")
+  user       User   @relation(fields: [employeeId], references: [employeeId], onDelete: Cascade)
+
+  @@id([employeeId, productId])
+  @@map("cmms_user_owned_products")
+}
+
+model Asset {
+  id         String   @id
+  name       String
+  department String
+  location   String
+  createdAt  DateTime @default(now()) @map("created_at")
+  @@map("cmms_assets")
+}
+
+model PmTask {
+  id             String    @id
+  title          String
+  description    String?   @db.NVarChar(Max)
+  frequency      String
+  assetId        String    @map("asset_id")
+  productId      String    @map("product_id")
+  department     String
+  nextDueDate    DateTime  @map("next_due_date")
+  estimatedHours Decimal   @map("estimated_hours") @db.Decimal(5, 2)
+  actualHours    Decimal?  @map("actual_hours") @db.Decimal(5, 2)
+  status         String    @default("Pending") // 'Pending', 'In Progress', 'Pending Approval', 'Done', 'Overdue'
+  checklist      String    @default("[]") @db.NVarChar(Max)
+  partsRequired  String    @default("[]") @map("parts_required") @db.NVarChar(Max)
+  partsUsed      String    @default("[]") @map("parts_used") @db.NVarChar(Max)
+  recordNotes    String?   @map("record_notes") @db.NVarChar(Max)
+  assignedTo     String?   @map("assigned_to")
+  assignedAt     DateTime? @map("assigned_at")
+  assignedBy     String?   @map("assigned_by")
+  completedBy    String?   @map("completed_by")
+  completedAt    DateTime? @map("completed_at")
+  approvedBy     String?   @map("approved_by")
+  approvedAt     DateTime? @map("approved_at")
+  rejectedBy     String?   @map("rejected_by")
+  rejectedAt     DateTime? @map("rejected_at")
+  createdBy      String?   @map("created_by")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  @@map("cmms_pm_tasks")
+}
+
+model Template {
+  id         String   @id @default(uuid())
+  name       String
+  department String
+  checklist  String   @db.NVarChar(Max)
+  createdBy  String?  @map("created_by")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@unique([name, department])
+  @@map("cmms_templates")
+}
+
+model Delegation {
+  id          String   @id @default(uuid())
+  grantorId   String   @map("grantor_id")
+  granteeId   String   @map("grantee_id")
+  productId   String   @map("product_id")
+  permissions String   @db.NVarChar(Max)
+  status      String   @default("active") // 'active', 'revoked'
+  validUntil  DateTime @map("valid_until")
+  grantedAt   DateTime @default(now()) @map("granted_at")
+  @@map("cmms_delegations")
+}
+
+model AuditLog {
+  id           Int      @id @default(autoincrement())
+  action       String
+  actorId      String   @map("actor_id")
+  actorName    String   @map("actor_name")
+  targetId     String?  @map("target_id")
+  targetName   String?  @map("target_name")
+  targetIsUser Boolean  @default(false) @map("target_is_user")
+  productId    String?  @map("product_id")
+  type         String   @map("type") // 'security', 'system', 'data'
+  timestamp    DateTime @default(now())
+  @@map("cmms_audit_logs")
+}
