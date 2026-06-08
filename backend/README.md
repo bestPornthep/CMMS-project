@@ -138,3 +138,31 @@ Authorization: Bearer <token>
 | `403` | Insufficient role/permission |
 | `404` | Resource not found |
 | `409` | Conflict (e.g. duplicate template name) |
+
+---
+
+## Running with Docker
+
+You can run the backend service inside Docker using Docker Compose.
+
+### Prerequisites
+1. Ensure **Docker Desktop** is running.
+2. Ensure you have a configured `.env` file in the root of the `backend` directory.
+
+### Commands
+
+**Build and start the container:**
+```bash
+docker compose up -d --build
+```
+
+**View running logs:**
+```bash
+docker compose logs -f
+```
+
+**Stop the container:**
+```bash
+docker compose down
+```
+
