@@ -1,15 +1,17 @@
+﻿import { TranslatePipe } from '../../shared/pipes/translate.pipe';
 import { Component, computed, inject, signal, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { PmService } from '../../core/services/pm.service';
 import { AuthService } from '../../core/services/auth.service';
+import { ToastService } from '../../core/services/toast.service';
 import { PMTask, PMTaskFrequency, PMTaskStatus, Template } from '../../core/models/pm.model';
 
 @Component({
   selector: 'app-pm-create',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, TranslatePipe],
   templateUrl: './pm-create.component.html',
   styleUrl: './pm-create.component.scss'
 })
@@ -17,12 +19,13 @@ export class PmCreateComponent {
   private pmService = inject(PmService);
   private authService = inject(AuthService);
   private router = inject(Router);
+  private toast = inject(ToastService);
 
   // Form Model
   pmType: PMTaskFrequency = 'Monthly';
   customDurationValue: number = 1;
   customDurationUnit: string = 'month(s)';
-  
+
   productId: string = '';
   department: string = '';
   assetId: string = '';
@@ -50,7 +53,7 @@ export class PmCreateComponent {
     { text: 'Test pressure relief valve', requiresPhoto: false }
   ]);
   newChecklistItem = '';
-  
+
   parts = signal<string[]>([]);
   selectedPart = '';
 
@@ -64,7 +67,7 @@ export class PmCreateComponent {
     return all.filter(t => t.department === 'All' || t.department === this.currentUser?.department);
   });
   dropdownOpen = false;
-  
+
   openDropdown: string | null = null;
 
   @HostListener('document:click')
@@ -78,8 +81,8 @@ export class PmCreateComponent {
     this.openDropdown = this.openDropdown === dropdown ? null : dropdown;
   }
 
-  selectProduct(p: string) { 
-    this.productId = p; 
+  selectProduct(p: string) {
+    this.productId = p;
     // If Product changes, reset Asset if it does not belong to the new Product.
     if (this.assetId) {
       const asset = this.pmService.assets().find(a => a.id === this.assetId);
@@ -110,7 +113,7 @@ export class PmCreateComponent {
     }
   }
   selectType(t: string) { this.pmType = t as PMTaskFrequency; }
-  
+
   togglePart(part: string, event: Event) {
     event.stopPropagation();
     const current = this.parts();
@@ -134,7 +137,7 @@ export class PmCreateComponent {
   products = computed(() => this.authService.getAccessibleProducts('pm.create.submit'));
   departments = ['Facility', 'Mechanic', 'Manufacturing', 'Maintenance', 'Test'];
   availableParts = ['Bearing Assembly 6205', 'Filter Element HF-04', 'Seal Kit SK-22', 'Lubricant SAE-30 (1L)', 'Drive Belt B-440', 'O-Ring Set OR-12'];
-  
+
   availableAssets() {
     const accessibleProducts = this.products();
     return this.pmService.assets().filter(a => {
@@ -143,6 +146,21 @@ export class PmCreateComponent {
       if (this.department && a.department !== this.department) return false;
       return true;
     });
+  }
+
+  getFilteredProducts() {
+    const val = (this.productId || '').toLowerCase();
+    return this.products().filter(p => p.toLowerCase().includes(val));
+  }
+
+  getFilteredAssets() {
+    const val = (this.assetId || '').toLowerCase();
+    return this.availableAssets().filter(a => a.id.toLowerCase().includes(val) || a.name.toLowerCase().includes(val));
+  }
+
+  getFilteredParts() {
+    const val = (this.selectedPart || '').toLowerCase();
+    return this.availableParts.filter(p => p.toLowerCase().includes(val));
   }
 
   // Checklist Methods
@@ -191,11 +209,40 @@ export class PmCreateComponent {
     this.dropdownOpen = !this.dropdownOpen;
   }
 
+  loadedTemplateId: string | null = null;
+  loadedTemplateName: string | null = null;
+
   loadTemplate(tpl: Template) {
+    this.loadedTemplateId = tpl.id || null;
+    this.loadedTemplateName = tpl.name;
     // Make sure we have proper boolean for requiresPhoto when loading
     const mapped = tpl.checklist.map(item => ({ text: item.text, requiresPhoto: !!item.requiresPhoto }));
     this.checklist.set([...mapped]);
     this.dropdownOpen = false;
+  }
+
+  clearTemplate() {
+    this.loadedTemplateId = null;
+    this.loadedTemplateName = null;
+    this.checklist.set([]);
+    this.dropdownOpen = false;
+  }
+
+  async updateTemplate() {
+    if (!this.loadedTemplateId) return;
+    const tpl = this.templates().find(t => t.id === this.loadedTemplateId);
+    if (!tpl) return;
+    
+    try {
+      await this.pmService.updateTemplate({
+        ...tpl,
+        checklist: [...this.checklist()]
+      });
+      this.toast.success('Template updated successfully!');
+    } catch (err) {
+      console.error(err);
+      this.toast.error('Failed to update template. Backend might not be ready yet.');
+    }
   }
 
   saveTemplate() {
@@ -211,30 +258,52 @@ export class PmCreateComponent {
   }
 
   deleteTemplate(tpl: Template) {
+    if (this.loadedTemplateId === tpl.id) {
+      this.loadedTemplateId = null;
+      this.loadedTemplateName = null;
+    }
     this.pmService.deleteTemplate(tpl);
   }
 
   // Submit
-  submitForm() {
+  async submitForm() {
     if (!this.productId || !this.department || !this.assetId || !this.pmType) {
-      alert("Please fill out all required fields (Product, Dept, Asset, Type).");
+      this.toast.error('Please fill out all required fields (Product, Dept, Asset, Type).');
       return;
     }
 
+    const isNewProduct = !this.products().includes(this.productId);
     const selectedAsset = this.pmService.assets().find(a => a.id === this.assetId);
-    if (!selectedAsset) {
-      alert('Invalid asset selected.');
+    const isNewAsset = !selectedAsset;
+
+    if (selectedAsset) {
+      if (selectedAsset.location !== this.productId || selectedAsset.department !== this.department) {
+        this.toast.error('The selected asset does not match the chosen product or department. Action blocked.');
+        return;
+      }
+    }
+
+    try {
+      if (isNewProduct) {
+        await this.pmService.createProduct({ id: this.productId, name: this.productId });
+      }
+      if (isNewAsset) {
+        await this.pmService.createAsset({
+          id: this.assetId,
+          name: this.assetId,
+          location: this.productId,
+          department: this.department
+        });
+      }
+    } catch (e) {
+      this.toast.error('Failed to create new product/asset. Please try again.');
       return;
     }
-    if (selectedAsset.location !== this.productId || selectedAsset.department !== this.department) {
-      alert('The selected asset does not match the chosen product or department. Action blocked.');
-      return;
-    }
-    
+
     const nextDueDate = new Date();
     let finalFrequency = this.pmType;
-    
-    switch(this.pmType) {
+
+    switch (this.pmType) {
       case 'Daily': nextDueDate.setDate(nextDueDate.getDate() + 1); break;
       case 'Weekly': nextDueDate.setDate(nextDueDate.getDate() + 7); break;
       case 'Monthly': nextDueDate.setDate(nextDueDate.getDate() + 30); break;
@@ -243,7 +312,7 @@ export class PmCreateComponent {
       case 'Custom':
         finalFrequency = `${this.customDurationValue} ${this.customDurationUnit}`;
         const val = this.customDurationValue;
-        switch(this.customDurationUnit) {
+        switch (this.customDurationUnit) {
           case 'hour(s)': nextDueDate.setHours(nextDueDate.getHours() + val); break;
           case 'day(s)': nextDueDate.setDate(nextDueDate.getDate() + val); break;
           case 'month(s)': nextDueDate.setMonth(nextDueDate.getMonth() + val); break;
@@ -270,4 +339,5 @@ export class PmCreateComponent {
     this.router.navigate(['/pm-assign']);
   }
 }
+
 

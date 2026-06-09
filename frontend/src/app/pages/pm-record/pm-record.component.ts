@@ -1,15 +1,17 @@
+﻿import { TranslatePipe } from '../../shared/pipes/translate.pipe';
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PmService } from '../../core/services/pm.service';
 import { AuthService } from '../../core/services/auth.service';
+import { ToastService } from '../../core/services/toast.service';
 import { PMTask } from '../../core/models/pm.model';
 import { ActivatedRoute, Router } from '@angular/router';
 
 @Component({
   selector: 'app-pm-record',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, TranslatePipe],
   templateUrl: './pm-record.component.html',
   styleUrl: './pm-record.component.scss'
 })
@@ -18,6 +20,7 @@ export class PmRecordComponent implements OnInit {
   private authService = inject(AuthService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
+  private toast = inject(ToastService);
 
   ngOnInit() {
     this.route.queryParams.subscribe(params => {
@@ -32,7 +35,7 @@ export class PmRecordComponent implements OnInit {
             const isSameDept = task.department === user.department;
             
             if (!isSameDept || (user.baseRole === 'engineer' && !allowedProducts.includes(task.productId || ''))) {
-              alert("You do not have permission to view tasks outside your section or product scope.");
+              this.toast.error('You do not have permission to view tasks outside your section or product scope.');
               this.router.navigate(['/pm-record']);
               return;
             }
@@ -40,7 +43,7 @@ export class PmRecordComponent implements OnInit {
             if (user.baseRole === 'engineer' && task.createdBy && task.createdBy !== user.employeeId) {
                const creator = this.authService.getUser(task.createdBy);
                if (creator && creator.baseRole === 'engineer') {
-                 alert("You do not have permission to view tasks created by another Engineer.");
+                 this.toast.error('You do not have permission to view tasks created by another Engineer.');
                  this.router.navigate(['/pm-record']);
                  return;
                }
@@ -326,16 +329,16 @@ export class PmRecordComponent implements OnInit {
 
     if (!this.isApprover) {
       if (!this.allChecked) {
-        alert("Please complete all checklist items before submitting.");
+        this.toast.warning('Please complete all checklist items before submitting.');
         return;
       }
       const missingPhotos = this.selectedTask.checklist?.some(item => item.requiresPhoto && !item.photoUrl);
       if (missingPhotos) {
-        alert("Please upload photographic evidence for all required checklist items.");
+        this.toast.warning('Please upload photographic evidence for all required checklist items.');
         return;
       }
       if (this.actualHours <= 0 || isNaN(this.actualHours)) {
-        alert("Please enter a valid actual time spent (in hours).");
+        this.toast.warning('Please enter a valid actual time spent (in hours).');
         return;
       }
       const ts = new Date().toISOString();
@@ -355,7 +358,7 @@ export class PmRecordComponent implements OnInit {
         actualHours: this.actualHours,
         recordNotes: updatedNotes ? `${updatedNotes}\n\n${newNote}` : newNote
       });
-      alert('PM Work Order submitted for approval!');
+      this.toast.success('PM Work Order submitted for approval!');
     } else {
       const ts = new Date().toISOString();
       const newNote = `[Approver|${ts}]: ${this.completionNotes}`;
@@ -366,7 +369,7 @@ export class PmRecordComponent implements OnInit {
         approvedBy: user.employeeId,
         recordNotes: this.selectedTask.recordNotes ? `${this.selectedTask.recordNotes}\n\n${newNote}` : newNote
       });
-      alert('PM Work Order successfully approved!');
+      this.toast.success('PM Work Order successfully approved!');
     }
     
     this.selectedTask = null;
@@ -379,7 +382,7 @@ export class PmRecordComponent implements OnInit {
     const user = this.authService.currentUser();
     if (!user) return;
     if (!this.completionNotes.trim()) {
-      alert("Please provide completion notes explaining the rejection.");
+      this.toast.warning('Please provide completion notes explaining the rejection.');
       return;
     }
     const ts = new Date().toISOString();
@@ -400,10 +403,11 @@ export class PmRecordComponent implements OnInit {
       rejectedAt: new Date(),
       recordNotes: this.selectedTask.recordNotes ? `${this.selectedTask.recordNotes}\n\n${newNote}` : newNote
     });
-    alert('PM Work Order rejected. Sent back to technician.');
+    this.toast.warning('PM Work Order rejected. Sent back to technician.');
     
     this.selectedTask = null;
     this.completionNotes = '';
     this.actualHours = 0;
   }
 }
+

@@ -5,12 +5,16 @@ import { AuthService } from '../core/services/auth.service';
 import { PmService } from '../core/services/pm.service';
 import { TranslationService } from '../core/services/translation.service';
 import { TranslatePipe } from '../shared/pipes/translate.pipe';
+import { ToastService } from '../core/services/toast.service';
+import { ToastComponent } from '../shared/components/toast/toast.component';
+import { ThemeService } from '../core/services/theme.service';
+import { LiquidGlassToggleComponent } from '../shared/components/liquid-glass-toggle/liquid-glass-toggle.component';
 import { filter, map, mergeMap } from 'rxjs/operators';
 
 @Component({
   selector: 'app-layout',
   standalone: true,
-  imports: [CommonModule, RouterModule, TranslatePipe],
+  imports: [CommonModule, RouterModule, TranslatePipe, ToastComponent, LiquidGlassToggleComponent],
   templateUrl: './layout.component.html',
   styleUrls: []
 })
@@ -20,6 +24,8 @@ export class LayoutComponent {
   public translationService = inject(TranslationService);
   private router = inject(Router);
   private activatedRoute = inject(ActivatedRoute);
+  private toast = inject(ToastService);
+  themeService = inject(ThemeService);
   
   user = this.authService.currentUser;
   
@@ -164,7 +170,7 @@ export class LayoutComponent {
       if (isAllowed && task) {
         this.pmService.viewedTaskGlobal.set(task);
       } else {
-        alert(notFoundMsg);
+        this.toast.warning(notFoundMsg);
       }
       
       input.value = '';

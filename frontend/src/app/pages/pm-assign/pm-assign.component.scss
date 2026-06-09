@@ -1,33 +1,33 @@
 .pm-assign-page {
 
-      --font-sans:'Plus Jakarta Sans',sans-serif;
-      --font-mono:'JetBrains Mono',monospace;
-      --sidebar-bg:#002D4B;
-      --sidebar-border:rgba(255,255,255,0.10);
-      --sidebar-text:rgba(255,255,255,0.6);
-      --sidebar-text-active:#FFFFFF;
-      --sidebar-hover-bg:rgba(255,255,255,0.10);
-      --sidebar-active-bg:rgba(255,255,255,0.18);
-      --sidebar-active-text:#FFFFFF;
-      --sidebar-width:240px;
-      --bg-page:#FCF9F8;
-      --bg-card:#FFFFFF;
-      --bg-card-alt:#f6f3f2;
-      --border:#E5E6E7;
-      --border-soft:#f0eded;
-      --border-strong:#dcd9d9;
-      --text-primary:#1A1A1A;
-      --text-secondary:#42474d;
-      --text-muted:#73777e;
-      --text-caption:#909293;
-      --blue:#002D4B;
-      --blue-hover:#00182b;
-      --blue-light:#cee5ff;
-      --blue-text:#001d33;
-      --success:#047857;--success-bg:#ECFDF5;--success-text:#065F46;--success-mid:#10B981;
-      --warning:#B45309;--warning-bg:#FFFBEB;--warning-text:#78350F;--warning-mid:#F59E0B;
-      --error:#ba1a1a;--error-bg:#ffdad6;--error-text:#93000a;--error-mid:#AF0824;
-      --info:#0369A1;--info-bg:#F0F9FF;--info-text:#0C4A6E;--info-mid:#0EA5E9;
+      --font-sans: var(--font-sans);
+      --font-mono: var(--font-mono);
+      --sidebar-bg: #002D4B;
+      --sidebar-border: rgba(255,255,255,0.10);
+      --sidebar-text: rgba(255,255,255,0.6);
+      --sidebar-text-active: #FFFFFF;
+      --sidebar-hover-bg: rgba(255,255,255,0.10);
+      --sidebar-active-bg: rgba(255,255,255,0.18);
+      --sidebar-active-text: #FFFFFF;
+      --sidebar-width: 240px;
+      --bg-page: var(--color-bg-page);
+      --bg-card: var(--color-bg-card);
+      --bg-card-alt: var(--color-bg-card-alt);
+      --border: var(--color-border);
+      --border-soft: var(--color-border-soft);
+      --border-strong: var(--color-border-strong);
+      --text-primary: var(--color-text-primary);
+      --text-secondary: var(--color-text-secondary);
+      --text-muted: var(--color-text-muted);
+      --text-caption: var(--color-text-caption);
+      --blue: var(--color-blue-DEFAULT);
+      --blue-hover: var(--color-blue-hover);
+      --blue-light: var(--color-blue-light);
+      --blue-text: var(--color-blue-text);
+      --success: #047857; --success-bg: var(--color-success-bg); --success-text: var(--color-success-text); --success-mid: #10B981;
+      --warning: #B45309; --warning-bg: var(--color-warning-bg); --warning-text: var(--color-warning-text); --warning-mid: #F59E0B;
+      --error: #ba1a1a; --error-bg: var(--color-error-bg); --error-text: var(--color-error-text); --error-mid: #AF0824;
+      --info: #0369A1; --info-bg: var(--color-info-bg); --info-text: var(--color-info-text); --info-mid: #0EA5E9;
       --r-xs:4px;--r-sm:6px;--r-md:9px;--r-lg:14px;--r-xl:18px;--r-2xl:24px;
       --shadow-card:0 1px 2px rgba(12,21,35,0.04),0 4px 16px rgba(12,21,35,0.06);
       --shadow-raise:0 2px 4px rgba(12,21,35,0.06),0 8px 24px rgba(12,21,35,0.08);
@@ -96,7 +96,7 @@
     .topbar-notif{position:relative;}
     .notif-dot{position:absolute;top:6px;right:6px;width:6px;height:6px;background:var(--error-mid);border-radius:50%;border:1.5px solid var(--bg-card);}
     .topbar-search{display:flex;align-items:center;gap:8px;background:var(--bg-card-alt);border:1px solid var(--border);border-radius:var(--radius-lg);padding:0 12px;height:34px;transition:border-color var(--dur-base) var(--ease-out),box-shadow var(--dur-base) var(--ease-out);}
-    .topbar-search:focus-within{border-color:var(--blue);background:white;box-shadow:0 0 0 3px rgba(26,86,219,0.08);}
+    .topbar-search:focus-within{border-color:var(--blue);background: var(--bg-card);box-shadow:0 0 0 3px rgba(26,86,219,0.08);}
     .topbar-search .material-symbols-outlined{color:var(--text-muted);font-size:15px;}
     .topbar-search input{border:none;background:none;outline:none;font-family:var(--font-sans);font-size:13px;color:var(--text-primary);width:clamp(100px,16vw,200px);}
     .topbar-search input::placeholder{color:var(--text-muted);}
@@ -134,7 +134,7 @@
     .card-action:hover{background:var(--blue-light);}
     /* Table */
     .data-table{width:100%;border-collapse:collapse;}
-    .data-table th{font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;padding:10px 16px;text-align:center;background:var(--bg-card-alt);border-bottom:1px solid var(--border);}
+    .data-table th{font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;padding:10px 16px;text-align:center;background:var(--bg-card);border-bottom:1px solid var(--border);}
     .data-table td{padding:11px 16px;border-bottom:1px solid var(--border-soft);vertical-align:middle;font-size:13px;text-align:center;}
     .data-table tr:last-child td{border-bottom:none;}
     .data-table tbody tr{transition:background var(--dur-base) var(--ease-out);cursor:pointer;}
@@ -244,13 +244,13 @@
         font-size:13.5px;
         font-weight:500;
         color:var(--text-primary);
-        transition:all var(--dur-base) var(--ease-out);
+        transition:background var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
         outline:none;
         box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
     }
     
     .form-input:hover,.form-select:hover{
-        background:#E2E8F0;
+        background: var(--bg-card-alt);
     }
     
     .form-input:focus,.form-select:focus{
@@ -276,9 +276,9 @@
     
     /* Custom Dropdown */
     .c-dropdown { position: relative; width: 190px; font-family: var(--font-sans); }
-    .c-dropdown-trigger { display: flex; align-items: center; justify-content: space-between; width: 100%; height: 32px; padding: 6px 10px; background: white; border: 1px solid var(--border-strong); border-radius: var(--radius-md); font-size: 12.5px; font-weight: 500; color: var(--text-primary); cursor: pointer; user-select: none; transition: all var(--dur-base) var(--ease-out); }
+    .c-dropdown-trigger { display: flex; align-items: center; justify-content: space-between; width: 100%; height: 32px; padding: 6px 10px; background: var(--bg-card); border: 1px solid var(--border-strong); border-radius: var(--radius-md); font-size: 12.5px; font-weight: 500; color: var(--text-primary); cursor: pointer; user-select: none; transition: background var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out); }
     .c-dropdown-trigger:hover { border-color: var(--text-caption); background: var(--bg-card-alt); }
-    .c-dropdown.open .c-dropdown-trigger { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(26,86,219,0.08); background: white; }
+    .c-dropdown.open .c-dropdown-trigger { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(26,86,219,0.08); background: var(--bg-card); }
     .c-dropdown-trigger .material-symbols-outlined { font-size: 16px; color: var(--text-muted); transition: transform 0.4s var(--ease-spring); }
     .c-dropdown.open .c-dropdown-trigger .material-symbols-outlined { transform: rotate(180deg); color: var(--blue); }
     
@@ -297,7 +297,7 @@
     .c-dropdown-item { 
         padding: 8px 12px; font-size: 12.5px; color: var(--text-primary); cursor: pointer; 
         border-radius: var(--radius-xs);
-        transition: all 0.2s var(--ease-out); 
+        transition: background 0.2s var(--ease-out), border-color 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out); 
     }
     .c-dropdown-item:hover { 
         background: var(--blue-light); color: var(--blue-text); 
@@ -325,6 +325,6 @@
     
     .ms-item { cursor: pointer; transition: background 0.2s var(--ease-out); }
     .ms-item:hover { background: var(--bg-card-alt); }
-    .ms-checkbox { width: 16px; height: 16px; border: 1px solid #94A3B8; border-radius: 3px; display: flex; align-items: center; justify-content: center; background: white; transition: all 0.2s; }
+    .ms-checkbox { width: 16px; height: 16px; border: 1px solid #94A3B8; border-radius: 3px; display: flex; align-items: center; justify-content: center; background: var(--bg-card); transition: background 0.2s, border-color 0.2s, box-shadow 0.2s; }
     .ms-checkbox.checked { background: var(--blue); border-color: var(--blue); }
 }

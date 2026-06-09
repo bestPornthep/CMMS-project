@@ -1,3 +1,4 @@
+﻿import { TranslatePipe } from '../../shared/pipes/translate.pipe';
 import { Component, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../../core/services/auth.service';
@@ -7,7 +8,7 @@ import { AuditLog } from '../../core/models/pm.model';
 @Component({
   selector: 'app-pm-audit',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, TranslatePipe],
   templateUrl: './pm-audit.component.html',
   styleUrl: './pm-audit.component.scss'
 })
@@ -43,3 +44,4 @@ export class PmAuditComponent {
     this.searchQuery.set((event.target as HTMLInputElement).value);
   }
 }
+

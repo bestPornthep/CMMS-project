@@ -1,3 +1,4 @@
+﻿import { TranslatePipe } from '../../shared/pipes/translate.pipe';
 import { Component, computed, inject, signal } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { CommonModule } from '@angular/common';
@@ -6,7 +7,7 @@ import { PmService } from '../../core/services/pm.service';
 @Component({
   selector: 'app-pm-reports',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, TranslatePipe],
   templateUrl: './pm-reports.component.html',
   styleUrl: './pm-reports.component.scss'
 })
@@ -79,3 +80,4 @@ export class PmReportsComponent {
     return this.sanitizer.bypassSecurityTrustHtml(html || '');
   }
 }
+

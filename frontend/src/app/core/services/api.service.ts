@@ -10,13 +10,25 @@ export class ApiService {
   private readonly baseUrl = `${environment.apiUrl}/api/v1`;
 
   // ── Assets ──────────────────────────────────────────────────────────────
-  getAssets(): Promise<Asset[]> {
-    return firstValueFrom(this.http.get<Asset[]>(`${this.baseUrl}/assets`));
+  getAssets(location?: string, department?: string): Promise<Asset[]> {
+    let url = `${this.baseUrl}/assets`;
+    const params = new URLSearchParams();
+    if (location) params.append('location', location);
+    if (department) params.append('department', department);
+    if (params.toString()) url += `?${params.toString()}`;
+    return firstValueFrom(this.http.get<Asset[]>(url));
   }
 
   // ── PM Tasks ─────────────────────────────────────────────────────────────
-  getTasks(): Promise<PMTask[]> {
-    return firstValueFrom(this.http.get<PMTask[]>(`${this.baseUrl}/pm-tasks`));
+  getTasks(status?: string, department?: string, productId?: string, assignedTo?: string): Promise<PMTask[]> {
+    let url = `${this.baseUrl}/pm-tasks`;
+    const params = new URLSearchParams();
+    if (status) params.append('status', status);
+    if (department) params.append('department', department);
+    if (productId) params.append('productId', productId);
+    if (assignedTo) params.append('assignedTo', assignedTo);
+    if (params.toString()) url += `?${params.toString()}`;
+    return firstValueFrom(this.http.get<PMTask[]>(url));
   }
 
   createTask(task: Omit<PMTask, 'id'>): Promise<PMTask> {
@@ -40,13 +52,21 @@ export class ApiService {
     return firstValueFrom(this.http.post<Template>(`${this.baseUrl}/templates`, template));
   }
 
-  deleteTemplate(name: string, department: string): Promise<void> {
-    return firstValueFrom(this.http.delete<void>(`${this.baseUrl}/templates`, { body: { name, department } }));
+  updateTemplate(id: string, template: Template): Promise<Template> {
+    return firstValueFrom(this.http.put<Template>(`${this.baseUrl}/templates/${id}`, template));
+  }
+
+  deleteTemplate(id: string): Promise<void> {
+    return firstValueFrom(this.http.delete<void>(`${this.baseUrl}/templates/${id}`));
   }
 
   // ── Auth / Users ─────────────────────────────────────────────────────────
   verifyLogin(employeeId: string, password: string): Promise<any> {
     return firstValueFrom(this.http.post<any>(`${this.baseUrl}/auth/login`, { employeeId, password }));
+  }
+
+  getAuthMe(): Promise<User> {
+    return firstValueFrom(this.http.get<User>(`${this.baseUrl}/auth/me`));
   }
 
   getUser(id: string): Promise<User | undefined> {
@@ -79,5 +99,14 @@ export class ApiService {
 
   revokeDelegation(id: string): Promise<void> {
     return firstValueFrom(this.http.patch<void>(`${this.baseUrl}/delegations/${id}/revoke`, {}));
+  }
+
+  // ── New Asset & Product Creation Endpoints ──────────────────────────────
+  createProduct(product: { id: string, name: string }): Promise<void> {
+    return firstValueFrom(this.http.post<void>(`${this.baseUrl}/products`, product));
+  }
+
+  createAsset(asset: { id: string, name: string, location: string, department: string }): Promise<void> {
+    return firstValueFrom(this.http.post<void>(`${this.baseUrl}/assets`, asset));
   }
 }

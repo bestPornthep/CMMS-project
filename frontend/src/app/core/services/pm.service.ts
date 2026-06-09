@@ -18,8 +18,10 @@ export class PmService {
 
   viewedTaskGlobal = signal<PMTask | null>(null);
 
-  constructor() {
-    Promise.all([
+  constructor() {}
+
+  loadData(): Promise<void> {
+    return Promise.all([
       this.api.getAssets(),
       this.api.getTasks(),
       this.api.getTemplates(),
@@ -83,6 +85,19 @@ export class PmService {
     });
   }
 
+  updateTemplate(tpl: Template): Promise<void> {
+    const user = this.authService.currentUser();
+    if (!user) throw new Error('Unauthorized.');
+    if (!tpl.id) throw new Error('Cannot update template without an id.');
+    if ((user.baseRole === 'engineer' || user.baseRole === 'technician') && tpl.department !== user.department) {
+      throw new Error('Can only update templates for your own department.');
+    }
+
+    return this.api.updateTemplate(tpl.id, tpl).then(updated => {
+      this.templatesSignal.update(t => t.map(x => x.id === updated.id ? updated : x));
+    });
+  }
+
   deleteTemplate(tpl: Template): void {
     const user = this.authService.currentUser();
     if (!user) throw new Error('Unauthorized.');
@@ -90,8 +105,23 @@ export class PmService {
       throw new Error('Can only delete templates for your own department.');
     }
 
-    this.api.deleteTemplate(tpl.name, tpl.department).then(() => {
-      this.templatesSignal.update(t => t.filter(x => !(x.name === tpl.name && x.department === tpl.department)));
+    if (!tpl.id) throw new Error('Cannot delete template without an id.');
+
+    this.api.deleteTemplate(tpl.id).then(() => {
+      this.templatesSignal.update(t => t.filter(x => x.id !== tpl.id));
+    });
+  }
+
+  createAsset(asset: { id: string, name: string, location: string, department: string }): Promise<void> {
+    return this.api.createAsset(asset).then(() => {
+      this.assetsSignal.update(assets => [...assets, asset as Asset]);
+    });
+  }
+
+  createProduct(product: { id: string, name: string }): Promise<void> {
+    return this.api.createProduct(product).then(() => {
+      // Reload user profile so new product appears in owned/accessible lists
+      return this.authService.init();
     });
   }
 }

@@ -4,17 +4,20 @@ import { PmService } from '../../core/services/pm.service';
 import { PMTask } from '../../core/models/pm.model';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../core/services/auth.service';
+import { ToastService } from '../../core/services/toast.service';
+import { TranslatePipe } from '../../shared/pipes/translate.pipe';
 
 @Component({
   selector: 'app-pm-assign',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, TranslatePipe],
   templateUrl: './pm-assign.component.html',
   styleUrl: './pm-assign.component.scss'
 })
 export class PmAssignComponent {
   private pmService = inject(PmService);
   private authService = inject(AuthService);
+  private toast = inject(ToastService);
 
   get currentUser() { return this.authService.currentUser(); }
   get canChangeDept() {
@@ -206,7 +209,7 @@ export class PmAssignComponent {
   toggleSelection(taskId: string) {
     const task = this.pmService.pmTasks().find(t => t.id === taskId);
     if (task && !this.canManageTask(task)) {
-      alert('You cannot manage or reassign work owned by another Engineer or outside your responsibility.');
+      this.toast.error('You cannot manage or reassign work owned by another Engineer or outside your responsibility.');
       return;
     }
     this.selectedTasks.update(set => {
@@ -238,11 +241,11 @@ export class PmAssignComponent {
 
   openBulkAssignModal() {
     if (this.selectedTasks().size === 0) {
-      alert('Please select at least one task.');
+      this.toast.warning('Please select at least one task.');
       return;
     }
     if (!this.bulkAssignee()) {
-      alert('Please select a technician to assign.');
+      this.toast.warning('Please select a technician to assign.');
       return;
     }
     this.showBulkModal.set(true);
@@ -259,7 +262,7 @@ export class PmAssignComponent {
         // Validate Product-Asset match before assignment
         const asset = this.pmService.assets().find(a => a.id === task.assetId);
         if (!asset || asset.location !== task.productId) {
-           alert(`Task ${task.id} has a Product-Asset mismatch and cannot be assigned.`);
+           this.toast.error(`Task ${task.id} has a Product-Asset mismatch and cannot be assigned.`);
            return;
         }
 
@@ -281,20 +284,20 @@ export class PmAssignComponent {
 
   assignTask(task: PMTask) {
     if (!this.canManageTask(task)) {
-      alert('You cannot manage or reassign work owned by another Engineer or outside your responsibility.');
+      this.toast.error('You cannot manage or reassign work owned by another Engineer or outside your responsibility.');
       return;
     }
     
     // Validate Product-Asset match before assignment
     const asset = this.pmService.assets().find(a => a.id === task.assetId);
     if (!asset || asset.location !== task.productId) {
-      alert("Cannot assign task due to Product-Asset mismatch in the task record.");
+      this.toast.error('Cannot assign task due to Product-Asset mismatch in the task record.');
       return;
     }
 
     const tech = this.selectedTech[task.id];
     if (!tech) {
-      alert('Please select a technician first.');
+      this.toast.warning('Please select a technician first.');
       return;
     }
     
@@ -320,12 +323,12 @@ export class PmAssignComponent {
     const duration = Number(this.newDelegationDuration());
 
     if (users.length === 0 || products.length === 0 || isNaN(duration) || duration <= 0) {
-      alert('Please select users, products, and a valid duration.');
+      this.toast.warning('Please select users, products, and a valid duration.');
       return;
     }
 
     if (duration > 365) {
-      alert('Maximum duration allowed is 365 days (1 year).');
+      this.toast.warning('Maximum duration allowed is 365 days (1 year).');
       return;
     }
 
@@ -342,7 +345,7 @@ export class PmAssignComponent {
     }
 
     if (conflicts.length > 0) {
-      alert(`The following users already have active permissions for these products: ${conflicts.join(', ')}. Please revoke their existing permissions first or unselect those products.`);
+      this.toast.warning(`The following users already have active permissions for these products: ${conflicts.join(', ')}. Please revoke their existing permissions first or unselect those products.`);
       return;
     }
 

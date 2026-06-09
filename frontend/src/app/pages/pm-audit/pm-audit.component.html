@@ -1,29 +1,29 @@
-      <div class="page-header" data-enter>
+﻿      <div class="page-header" data-enter>
         <div>
-          <h1 class="page-title">Audit Log</h1>
-          <p class="page-sub">View permission grants, delegations, and departmental template activity · <span data-last-updated></span></p>
+          <h1 class="page-title">{{ 'Audit Log' | tr }}</h1>
+          <p class="page-sub">{{ 'View permission grants, delegations, and departmental template activity' | tr }} · <span data-last-updated></span></p>
         </div>
         <div class="header-actions">
-           <div class="topbar-search" style="background: white;">
+           <div class="topbar-search" style="background:var(--color-bg-card);">
              <span class="material-symbols-outlined">search</span>
-             <input type="text" placeholder="Search logs..." (input)="updateSearch($event)" />
+             <input type="text" [placeholder]="'Search logs...' | tr" (input)="updateSearch($event)" />
            </div>
         </div>
       </div>
 
       <div class="card" data-enter>
         <div class="card-header">
-          <div class="card-title">System Activity Log</div>
+          <div class="card-title">{{ 'System Activity Log' | tr }}</div>
         </div>
         <div style="overflow-x:auto;">
           <table class="data-table">
             <thead>
               <tr>
-                <th style="width:160px;">Timestamp</th>
-                <th>Action</th>
-                <th>Actor</th>
-                <th>Target</th>
-                <th>Product</th>
+                <th style="width:160px;">{{ 'Timestamp' | tr }}</th>
+                <th>{{ 'Action' | tr }}</th>
+                <th>{{ 'Actor' | tr }}</th>
+                <th>{{ 'Target' | tr }}</th>
+                <th>{{ 'Product' | tr }}</th>
               </tr>
             </thead>
             <tbody>
@@ -58,10 +58,13 @@
               </tr>
               <tr *ngIf="filteredLogs().length === 0">
                  <td colspan="5" style="text-align: center; padding: 40px; color: var(--color-text-muted);">
-                    No audit logs found matching your search.
+                    No {{ 'Audit Log' | tr }}s found matching your search.
                  </td>
               </tr>
             </tbody>
           </table>
         </div>
       </div>
+
+
+

@@ -220,13 +220,13 @@ describe('PmService', () => {
 
   describe('deleteTemplate()', () => {
     it('should throw when not logged in', () => {
-      expect(() => pmService.deleteTemplate({ name: 'T', department: 'Test', checklist: [] }))
+      expect(() => pmService.deleteTemplate({ id: '1', name: 'T', department: 'Test', checklist: [] }))
         .toThrowError(/Unauthorized/);
     });
 
     it('should throw when engineer deletes template from different department', async () => {
       await authService.login('ENG-TST-1', 'eng123');
-      expect(() => pmService.deleteTemplate({ name: 'X', department: 'Facility', checklist: [] }))
+      expect(() => pmService.deleteTemplate({ id: '1', name: 'X', department: 'Facility', checklist: [] }))
         .toThrowError(/your own department/);
     });
   });

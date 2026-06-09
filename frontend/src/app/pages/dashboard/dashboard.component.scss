@@ -468,7 +468,7 @@ a { color: inherit; text-decoration: none; }
 
 .topbar-search:focus-within {
   border-color: var(--blue);
-  background: white;
+  background: var(--bg-card);
   box-shadow: 0 0 0 3px rgba(26,86,219,0.08);
 }
 

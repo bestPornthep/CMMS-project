@@ -1,4 +1,4 @@
-<div class="dashboard-page overflow-y-auto h-full">
+﻿<div class="dashboard-page overflow-y-auto h-full">
 
         <!-- Page Header -->
         <div class="page-header" data-enter>
@@ -164,24 +164,24 @@
 
             <!-- Weekly summary -->
             <div class="chart-summary">
-              <div class="chart-summary-title">Week Total</div>
+              <div class="chart-summary-title">{{ 'Week Total' | tr }}</div>
 
               <div class="chart-summary-stats">
                 <div class="chart-summary-item">
                   <div class="chart-summary-dot" style="background:#1A56DB;"></div>
-                  <div class="chart-summary-label">Corrective</div>
+                  <div class="chart-summary-label">{{ 'Corrective' | tr }}</div>
                   <div class="chart-summary-val">{{ chartTotals().cm }}</div>
                 </div>
 
                 <div class="chart-summary-item">
                   <div class="chart-summary-dot" style="background:#93C5FD;"></div>
-                  <div class="chart-summary-label">Preventive</div>
+                  <div class="chart-summary-label">{{ 'Preventive' | tr }}</div>
                   <div class="chart-summary-val">{{ chartTotals().pm }}</div>
                 </div>
 
                 <div class="chart-summary-item">
                   <div class="chart-summary-dot" style="background:#F59E0B;"></div>
-                  <div class="chart-summary-label">Emergency</div>
+                  <div class="chart-summary-label">{{ 'Emergency' | tr }}</div>
                   <div class="chart-summary-val">{{ chartTotals().em }}</div>
                 </div>
               </div>
@@ -221,9 +221,9 @@
                 <thead>
                   <tr>
                     <th>WO ID</th>
-                    <th>Asset</th>
-                    <th>Type</th>
-                    <th>Status</th>
+                    <th>{{ 'Asset' | tr }}</th>
+                    <th>{{ 'Type' | tr }}</th>
+                    <th>{{ 'Status' | tr }}</th>
                     <th>Assigned</th>
                   </tr>
                 </thead>
@@ -234,7 +234,7 @@
                     <td><span class="wo-id">#{{ task.id }}</span></td>
                     <td>
                         <span class="wo-asset">{{ task.assetId }}</span>
-                        <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">{{ task.title }}</div>
+                        <div style="font-size: 11px; color: var(--color-text-muted); margin-top: 2px;">{{ task.title }}</div>
                     </td>
                     <td><span class="wo-issue">{{ task.frequency }}</span></td>
                     <td>
@@ -245,12 +245,12 @@
                         <div class="assignee-avatar" style="background:var(--info-bg);color:var(--info-text);">{{ task.assignedTo.substring(0, 2).toUpperCase() }}</div>
                         <span class="assignee-name">{{ task.assignedTo }}</span>
                       </div>
-                      <span *ngIf="!task.assignedTo" style="color:var(--text-muted);font-size:12px;">Unassigned</span>
+                      <span *ngIf="!task.assignedTo" style="color:var(--color-text-muted);font-size:12px;">Unassigned</span>
                     </td>
                   </tr>
                   
                   <tr *ngIf="criticalWorkOrders().length === 0">
-                    <td colspan="5" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                    <td colspan="5" style="text-align: center; padding: 40px; color: var(--color-text-muted);">
                         <span class="material-symbols-outlined" style="font-size: 32px; margin-bottom: 8px;">check_circle</span>
                         <div>No pending or overdue tasks. Great job!</div>
                     </td>
@@ -263,7 +263,7 @@
           <!-- Activity stream -->
           <div class="card" data-enter>
             <div class="card-header">
-              <div class="card-title">Activity Stream</div>
+              <div class="card-title">{{ 'Activity Stream' | tr }}</div>
               <button class="topbar-btn" style="width:28px;height:28px;" title="Refresh">
                 <span class="material-symbols-outlined" style="font-size:15px;">refresh</span>
               </button>
@@ -279,7 +279,7 @@
         </div>
         <div class="activity-body">
           <div class="activity-title">
-            <span class="hi">{{ task.id }}</span> {{ task.status === 'Done' ? 'completed by' : 'assigned to' }} {{ task.completedBy || task.assignedTo || 'Unassigned' }}
+            <span class="hi">{{ task.id }}</span> {{ task.status === 'Done' ? ('completed by' | tr) : ('assigned to' | tr) }} {{ task.completedBy || task.assignedTo || 'Unassigned' }}
           </div>
           <div class="activity-desc">{{ task.title }} — {{ task.assetId }}</div>
           <div class="activity-meta">
@@ -288,7 +288,7 @@
         </div>
       </div>
       
-      <div *ngIf="recentActivity().length === 0" style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 13px;">
+      <div *ngIf="recentActivity().length === 0" style="padding: 20px; text-align: center; color: var(--color-text-muted); font-size: 13px;">
         No recent activity.
       </div>
     </div>
@@ -301,3 +301,7 @@
     </div>
     <!-- end bottom grid -->
 </div>
+
+
+
+

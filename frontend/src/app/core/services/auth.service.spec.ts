@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { vi } from 'vitest';
 import { AuthService } from './auth.service';
 import { ApiService } from './api.service';
 
@@ -46,8 +47,6 @@ describe('AuthService', () => {
       await service.login('ENG-TST-1', 'eng123');
       const stored = localStorage.getItem('assetintel_auth');
       expect(stored).toBeTruthy();
-      const parsed = JSON.parse(stored!);
-      expect(parsed.employeeId).toBe('ENG-TST-1');
     });
 
     it('should set isLoggedIn to true after login', async () => {
@@ -77,21 +76,26 @@ describe('AuthService', () => {
   });
 
   describe('Session persistence', () => {
-    it('should store session on login and restore on fresh init', async () => {
-      await service.login('MGR001', 'mgr123');
-      const stored = localStorage.getItem('assetintel_auth');
-      expect(stored).toBeTruthy();
-
-      // Verify the stored data can be parsed back into a valid user
-      const parsed = JSON.parse(stored!);
-      expect(parsed.employeeId).toBe('MGR001');
-      expect(parsed.baseRole).toBe('manager');
+    it('should fetch user from API on init if token exists', async () => {
+      // simulate token
+      localStorage.setItem('assetintel_auth', 'fake-jwt-token');
+      // spy on api
+      const spy = vi.spyOn(TestBed.inject(ApiService), 'getAuthMe').mockResolvedValue({ employeeId: 'MGR001', baseRole: 'manager' } as any);
+      
+      await service.init();
+      
+      expect(spy).toHaveBeenCalled();
+      expect(service.currentUser()?.employeeId).toBe('MGR001');
     });
 
-    it('should handle corrupted localStorage gracefully', () => {
-      localStorage.setItem('assetintel_auth', 'NOT_VALID_JSON{{{');
-      // Should not throw — loadStoredSession has try/catch
-      expect(() => TestBed.inject(AuthService)).not.toThrow();
+    it('should handle invalid token gracefully', async () => {
+      localStorage.setItem('assetintel_auth', 'NOT_VALID');
+      const spy = vi.spyOn(TestBed.inject(ApiService), 'getAuthMe').mockRejectedValue(new Error('Invalid token'));
+      
+      await service.init();
+      
+      expect(spy).toHaveBeenCalled();
+      expect(service.currentUser()).toBeNull();
     });
   });
 

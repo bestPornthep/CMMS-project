@@ -36,9 +36,13 @@ export class LoginComponent {
 
     const { employeeId, password } = this.loginForm.value;
 
-    if (await this.authService.login(employeeId!, password!)) {
-      this.router.navigate(['/dashboard']);
-    } else {
+    try {
+      if (await this.authService.login(employeeId!, password!)) {
+        this.router.navigate(['/dashboard']);
+      } else {
+        this.errorMessage = 'Invalid credentials. Please try again.';
+      }
+    } catch (e) {
       this.errorMessage = 'Invalid credentials. Please try again.';
     }
   }
