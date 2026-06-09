@@ -144,15 +144,17 @@ Base URL: `${environment.apiUrl}/api/v1`
 
 ### Products
 
-| Method | Path | Query | Response | Permission |
-|--------|------|-------|----------|------------|
+| Method | Path | Body / Query | Response | Permission |
+|--------|------|-------------|----------|------------|
 | `GET` | `/products` | — | `Product[]` | Any authenticated |
+| `POST` | `/products` | `{ id, name }` | `Product` | `admin`, `manager`, `engineer` (grants ownership) |
 
 ### Assets
 
-| Method | Path | Query | Response | Permission |
-|--------|------|-------|----------|------------|
+| Method | Path | Body / Query | Response | Permission |
+|--------|------|-------------|----------|------------|
 | `GET` | `/assets` | `?location=CUST-001&department=Test` | `Asset[]` | Any authenticated |
+| `POST` | `/assets` | `{ id, name, location, department }` | `Asset` | `admin`, `manager`, `engineer` (requires location ownership) |
 
 ### PM Tasks
 

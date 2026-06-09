@@ -35,7 +35,10 @@ export class AuthService {
     };
 
     const token = this.jwtService.sign(payload);
-    const refreshToken = 'RT-' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    const refreshToken =
+      'RT-' +
+      Math.random().toString(36).substring(2, 15) +
+      Math.random().toString(36).substring(2, 15);
     this.refreshTokens.set(user.employeeId, refreshToken);
 
     const now = new Date();
@@ -59,10 +62,16 @@ export class AuthService {
         id: d.id,
         productId: d.productId,
         status: d.status as 'active' | 'revoked',
-        permissions: typeof d.permissions === 'string' ? JSON.parse(d.permissions) : d.permissions,
+        permissions:
+          typeof d.permissions === 'string'
+            ? JSON.parse(d.permissions)
+            : d.permissions,
         validUntil: d.validUntil,
       })),
-      permissions: typeof user.permissions === 'string' ? JSON.parse(user.permissions) : user.permissions,
+      permissions:
+        typeof user.permissions === 'string'
+          ? JSON.parse(user.permissions)
+          : user.permissions,
     };
 
     return {

@@ -3,7 +3,10 @@ import { PrismaClient } from '@prisma/client';
 import { PrismaMssql } from '@prisma/adapter-mssql';
 
 @Injectable()
-export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+export class PrismaService
+  extends PrismaClient
+  implements OnModuleInit, OnModuleDestroy
+{
   constructor() {
     const dbUrl = process.env.DATABASE_URL;
     if (!dbUrl) {
@@ -26,7 +29,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     if (!url.startsWith('sqlserver://')) {
       throw new Error('Invalid SQL Server connection URL format.');
     }
-    
+
     const rest = url.substring('sqlserver://'.length);
     const semiIndex = rest.indexOf(';');
     const hostPart = semiIndex === -1 ? rest : rest.substring(0, semiIndex);
@@ -71,7 +74,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         instanceName,
         encrypt: params.encrypt === 'true',
         trustServerCertificate: params.trustServerCertificate === 'true',
-      }
+      },
     };
   }
 }

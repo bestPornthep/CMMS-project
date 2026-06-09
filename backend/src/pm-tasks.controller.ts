@@ -1,10 +1,28 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, Query, UseGuards, ForbiddenException, BadRequestException, NotFoundException, HttpCode, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Param,
+  Body,
+  Query,
+  UseGuards,
+  ForbiddenException,
+  BadRequestException,
+  NotFoundException,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
 import { PrismaService } from './prisma.service';
 import { CmmsService } from './cmms.service';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { CurrentUser } from './auth/current-user.decorator';
 import { CreatePmTaskDto } from './dto/create-pm-task.dto';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
+@ApiTags('PM Tasks')
+@ApiBearerAuth('JWT-auth')
 @UseGuards(JwtAuthGuard)
 @Controller('api/v1/pm-tasks')
 export class PmTasksController {
@@ -28,13 +46,16 @@ export class PmTasksController {
 
     if (user.baseRole !== 'admin' && user.baseRole !== 'manager') {
       const owned = user.ownedProducts || [];
-      const delegated = user.delegatedProducts?.map((dp: any) => dp.productId) || [];
+      const delegated =
+        user.delegatedProducts?.map((dp: any) => dp.productId) || [];
       const accessibleProducts = Array.from(new Set([...owned, ...delegated]));
 
       if (!accessibleProducts.includes('*')) {
         if (productId) {
           if (!accessibleProducts.includes(productId)) {
-            throw new ForbiddenException(`Product access denied for ${productId}`);
+            throw new ForbiddenException(
+              `Product access denied for ${productId}`,
+            );
           }
           where.productId = productId;
         } else {
@@ -71,14 +92,24 @@ export class PmTasksController {
 
     if (user.baseRole !== 'admin' && user.baseRole !== 'manager') {
       const owned = user.ownedProducts || [];
-      const delegated = user.delegatedProducts?.map((dp: any) => dp.productId) || [];
+      const delegated =
+        user.delegatedProducts?.map((dp: any) => dp.productId) || [];
       const accessibleProducts = Array.from(new Set([...owned, ...delegated]));
 
-      if (!accessibleProducts.includes('*') && !accessibleProducts.includes(t.productId)) {
-        throw new ForbiddenException(`Access denied for product ${t.productId}`);
+      if (
+        !accessibleProducts.includes('*') &&
+        !accessibleProducts.includes(t.productId)
+      ) {
+        throw new ForbiddenException(
+          `Access denied for product ${t.productId}`,
+        );
       }
 
-      if (user.baseRole === 'technician' && t.assignedTo !== user.employeeId && !delegated.includes(t.productId)) {
+      if (
+        user.baseRole === 'technician' &&
+        t.assignedTo !== user.employeeId &&
+        !delegated.includes(t.productId)
+      ) {
         throw new ForbiddenException(`Task ${id} is not assigned to you`);
       }
     }
@@ -92,13 +123,23 @@ export class PmTasksController {
       user.baseRole === 'admin' ||
       user.baseRole === 'manager' ||
       user.baseRole === 'engineer' ||
-      user.delegatedProducts?.some((dp: any) => dp.productId === body.productId && dp.permissions.includes('pm.create.submit'));
+      user.delegatedProducts?.some(
+        (dp: any) =>
+          dp.productId === body.productId &&
+          dp.permissions.includes('pm.create.submit'),
+      );
 
     if (!hasPermission) {
-      throw new ForbiddenException('Insufficient permission to create PM tasks');
+      throw new ForbiddenException(
+        'Insufficient permission to create PM tasks',
+      );
     }
 
-    await this.cmms.checkProductOwnership(user, body.productId, 'pm.create.submit');
+    await this.cmms.checkProductOwnership(
+      user,
+      body.productId,
+      'pm.create.submit',
+    );
 
     const asset = await this.prisma.asset.findUnique({
       where: { id: body.assetId },
@@ -107,10 +148,14 @@ export class PmTasksController {
       throw new BadRequestException(`Asset ${body.assetId} not found`);
     }
     if (asset.location !== body.productId) {
-      throw new BadRequestException(`Asset location (${asset.location}) does not match product (${body.productId})`);
+      throw new BadRequestException(
+        `Asset location (${asset.location}) does not match product (${body.productId})`,
+      );
     }
     if (asset.department !== body.department) {
-      throw new BadRequestException(`Asset department (${asset.department}) does not match task department (${body.department})`);
+      throw new BadRequestException(
+        `Asset department (${asset.department}) does not match task department (${body.department})`,
+      );
     }
 
     const task = await this.cmms.createTaskWithRetry({
@@ -135,7 +180,11 @@ export class PmTasksController {
   }
 
   @Put(':id')
-  async update(@Param('id') id: string, @Body() body: any, @CurrentUser() user: any) {
+  async update(
+    @Param('id') id: string,
+    @Body() body: any,
+    @CurrentUser() user: any,
+  ) {
     const existing = await this.prisma.pmTask.findUnique({
       where: { id },
     });
@@ -149,15 +198,28 @@ export class PmTasksController {
       user.ownedProducts.includes('*') ||
       user.ownedProducts.includes(existing.productId);
 
-    const hasDelegatedRecord = user.baseRole === 'technician' && user.delegatedProducts?.some((dp: any) => dp.productId === existing.productId && dp.permissions.includes('pm.record.submit'));
-    const hasDelegatedAssign = user.baseRole === 'technician' && user.delegatedProducts?.some((dp: any) => dp.productId === existing.productId && dp.permissions.includes('pm.assign.submit'));
+    const hasDelegatedRecord =
+      user.baseRole === 'technician' &&
+      user.delegatedProducts?.some(
+        (dp: any) =>
+          dp.productId === existing.productId &&
+          dp.permissions.includes('pm.record.submit'),
+      );
+    const hasDelegatedAssign =
+      user.baseRole === 'technician' &&
+      user.delegatedProducts?.some(
+        (dp: any) =>
+          dp.productId === existing.productId &&
+          dp.permissions.includes('pm.assign.submit'),
+      );
 
     const canRecord =
       user.baseRole === 'admin' ||
       user.baseRole === 'manager' ||
       user.baseRole === 'engineer' ||
       hasDelegatedRecord ||
-      (user.baseRole === 'technician' && existing.assignedTo === user.employeeId);
+      (user.baseRole === 'technician' &&
+        existing.assignedTo === user.employeeId);
 
     const canAssign =
       user.baseRole === 'admin' ||
@@ -166,7 +228,9 @@ export class PmTasksController {
       hasDelegatedAssign;
 
     if (!canRecord && !canAssign) {
-      throw new ForbiddenException('You do not have permission to modify this task');
+      throw new ForbiddenException(
+        'You do not have permission to modify this task',
+      );
     }
 
     const isApprover =
@@ -179,9 +243,9 @@ export class PmTasksController {
       const from = existing.status;
       const to = body.status;
       const TECHNICIAN_ALLOWED: Record<string, string[]> = {
-        'Pending':            ['In Progress'],
-        'In Progress':        ['Pending Approval'],
-        'Pending Approval':   [],   // technicians cannot approve or revert
+        Pending: ['In Progress'],
+        'In Progress': ['Pending Approval'],
+        'Pending Approval': [], // technicians cannot approve or revert
       };
 
       if (!isApprover) {
@@ -204,28 +268,37 @@ export class PmTasksController {
     if (body.title !== undefined) data.title = body.title;
     if (body.description !== undefined) data.description = body.description;
     if (body.frequency !== undefined) data.frequency = body.frequency;
-    if (body.nextDueDate !== undefined) data.nextDueDate = new Date(body.nextDueDate);
-    if (body.estimatedHours !== undefined) data.estimatedHours = body.estimatedHours;
+    if (body.nextDueDate !== undefined)
+      data.nextDueDate = new Date(body.nextDueDate);
+    if (body.estimatedHours !== undefined)
+      data.estimatedHours = body.estimatedHours;
     if (body.actualHours !== undefined) data.actualHours = body.actualHours;
     if (body.status !== undefined) data.status = body.status;
-    if (body.checklist !== undefined) data.checklist = JSON.stringify(body.checklist);
-    if (body.partsRequired !== undefined) data.partsRequired = JSON.stringify(body.partsRequired);
-    if (body.partsUsed !== undefined) data.partsUsed = JSON.stringify(body.partsUsed);
+    if (body.checklist !== undefined)
+      data.checklist = JSON.stringify(body.checklist);
+    if (body.partsRequired !== undefined)
+      data.partsRequired = JSON.stringify(body.partsRequired);
+    if (body.partsUsed !== undefined)
+      data.partsUsed = JSON.stringify(body.partsUsed);
     if (body.recordNotes !== undefined) data.recordNotes = body.recordNotes;
 
     if (body.assignedTo !== undefined) data.assignedTo = body.assignedTo;
-    if (body.assignedAt !== undefined) data.assignedAt = body.assignedAt ? new Date(body.assignedAt) : null;
+    if (body.assignedAt !== undefined)
+      data.assignedAt = body.assignedAt ? new Date(body.assignedAt) : null;
     if (body.assignedBy !== undefined) data.assignedBy = body.assignedBy;
 
     if (body.completedBy !== undefined) data.completedBy = body.completedBy;
-    if (body.completedAt !== undefined) data.completedAt = body.completedAt ? new Date(body.completedAt) : null;
+    if (body.completedAt !== undefined)
+      data.completedAt = body.completedAt ? new Date(body.completedAt) : null;
 
     // Only approvers may write approval/rejection fields
     if (isApprover) {
       if (body.approvedBy !== undefined) data.approvedBy = body.approvedBy;
-      if (body.approvedAt !== undefined) data.approvedAt = body.approvedAt ? new Date(body.approvedAt) : null;
+      if (body.approvedAt !== undefined)
+        data.approvedAt = body.approvedAt ? new Date(body.approvedAt) : null;
       if (body.rejectedBy !== undefined) data.rejectedBy = body.rejectedBy;
-      if (body.rejectedAt !== undefined) data.rejectedAt = body.rejectedAt ? new Date(body.rejectedAt) : null;
+      if (body.rejectedAt !== undefined)
+        data.rejectedAt = body.rejectedAt ? new Date(body.rejectedAt) : null;
     }
 
     const updated = await this.prisma.pmTask.update({
@@ -252,9 +325,14 @@ export class PmTasksController {
   private cleanPmTask(t: any) {
     return {
       ...t,
-      checklist: typeof t.checklist === 'string' ? JSON.parse(t.checklist) : t.checklist,
-      partsRequired: typeof t.partsRequired === 'string' ? JSON.parse(t.partsRequired) : t.partsRequired,
-      partsUsed: typeof t.partsUsed === 'string' ? JSON.parse(t.partsUsed) : t.partsUsed,
+      checklist:
+        typeof t.checklist === 'string' ? JSON.parse(t.checklist) : t.checklist,
+      partsRequired:
+        typeof t.partsRequired === 'string'
+          ? JSON.parse(t.partsRequired)
+          : t.partsRequired,
+      partsUsed:
+        typeof t.partsUsed === 'string' ? JSON.parse(t.partsUsed) : t.partsUsed,
     };
   }
 }

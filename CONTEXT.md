@@ -7,7 +7,7 @@
 | Term | Definition |
 |------|-----------|
 | **Asset** | A physical piece of equipment at a customer site (e.g. Chiller Unit, CNC Lathe). Identified by a short code like `CH-P1-01`. Belongs to exactly one Department and one Product (location). |
-| **Product** | A customer site/account. Identified by `CUST-xxx`. Engineers "own" products — ownership gates what tasks they can create and assign. |
+| **Product** | A customer site/account. Identified by `CUST-xxx` or a user-typed name. Engineers "own" products — ownership gates what tasks they can create and assign. |
 | **Department** | An operational grouping: `Facility`, `Mechanic`, `Manufacturing`, `Maintenance`, `Test`. Users belong to one department (except admin/manager who span `All`). |
 | **PM Task** | A Preventive Maintenance work order. Has a lifecycle: `Pending` → `In Progress` → `Pending Approval` → `Done` (or `Overdue`). Identified by `PM-{DEPT}-{nnnn}`. |
 | **Template** | A reusable checklist blueprint for creating PM Tasks. Scoped to a department. |

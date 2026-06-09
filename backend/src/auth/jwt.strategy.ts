@@ -21,7 +21,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
-    
+
     const now = new Date();
     const delegations = await this.prisma.delegation.findMany({
       where: {
@@ -31,11 +31,14 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       },
     });
 
-    const parsedDelegations = delegations.map(d => ({
+    const parsedDelegations = delegations.map((d) => ({
       id: d.id,
       productId: d.productId,
       status: d.status as 'active' | 'revoked',
-      permissions: typeof d.permissions === 'string' ? JSON.parse(d.permissions) : d.permissions,
+      permissions:
+        typeof d.permissions === 'string'
+          ? JSON.parse(d.permissions)
+          : d.permissions,
       validUntil: d.validUntil,
     }));
 
@@ -46,9 +49,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       baseRole: user.baseRole,
       roleLabel: user.roleLabel,
       department: user.department,
-      ownedProducts: user.ownedProducts.map(op => op.productId),
+      ownedProducts: user.ownedProducts.map((op) => op.productId),
       delegatedProducts: parsedDelegations,
-      permissions: typeof user.permissions === 'string' ? JSON.parse(user.permissions) : user.permissions,
+      permissions:
+        typeof user.permissions === 'string'
+          ? JSON.parse(user.permissions)
+          : user.permissions,
     };
   }
 }

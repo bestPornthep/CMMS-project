@@ -1,9 +1,27 @@
-import { Controller, Get, Post, Patch, Param, Body, Query, UseGuards, ForbiddenException, BadRequestException, ConflictException, NotFoundException, HttpCode, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Param,
+  Body,
+  Query,
+  UseGuards,
+  ForbiddenException,
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
 import { PrismaService } from './prisma.service';
 import { CmmsService } from './cmms.service';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { CurrentUser } from './auth/current-user.decorator';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
+@ApiTags('Delegations')
+@ApiBearerAuth('JWT-auth')
 @UseGuards(JwtAuthGuard)
 @Controller('api/v1/delegations')
 export class DelegationsController {
@@ -78,8 +96,13 @@ export class DelegationsController {
     }
 
     const defaultPermissions = [
-      'pm.create.view', 'pm.create.submit', 'pm.assign.view', 'pm.assign.submit',
-      'pm.record.view', 'pm.record.submit', 'pm.calendar.view',
+      'pm.create.view',
+      'pm.create.submit',
+      'pm.assign.view',
+      'pm.assign.submit',
+      'pm.record.view',
+      'pm.record.submit',
+      'pm.calendar.view',
     ];
 
     const results = [];
@@ -93,13 +116,23 @@ export class DelegationsController {
       }
 
       if (user.baseRole === 'engineer') {
-        if (grantee.baseRole !== 'technician' || grantee.department !== user.department) {
-          throw new ForbiddenException('Engineers can only delegate to technicians in the same department');
+        if (
+          grantee.baseRole !== 'technician' ||
+          grantee.department !== user.department
+        ) {
+          throw new ForbiddenException(
+            'Engineers can only delegate to technicians in the same department',
+          );
         }
-        
+
         for (const p of body.products) {
-          if (!user.ownedProducts.includes('*') && !user.ownedProducts.includes(p)) {
-            throw new ForbiddenException(`You can only delegate products you own. Product: ${p}`);
+          if (
+            !user.ownedProducts.includes('*') &&
+            !user.ownedProducts.includes(p)
+          ) {
+            throw new ForbiddenException(
+              `You can only delegate products you own. Product: ${p}`,
+            );
           }
         }
       }
@@ -114,7 +147,9 @@ export class DelegationsController {
           },
         });
         if (existing) {
-          throw new ConflictException(`User ${granteeId} already has an active delegation for product ${productId}`);
+          throw new ConflictException(
+            `User ${granteeId} already has an active delegation for product ${productId}`,
+          );
         }
 
         const del = await this.prisma.delegation.create({
@@ -158,7 +193,9 @@ export class DelegationsController {
     }
 
     if (user.baseRole === 'engineer' && target.grantorId !== user.employeeId) {
-      throw new ForbiddenException('Engineers can only revoke delegations they granted');
+      throw new ForbiddenException(
+        'Engineers can only revoke delegations they granted',
+      );
     }
 
     await this.prisma.delegation.updateMany({
@@ -179,7 +216,11 @@ export class DelegationsController {
     await this.cmms.logAction(
       'Revoked Product Access',
       { id: user.employeeId, name: user.name },
-      { id: target.granteeId, name: grantee?.name || target.granteeId, isUser: true },
+      {
+        id: target.granteeId,
+        name: grantee?.name || target.granteeId,
+        isUser: true,
+      },
       target.productId,
       'security',
     );
