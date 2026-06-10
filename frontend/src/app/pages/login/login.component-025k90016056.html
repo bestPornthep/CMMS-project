@@ -1,0 +1,39 @@
+﻿<main class="login-page">
+  <section class="login-card anim-enter">
+    <div class="brand-block">
+      <img class="brand-logo" src="/Logo.png" alt="Kimball Electronics logo" />
+    </div>
+
+    <h2 class="panel-title">Sign in</h2>
+    <p class="panel-sub">Use your maintenance account to continue.</p>
+
+    <form [formGroup]="loginForm" (ngSubmit)="onSubmit()">
+      <div class="form-group">
+        <label class="form-label" for="user">Employee ID</label>
+        <div class="field-wrap">
+          <span class="field-icon material-symbols-outlined">badge</span>
+          <input class="form-input mono" id="user" formControlName="employeeId" placeholder="2504936" autocomplete="username"
+            required />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="pass">Password</label>
+        <div class="field-wrap has-toggle">
+          <span class="field-icon material-symbols-outlined">lock</span>
+          <input class="form-input" id="pass" formControlName="password" [type]="showPassword ? 'text' : 'password'" placeholder="••••••••"
+            autocomplete="current-password" required />
+          <button class="field-toggle" type="button" aria-label="Show password"
+            title="Show password" (click)="togglePassword()">
+            <span class="material-symbols-outlined">{{ showPassword ? 'visibility_off' : 'visibility' }}</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="alert" *ngIf="errorMessage">{{ errorMessage }}</div>
+
+      <button class="btn" type="submit">Sign in</button>
+    </form>
+    
+  </section>
+</main>

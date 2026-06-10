@@ -18,8 +18,10 @@ export class PmService {
 
   viewedTaskGlobal = signal<PMTask | null>(null);
 
-  constructor() {
-    Promise.all([
+  constructor() {}
+
+  loadData(): Promise<void> {
+    return Promise.all([
       this.api.getAssets(),
       this.api.getTasks(),
       this.api.getTemplates(),

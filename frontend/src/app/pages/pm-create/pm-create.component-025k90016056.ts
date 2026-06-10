@@ -1,15 +1,17 @@
+﻿import { TranslatePipe } from '../../shared/pipes/translate.pipe';
 import { Component, computed, inject, signal, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { PmService } from '../../core/services/pm.service';
 import { AuthService } from '../../core/services/auth.service';
+import { ToastService } from '../../core/services/toast.service';
 import { PMTask, PMTaskFrequency, PMTaskStatus, Template } from '../../core/models/pm.model';
 
 @Component({
   selector: 'app-pm-create',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, TranslatePipe],
   templateUrl: './pm-create.component.html',
   styleUrl: './pm-create.component.scss'
 })
@@ -17,6 +19,7 @@ export class PmCreateComponent {
   private pmService = inject(PmService);
   private authService = inject(AuthService);
   private router = inject(Router);
+  private toast = inject(ToastService);
 
   // Form Model
   pmType: PMTaskFrequency = 'Monthly';
@@ -155,6 +158,11 @@ export class PmCreateComponent {
     return this.availableAssets().filter(a => a.id.toLowerCase().includes(val) || a.name.toLowerCase().includes(val));
   }
 
+  getFilteredParts() {
+    const val = (this.selectedPart || '').toLowerCase();
+    return this.availableParts.filter(p => p.toLowerCase().includes(val));
+  }
+
   // Checklist Methods
   addChecklistItem() {
     if (this.newChecklistItem.trim()) {
@@ -230,10 +238,10 @@ export class PmCreateComponent {
         ...tpl,
         checklist: [...this.checklist()]
       });
-      alert('Template updated successfully!');
+      this.toast.success('Template updated successfully!');
     } catch (err) {
       console.error(err);
-      alert('Failed to update template. Backend might not be ready yet.');
+      this.toast.error('Failed to update template. Backend might not be ready yet.');
     }
   }
 
@@ -260,7 +268,7 @@ export class PmCreateComponent {
   // Submit
   async submitForm() {
     if (!this.productId || !this.department || !this.assetId || !this.pmType) {
-      alert("Please fill out all required fields (Product, Dept, Asset, Type).");
+      this.toast.error('Please fill out all required fields (Product, Dept, Asset, Type).');
       return;
     }
 
@@ -270,7 +278,7 @@ export class PmCreateComponent {
 
     if (selectedAsset) {
       if (selectedAsset.location !== this.productId || selectedAsset.department !== this.department) {
-        alert('The selected asset does not match the chosen product or department. Action blocked.');
+        this.toast.error('The selected asset does not match the chosen product or department. Action blocked.');
         return;
       }
     }
@@ -288,7 +296,7 @@ export class PmCreateComponent {
         });
       }
     } catch (e) {
-      alert('Failed to create new product/asset. Please try again.');
+      this.toast.error('Failed to create new product/asset. Please try again.');
       return;
     }
 
@@ -331,4 +339,5 @@ export class PmCreateComponent {
     this.router.navigate(['/pm-assign']);
   }
 }
+
 

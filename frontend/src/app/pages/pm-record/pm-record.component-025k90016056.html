@@ -1,0 +1,297 @@
+﻿<div class="pm-record-page overflow-y-auto h-full" style="min-width: 900px;">
+  <div class="page-header" data-enter>
+    <div>
+      <h1 class="page-title">{{ 'Record PM' | tr }}</h1>
+      <p class="page-sub">{{ isApprover ? 'Review and approve submitted preventive maintenance records' : 'Execute and
+        record completion of assigned preventive maintenance' }}</p>
+    </div>
+    <div class="header-actions">
+      <span class="badge badge-neutral">{{ activeTab === 'action' ? availableTasks().length : historyTasks().length }}
+        tasks</span>
+    </div>
+  </div>
+
+  <div class="tabs" data-enter>
+    <div class="tab" [class.active]="activeTab === 'action'" (click)="setTab('action')">
+      {{ isApprover ? 'Action Required' : 'My PM Tasks' }}
+    </div>
+    <div class="tab" [class.active]="activeTab === 'history'" (click)="setTab('history')">
+      {{ isApprover ? 'Approved Records' : 'My PM History' }}
+    </div>
+  </div>
+
+  <div class="tab-content" [class.active]="activeTab === 'action'" *ngIf="activeTab === 'action'">
+    <div class="record-grid">
+      <!-- Left: List of tasks -->
+      <div class="card" data-enter>
+        <div class="card-header">
+          <div class="card-title">{{ isApprover ? 'Pending Approvals' : 'Available PM Tasks' }}</div>
+        </div>
+        <div style="overflow:hidden;border-radius:0 0 var(--radius-xl) var(--radius-xl);">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>{{ 'PM ID' | tr }}</th>
+                <th>{{ 'Asset' | tr }}</th>
+                <th>{{ 'Type' | tr }}</th>
+                <th style="text-align: center;">{{ 'Status' | tr }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let t of availableTasks()" (click)="selectTask(t)"
+                [class.active-row]="selectedTask?.id === t.id" [id]="'row-' + t.id">
+                <td class="mono" style="color:var(--color-blue); font-weight:600;">{{ t.id }}</td>
+                <td>{{ t.assetId }}</td>
+                <td><span class="badge badge-info">{{ t.frequency }}</span></td>
+                <td style="text-align: center;">
+                  <span class="badge" [class.badge-warning]="t.status === 'Pending'"
+                    [class.badge-blue]="t.status === 'In Progress'"
+                    [class.badge-info]="t.status === 'Pending Approval'">{{ t.status }}</span>
+                </td>
+              </tr>
+              <tr *ngIf="availableTasks().length === 0">
+                <td colspan="4" style="text-align:center; padding: 40px; color:var(--color-text-muted);">No tasks available.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Right: Execution details -->
+      <div class="card" data-enter *ngIf="selectedTask" style="position:sticky;top:16px; align-self:start;">
+        <div class="card-header">
+          <div class="card-title">{{ isApprover ? 'Approve:' : 'Execute:' }} {{ selectedTask.title }}</div>
+        </div>
+
+        <div class="card-body" style="display:flex;flex-direction:column;gap:20px;">
+
+          <div style="display:flex; gap: 20px; font-size:13px; color:var(--color-text-secondary);">
+            <div><strong style="color:var(--color-text-primary);">Asset:</strong> {{ selectedTask.assetId }}</div>
+            <div><strong style="color:var(--color-text-primary);">Product:</strong> {{ selectedTask.productId || '—' }}</div>
+            <div><strong style="color:var(--color-text-primary);">Est. Time:</strong> {{ selectedTask.estimatedHours }} hrs
+            </div>
+          </div>
+
+          <div
+            style="font-size:12px; color:var(--color-text-muted); display:flex; gap: 6px; align-items:center; margin-top:-10px;">
+            <span class="material-symbols-outlined" style="font-size:14px;">assignment_ind</span>
+            Assigned by <strong style="color:var(--color-text-secondary);">{{ getTechName(selectedTask.assignedBy ||
+              selectedTask.createdBy) }}</strong>
+          </div>
+
+          <div *ngIf="selectedTask.description"
+            style="padding:12px; background:var(--color-blue-light); border-left:3px solid var(--color-blue); border-radius:4px; font-size:13px; color:var(--color-blue-text);">
+            {{ selectedTask.description }}
+          </div>
+
+          <div *ngIf="selectedTask.recordNotes">
+            <div
+              style="font-size:12px;font-weight:700;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:12px;">
+              Task Notes & Feedback History</div>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              <ng-container *ngFor="let note of getParsedNotes(selectedTask.recordNotes)">
+                <div *ngIf="note.text"
+                  [style.background]="note.type === 'rejected' ? 'var(--error-light)' : (note.type === 'approver' ? 'var(--success-light)' : 'var(--color-bg-card-alt)')"
+                  [style.border-left]="'3px solid ' + (note.type === 'rejected' ? 'var(--color-error-mid)' : (note.type === 'approver' ? 'var(--success-mid)' : 'var(--purple)'))"
+                  style="padding:10px; border-radius:4px; font-size:13px; color:var(--color-text-secondary); white-space: pre-wrap; line-height: 1.4;">
+                  <div style="display:flex; justify-content:space-between; margin-bottom: 2px;">
+                    <strong
+                      [style.color]="note.type === 'rejected' ? 'var(--color-error-mid)' : (note.type === 'approver' ? 'var(--success-mid)' : 'var(--purple)')">
+                      {{ note.type === 'rejected' ? 'Rejection Feedback:' : (note.type === 'approver' ? 'Approval Note:' :
+                      'Technician Note:') }}
+                    </strong>
+                    <span *ngIf="note.timestamp" style="font-size:11.5px; opacity:0.7;">{{ note.timestamp | date:'MMM d,
+                      y, h:mm a' }}</span>
+                  </div>
+                  {{ note.text }}
+                </div>
+              </ng-container>
+            </div>
+          </div>
+
+          <!-- Checklist -->
+          <div>
+            <div
+              style="font-size:12px;font-weight:700;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:12px;">
+              Checklist</div>
+            <div
+              style="display:flex;flex-direction:column;gap:12px; background:var(--color-bg-card-alt); padding:16px; border-radius:var(--radius-lg); border:1px solid var(--color-border-soft);">
+              <div class="checkbox-row" *ngFor="let item of getDisplayChecklist(selectedTask); let i = index"
+                (click)="toggleChecklist(i)">
+                <div style="display:flex; align-items:center; gap:12px; flex:1;">
+                  <div class="checkbox-box" [class.checked]="item.done">
+                    <span class="material-symbols-outlined" *ngIf="item.done">check</span>
+                  </div>
+                  <span class="checkbox-label" [class.done]="item.done">
+                    {{ item.text }}
+                    <span *ngIf="item.requiresPhoto" style="color:var(--color-error-mid); font-weight:bold; margin-left:4px;"
+                      title="Requires Photo Evidence">*</span>
+                  </span>
+                </div>
+                <div *ngIf="item.requiresPhoto" style="display:flex; align-items:center; gap:8px;"
+                  (click)="$event.stopPropagation()">
+                  <button *ngIf="!item.photoUrl" class="btn btn-ghost" (click)="uploadPhoto(i, $event)"
+                    style="padding:4px 8px; font-size:11px; height:28px; border: 1px solid var(--color-border-strong);" [disabled]="isApprover">
+                    <span class="material-symbols-outlined" style="font-size:14px;">add_a_photo</span> Upload
+                  </button>
+                  <div *ngIf="item.photoUrl"
+                    style="display:flex; align-items:center; gap:4px; color:var(--success-mid); font-size:12px; font-weight:600; background: var(--success-light); padding: 4px 8px; border-radius: 4px;">
+                    <span class="material-symbols-outlined" style="font-size:16px;">image</span> {{ 'Photo Uploaded' | tr }}
+                  </div>
+                </div>
+              </div>
+              <div *ngIf="getDisplayChecklist(selectedTask).length === 0" class="empty-state"
+                style="padding: 20px 0;">
+                No checklist items.
+              </div>
+            </div>
+          </div>
+
+          <!-- Time Entry -->
+          <div class="form-group" style="display:flex; align-items:center; gap:16px;">
+            <label class="form-label" style="margin:0; width:140px;">Actual Time (hrs) <span
+                style="color:red;">*</span></label>
+            <input type="number" class="form-input" style="width:120px;" [(ngModel)]="actualHours"
+              [disabled]="isApprover" min="0.1" step="0.1">
+          </div>
+
+          <!-- Notes -->
+          <div class="form-group">
+            <label class="form-label">{{ 'Completion Notes' | tr }}</label>
+            <textarea class="form-textarea" [(ngModel)]="completionNotes"
+              [placeholder]="isApprover ? 'Approval notes or feedback...' : 'Any issues found or notes...'"></textarea>
+          </div>
+
+          <!-- Submit Button -->
+          <div style="margin-top: 10px; display: flex; gap: 10px;">
+            <button class="btn btn-primary" (click)="submitRecord()"
+              style="flex: 1; justify-content:center; padding:12px; font-size:14px;">
+              <span class="material-symbols-outlined">{{ isApprover ? 'verified' : 'check_circle' }}</span> {{
+              isApprover ? 'Approve PM Record' : 'Submit PM Record' }}
+            </button>
+            <button *ngIf="isApprover" class="btn btn-ghost" (click)="rejectRecord()"
+              style="flex: 1; justify-content:center; padding:12px; font-size:14px; border-color: var(--color-error-mid); color: var(--color-error-mid);">
+              <span class="material-symbols-outlined">cancel</span> Reject PM Record
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Empty State -->
+      <div class="card" data-enter *ngIf="!selectedTask"
+        style="position:sticky;top:16px; display:flex; align-items:center; justify-content:center; min-height: 300px;">
+        <div class="empty-state">
+          <span class="material-symbols-outlined" style="font-size:48px;">touch_app</span>
+          <p>{{ isApprover ? ('Select a task from the list to approve' | tr) : ('Select a task from the list to execute' | tr) }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-content" [class.active]="activeTab === 'history'" *ngIf="activeTab === 'history'">
+    <div class="card" data-enter>
+      <div class="card-header">
+        <div class="card-title">{{ isApprover ? 'Approved & Rejected PM Records' : 'My Completed PMs' }}</div>
+        <div class="c-dropdown form-dropdown" [class.open]="filterDropdownOpen" style="width: 160px;">
+          <div class="c-dropdown-trigger" (click)="filterDropdownOpen = !filterDropdownOpen">
+            <span>{{
+              historyFilter() === 'All' ? ('All Records' | tr) :
+              (historyFilter() === 'Approved' || historyFilter() === 'Done') ? (isApprover ? 'Approved Only' : 'Done
+              Only') :
+              (historyFilter() === 'Pending' ? 'Pending Only' : 'Rejected Only')
+              }}</span>
+            <span class="material-symbols-outlined">expand_more</span>
+          </div>
+          <div class="c-dropdown-menu" *ngIf="filterDropdownOpen">
+            <div class="c-dropdown-item" (click)="historyFilter.set('All'); filterDropdownOpen = false">All Records
+            </div>
+            <ng-container *ngIf="isApprover">
+              <div class="c-dropdown-item" (click)="historyFilter.set('Approved'); filterDropdownOpen = false">Approved
+                Only</div>
+              <div class="c-dropdown-item" (click)="historyFilter.set('Rejected'); filterDropdownOpen = false">Rejected
+                Only</div>
+            </ng-container>
+            <ng-container *ngIf="!isApprover">
+              <div class="c-dropdown-item" (click)="historyFilter.set('Pending'); filterDropdownOpen = false">Pending
+                Only</div>
+              <div class="c-dropdown-item" (click)="historyFilter.set('Done'); filterDropdownOpen = false">Done Only
+              </div>
+            </ng-container>
+          </div>
+        </div>
+      </div>
+      <div style="overflow:hidden;border-radius:0 0 var(--radius-xl) var(--radius-xl);">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>{{ 'PM ID' | tr }}</th>
+              <th>{{ 'Asset' | tr }}</th>
+              <th>{{ 'Type' | tr }}</th>
+              <th>{{ 'Assigned By' | tr }}</th>
+              <th *ngIf="isApprover && historyFilter() !== 'Rejected'">{{ 'Executed By' | tr }}</th>
+              <th *ngIf="historyFilter() !== 'Rejected'">{{ isApprover ? 'Approved By' : 'Submitted' }}</th>
+              <th *ngIf="historyFilter() === 'Rejected'">{{ 'Rejected By' | tr }}</th>
+              <th>{{ 'Time Spent' | tr }}</th>
+              <th style="text-align: center;">{{ 'Status' | tr }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let t of historyTasks()" class="history-row" [class.selected-row]="selectedTask?.id === t.id"
+              (click)="viewTaskDetails(t)" style="cursor: pointer;" [id]="'row-' + t.id">
+              <td class="mono" style="color:var(--color-blue); font-weight:600;">{{ t.id }}</td>
+              <td>{{ t.assetId }}</td>
+              <td><span class="badge badge-info">{{ t.frequency }}</span></td>
+              <td>{{ getTechName(t.assignedBy || t.createdBy) }}</td>
+              <td *ngIf="isApprover && historyFilter() !== 'Rejected'">
+                <div style="font-weight:600; color:var(--color-text-primary);">{{ getTechName(t.completedBy || t.assignedTo)
+                  }}</div>
+              </td>
+              <td *ngIf="historyFilter() !== 'Rejected'">
+                <ng-container *ngIf="isApprover">
+                  <div *ngIf="t.approvedBy" style="font-weight:600; color:var(--color-text-primary);">{{
+                    getTechName(t.approvedBy) }}</div>
+                  <div *ngIf="!t.approvedBy" style="font-weight:600; color:var(--color-text-muted);">-</div>
+                  <div *ngIf="t.approvedAt" style="font-size:11px; color:var(--color-text-muted);">{{ t.approvedAt | date:'MMM
+                    d, y, h:mm a' }}</div>
+                </ng-container>
+                <ng-container *ngIf="!isApprover">
+                  <div *ngIf="t.completedAt" style="font-size:12px; color:var(--color-text-secondary);">{{ t.completedAt |
+                    date:'MMM d, y, h:mm a' }}</div>
+                  <div *ngIf="!t.completedAt" style="font-size:12px; color:var(--color-text-muted);">-</div>
+                </ng-container>
+              </td>
+              <td *ngIf="historyFilter() === 'Rejected'">
+                <div style="font-weight:600; color:var(--color-text-primary);">{{ getTechName(t.rejectedBy || t.assignedBy ||
+                  t.createdBy) }}</div>
+                <div *ngIf="getFallbackRejectedAt(t)" style="font-size:11px; color:var(--color-text-muted);">{{
+                  getFallbackRejectedAt(t) | date:'MMM d, y, h:mm a' }}</div>
+              </td>
+              <td>{{ t.actualHours || t.estimatedHours }} hrs</td>
+              <td style="text-align: center;">
+                <span class="badge"
+                  [class.badge-info]="t.status === 'Pending Approval' && !(isApprover && t.recordNotes?.includes('[Rejected'))"
+                  [class.badge-success]="t.status === 'Done'"
+                  [class.badge-error]="isApprover && t.status !== 'Done' && t.recordNotes?.includes('[Rejected')"
+                  [class.badge-blue]="(!isApprover || !t.recordNotes?.includes('[Rejected')) && t.status === 'In Progress'">
+                  {{ isApprover && t.status !== 'Done' && t.recordNotes?.includes('[Rejected') ? 'Rejected' : t.status
+                  }}
+                </span>
+              </td>
+            </tr>
+            <tr *ngIf="historyTasks().length === 0">
+              <td [attr.colspan]="isApprover ? 8 : 7"
+                style="text-align:center; padding: 40px; color:var(--color-text-muted);">No records found.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+
+</div>
+
+
+
+

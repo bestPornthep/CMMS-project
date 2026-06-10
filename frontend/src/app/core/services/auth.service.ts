@@ -10,14 +10,26 @@ export class AuthService {
 
   // Cached user list for sync lookups (getAllUsers, getUser, etc.)
   private usersCache = signal<User[]>([]);
-  private currentUserSignal = signal<User | null>(this.loadStoredSession());
+  private currentUserSignal = signal<User | null>(null);
 
   readonly currentUser = computed(() => this.currentUserSignal());
   readonly isLoggedIn = computed(() => this.currentUserSignal() !== null);
 
   constructor() {
     // Pre-load user list so role-based lookups work immediately
-    this.api.getAllUsers().then(users => this.usersCache.set(users));
+    this.api.getAllUsers().then(users => this.usersCache.set(users)).catch(() => {});
+  }
+
+  async init(): Promise<void> {
+    const token = localStorage.getItem(AUTH_KEY);
+    if (token) {
+      try {
+        const user = await this.api.getAuthMe();
+        this.currentUserSignal.set(user);
+      } catch (e) {
+        this.logout();
+      }
+    }
   }
 
   // ── Auth ────────────────────────────────────────────────────────────────
@@ -26,7 +38,6 @@ export class AuthService {
     const res = await this.api.verifyLogin(employeeId, password);
     if (!res || !res.token) return false;
     localStorage.setItem(AUTH_KEY, res.token);
-    localStorage.setItem('assetintel_user', JSON.stringify(res.user));
     this.currentUserSignal.set(res.user);
     const users = await this.api.getAllUsers();
     this.usersCache.set(users);
@@ -37,7 +48,6 @@ export class AuthService {
     this.api.logout().catch(() => {});
     this.currentUserSignal.set(null);
     localStorage.removeItem(AUTH_KEY);
-    localStorage.removeItem('assetintel_user');
   }
 
   // ── Permission checks (synchronous — uses cached user) ──────────────────
@@ -148,7 +158,6 @@ export class AuthService {
       const updated = users.find(u => u.employeeId === sessionUser.employeeId);
       if (updated) {
         this.currentUserSignal.set(updated);
-        localStorage.setItem('assetintel_user', JSON.stringify(updated));
       }
     }
   }
@@ -168,7 +177,6 @@ export class AuthService {
       const updated = users.find(u => u.employeeId === sessionUser.employeeId);
       if (updated) {
         this.currentUserSignal.set(updated);
-        localStorage.setItem('assetintel_user', JSON.stringify(updated));
       }
     }
   }
@@ -195,12 +203,4 @@ export class AuthService {
 
   // ── Private ──────────────────────────────────────────────────────────────
 
-  private loadStoredSession(): User | null {
-    try {
-      const stored = localStorage.getItem('assetintel_user');
-      return stored ? JSON.parse(stored) as User : null;
-    } catch {
-      return null;
-    }
-  }
 }

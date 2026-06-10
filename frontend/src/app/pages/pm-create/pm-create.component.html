@@ -10,25 +10,32 @@
     <!-- Left: Form -->
     <div style="display:flex;flex-direction:column;gap:16px;">
       <div class="card" data-enter>
-        <div class="card-header"><div class="card-title">PM Details</div></div>
+        <div class="card-header">
+          <div class="card-title">PM Details</div>
+        </div>
         <div class="card-body" style="display:flex;flex-direction:column;gap:16px;">
           <div class="form-group">
             <label class="form-label">Product</label>
-            <div class="c-dropdown form-dropdown" [class.open]="openDropdown === 'product'" (click)="toggleCustomDropdown('product', $event)">
+            <div class="c-dropdown form-dropdown" [class.open]="openDropdown === 'product'"
+              (click)="toggleCustomDropdown('product', $event)">
               <div class="c-dropdown-trigger">
-                <span>{{ productId || 'Select product...' }}</span>
+                <input type="text"
+                  style="border:none; width:100%; box-shadow:none; background:transparent; outline:none; font-family:inherit; font-size:inherit; color:inherit; padding:0;"
+                  [(ngModel)]="productId" name="productId" placeholder="Select or type product..."
+                  (click)="toggleCustomDropdown('product', $event)" />
                 <span class="material-symbols-outlined">expand_more</span>
               </div>
               <div class="c-dropdown-menu">
                 <div class="c-dropdown-item" (click)="selectProduct('')">Select product...</div>
-                <div class="c-dropdown-item" *ngFor="let p of products()" (click)="selectProduct(p)">{{ p }}</div>
+                <div class="c-dropdown-item" *ngFor="let p of getFilteredProducts()" (click)="selectProduct(p)">{{ p }}</div>
               </div>
             </div>
           </div>
           <div class="form-group">
             <label class="form-label">Department</label>
             <!-- Dropdown for Mgr/Admin -->
-            <div class="c-dropdown form-dropdown" [class.open]="openDropdown === 'department'" (click)="toggleCustomDropdown('department', $event)" *ngIf="canChangeDept">
+            <div class="c-dropdown form-dropdown" [class.open]="openDropdown === 'department'"
+              (click)="toggleCustomDropdown('department', $event)" *ngIf="canChangeDept">
               <div class="c-dropdown-trigger">
                 <span>{{ department || 'Select department...' }}</span>
                 <span class="material-symbols-outlined">expand_more</span>
@@ -39,26 +46,37 @@
               </div>
             </div>
             <!-- Fixed text for Eng/Tech -->
-            <div *ngIf="!canChangeDept" style="padding: 10px 14px; background: var(--color-bg-page); border: 1px solid var(--color-border-soft); border-radius: var(--radius-md); color: var(--color-text-secondary); font-weight: 500;">
+            <div *ngIf="!canChangeDept"
+              style="padding: 10px 14px; background: var(--color-bg-page); border: 1px solid var(--color-border-soft); border-radius: var(--radius-md); color: var(--color-text-secondary); font-weight: 500;">
               {{ department }}
             </div>
           </div>
           <div class="form-group">
             <label class="form-label">Asset</label>
-            <div class="c-dropdown form-dropdown" [class.open]="openDropdown === 'asset'" (click)="toggleCustomDropdown('asset', $event)">
+            <div class="c-dropdown form-dropdown" [class.open]="openDropdown === 'asset' && productId"
+              (click)="productId ? toggleCustomDropdown('asset', $event) : null"
+              [style.opacity]="!productId ? '0.5' : '1'"
+              [style.pointer-events]="!productId ? 'none' : 'auto'">
               <div class="c-dropdown-trigger">
-                <span>{{ assetId || 'Select asset...' }}</span>
+                <input type="text"
+                  style="border:none; width:100%; box-shadow:none; background:transparent; outline:none; font-family:inherit; font-size:inherit; color:inherit; padding:0;"
+                  [(ngModel)]="assetId" name="assetId" 
+                  [placeholder]="productId ? 'Select or type asset...' : 'Select product first...'"
+                  [disabled]="!productId"
+                  (click)="productId ? toggleCustomDropdown('asset', $event) : null" />
                 <span class="material-symbols-outlined">expand_more</span>
               </div>
-              <div class="c-dropdown-menu">
+              <div class="c-dropdown-menu" *ngIf="productId">
                 <div class="c-dropdown-item" (click)="selectAsset('')">Select asset...</div>
-                <div class="c-dropdown-item" *ngFor="let a of availableAssets()" (click)="selectAsset(a.id)">{{ a.id }} — {{ a.name }}</div>
+                <div class="c-dropdown-item" *ngFor="let a of getFilteredAssets()" (click)="selectAsset(a.id)">{{ a.id }}
+                  — {{ a.name }}</div>
               </div>
             </div>
           </div>
           <div class="form-group">
             <label class="form-label">PM Type</label>
-            <div class="c-dropdown form-dropdown" [class.open]="openDropdown === 'type'" (click)="toggleCustomDropdown('type', $event)">
+            <div class="c-dropdown form-dropdown" [class.open]="openDropdown === 'type'"
+              (click)="toggleCustomDropdown('type', $event)">
               <div class="c-dropdown-trigger">
                 <span>{{ pmType || 'Select type...' }}</span>
                 <span class="material-symbols-outlined">expand_more</span>
@@ -74,13 +92,14 @@
               </div>
             </div>
           </div>
-          
+
           <div class="form-group" *ngIf="pmType === 'Custom'">
             <label class="form-label">Custom Duration</label>
             <div style="display:flex; gap:12px; align-items:center;">
               <input type="number" class="form-input" [(ngModel)]="customDurationValue" min="1" style="width: 80px;" />
-              
-              <div class="c-dropdown form-dropdown" style="width: 120px;" [class.open]="openDropdown === 'customUnit'" (click)="toggleCustomDropdown('customUnit', $event)">
+
+              <div class="c-dropdown form-dropdown" style="width: 120px;" [class.open]="openDropdown === 'customUnit'"
+                (click)="toggleCustomDropdown('customUnit', $event)">
                 <div class="c-dropdown-trigger">
                   <span>{{ customDurationUnit }}</span>
                   <span class="material-symbols-outlined">expand_more</span>
@@ -97,11 +116,13 @@
 
           <div class="form-group">
             <label class="form-label">Description</label>
-            <textarea class="form-textarea" [(ngModel)]="description" placeholder="Describe the maintenance task…"></textarea>
+            <textarea class="form-textarea" [(ngModel)]="description"
+              placeholder="Describe the maintenance task…"></textarea>
           </div>
           <div class="form-group">
             <label class="form-label">Estimated Time (hours)</label>
-            <input type="number" class="form-input" [(ngModel)]="estimatedHours" placeholder="e.g. 2.5" min="0.5" step="0.5" style="max-width:160px;"/>
+            <input type="number" class="form-input" [(ngModel)]="estimatedHours" placeholder="e.g. 2.5" min="0.5"
+              step="0.5" style="max-width:160px;" />
           </div>
         </div>
       </div>
@@ -110,43 +131,61 @@
         <div class="card-header">
           <div class="card-title">Checklist</div>
         </div>
-        <div style="padding:14px 20px; background:var(--blue-light); border-bottom:1px solid var(--border-soft); display:flex; gap:14px; align-items:center;">
-          <div style="width:36px; height:36px; border-radius:50%; background:white; display:flex; align-items:center; justify-content:center; color:var(--blue); flex-shrink:0; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+        <div
+          style="padding:14px 20px; background:var(--blue-light); border-bottom:1px solid var(--border-soft); display:flex; gap:14px; align-items:center;">
+          <div
+            style="width:36px; height:36px; border-radius:50%; background:white; display:flex; align-items:center; justify-content:center; color:var(--blue); flex-shrink:0; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
             <span class="material-symbols-outlined" style="font-size:20px;">view_list</span>
           </div>
           <div style="flex:1;">
-             <div style="font-size:12.5px; font-weight:700; color:var(--blue-text); letter-spacing:-0.2px;">Department Templates</div>
-             <div style="font-size:11.5px; color:var(--text-secondary); margin-top:2px;">Load predefined tasks or save your current list.</div>
+            <div style="font-size:12.5px; font-weight:700; color:var(--blue-text); letter-spacing:-0.2px;">Department
+              Templates</div>
+            <div style="font-size:11.5px; color:var(--text-secondary); margin-top:2px;">Load predefined tasks or save
+              your current list.</div>
           </div>
           <div style="display:flex; gap:8px;">
             <div class="c-dropdown" [class.open]="dropdownOpen" (click)="toggleDropdown($event)">
               <div class="c-dropdown-trigger">
-                <span>Select template…</span>
+                <span [style.color]="loadedTemplateName ? 'var(--text-primary)' : 'var(--text-muted)'">
+                  {{ loadedTemplateName || 'Select template…' }}
+                </span>
                 <span class="material-symbols-outlined">expand_more</span>
               </div>
               <div class="c-dropdown-menu" *ngIf="dropdownOpen">
                 <div class="c-dropdown-item empty" *ngIf="templates().length === 0">No templates</div>
-                <div class="c-dropdown-item" *ngFor="let t of templates()" (click)="loadTemplate(t); $event.stopPropagation()">{{ t.name }}</div>
+                <div class="c-dropdown-item" *ngIf="templates().length > 0" (click)="clearTemplate(); $event.stopPropagation()" style="font-style: italic; color: var(--text-secondary);">-- None (Create New) --</div>
+                <div class="c-dropdown-item" *ngFor="let t of templates()"
+                  (click)="loadTemplate(t); $event.stopPropagation()">{{ t.name }}</div>
               </div>
             </div>
-            <button class="btn btn-ghost" (click)="showManageTemplateModal = true" style="padding:6px 8px; font-size:12.5px; height:32px; background:white; border:1px solid var(--border);" title="Manage Templates">
+            <button class="btn btn-ghost" (click)="showManageTemplateModal = true"
+              style="padding:6px 8px; font-size:12.5px; height:32px; background:white; border:1px solid var(--border);"
+              title="Manage Templates">
               <span class="material-symbols-outlined" style="font-size:16px;">edit</span>
             </button>
-            <button class="btn" (click)="showSaveTemplateModal = true" style="background:white; color:var(--blue-text); border:1px solid rgba(26,86,219,0.2); padding:6px 12px; font-size:12.5px; box-shadow:0 1px 2px rgba(12,21,35,0.04); height:32px;">
-              <span class="material-symbols-outlined" style="font-size:16px;">bookmark_add</span>Save as New
+            <button class="btn" *ngIf="loadedTemplateId" (click)="updateTemplate()"
+              style="background:white; color:var(--blue-text); border:1px solid rgba(26,86,219,0.2); padding:6px 12px; font-size:12.5px; box-shadow:0 1px 2px rgba(12,21,35,0.04); height:32px;">
+              <span class="material-symbols-outlined" style="font-size:16px;">save</span>Save
+            </button>
+            <button class="btn" *ngIf="!loadedTemplateId" (click)="showSaveTemplateModal = true"
+              style="background:white; color:var(--blue-text); border:1px solid rgba(26,86,219,0.2); padding:6px 12px; font-size:12.5px; box-shadow:0 1px 2px rgba(12,21,35,0.04); height:32px;">
+              <span class="material-symbols-outlined" style="font-size:16px;">save</span>Save
             </button>
           </div>
         </div>
         <div class="card-body">
           <div style="display:flex;flex-direction:column;gap:0;">
-            <div class="checklist-item" *ngFor="let item of checklist(); let i = index" style="display:flex; align-items:center; gap:4px;">
-              <input type="text" name="item_{{i}}" [ngModel]="item.text" (ngModelChange)="updateChecklistItem(i, $event)" style="flex:1;"/>
-              <button class="photo-req-btn" (click)="togglePhotoRequirement(i)" 
-                      [class.active]="item.requiresPhoto"
-                      title="Require Photo Evidence">
-                <span class="material-symbols-outlined" [style.font-variation-settings]="item.requiresPhoto ? '\'FILL\' 1' : '\'FILL\' 0'">photo_camera</span>
+            <div class="checklist-item" *ngFor="let item of checklist(); let i = index"
+              style="display:flex; align-items:center; gap:4px;">
+              <input type="text" name="item_{{i}}" [ngModel]="item.text"
+                (ngModelChange)="updateChecklistItem(i, $event)" style="flex:1;" />
+              <button class="photo-req-btn" (click)="togglePhotoRequirement(i)" [class.active]="item.requiresPhoto"
+                title="Require Photo Evidence">
+                <span class="material-symbols-outlined"
+                  [style.font-variation-settings]="item.requiresPhoto ? '\'FILL\' 1' : '\'FILL\' 0'">photo_camera</span>
               </button>
-              <button class="remove-item-btn" (click)="removeChecklistItem(i)"><span class="material-symbols-outlined">close</span></button>
+              <button class="remove-item-btn" (click)="removeChecklistItem(i)"><span
+                  class="material-symbols-outlined">close</span></button>
             </div>
           </div>
           <div class="empty-state" *ngIf="checklist().length === 0" style="padding:20px;">
@@ -155,8 +194,13 @@
           </div>
 
           <div class="checklist-item" style="margin-top: 8px;">
-            <input type="text" name="newChecklistItem" placeholder="Type new item..." [(ngModel)]="newChecklistItem" (keyup.enter)="addChecklistItem()" style="background: white; box-shadow: none; border: 1px solid var(--border-strong); border-radius: var(--radius-md); padding: 8px 12px; outline: none; flex: 1;" />
-            <button (click)="addChecklistItem()" style="padding: 6px 12px; border:none; background:var(--blue-light); color:var(--blue-text); border-radius:var(--radius-md); display:flex; align-items:center; gap:4px; font-size:12.5px; font-weight:700; cursor:pointer; flex-shrink:0; transition: all 0.2s; box-shadow:0 1px 2px rgba(26,86,219,0.06);" onmouseover="this.style.background='var(--blue)'; this.style.color='white'" onmouseout="this.style.background='var(--blue-light)'; this.style.color='var(--blue-text)'">
+            <input type="text" name="newChecklistItem" placeholder="Type new item..." [(ngModel)]="newChecklistItem"
+              (keyup.enter)="addChecklistItem()"
+              style="background: white; box-shadow: none; border: 1px solid var(--border-strong); border-radius: var(--radius-md); padding: 8px 12px; outline: none; flex: 1;" />
+            <button (click)="addChecklistItem()"
+              style="padding: 6px 12px; border:none; background:var(--blue-light); color:var(--blue-text); border-radius:var(--radius-md); display:flex; align-items:center; gap:4px; font-size:12.5px; font-weight:700; cursor:pointer; flex-shrink:0; transition: all 0.2s; box-shadow:0 1px 2px rgba(26,86,219,0.06);"
+              onmouseover="this.style.background='var(--blue)'; this.style.color='white'"
+              onmouseout="this.style.background='var(--blue-light)'; this.style.color='var(--blue-text)'">
               Add<span class="material-symbols-outlined" style="font-size:16px;">add</span>
             </button>
           </div>
@@ -164,28 +208,41 @@
       </div>
 
       <div class="card" data-enter>
-        <div class="card-header"><div class="card-title">Parts Required</div></div>
+        <div class="card-header">
+          <div class="card-title">Parts Required</div>
+        </div>
         <div class="card-body" style="display:flex;flex-direction:column;gap:12px;">
           <div style="display:flex;gap:8px;">
-            <div class="c-dropdown form-dropdown" [class.open]="openDropdown === 'part'" (click)="toggleCustomDropdown('part', $event)" style="flex:1;">
+            <div class="c-dropdown form-dropdown" [class.open]="openDropdown === 'part'"
+              (click)="toggleCustomDropdown('part', $event)" style="flex:1;">
               <div class="c-dropdown-trigger">
-                <input type="text" style="border:none; width:100%; box-shadow:none; background:transparent; outline:none; font-family:inherit; font-size:inherit; color:inherit; padding:0;" [(ngModel)]="selectedPart" name="selectedPart" placeholder="Select or type part and press Enter..." (keyup.enter)="addPart()" />
+                <input type="text"
+                  style="border:none; width:100%; box-shadow:none; background:transparent; outline:none; font-family:inherit; font-size:inherit; color:inherit; padding:0;"
+                  [(ngModel)]="selectedPart" name="selectedPart" placeholder="Select or type part and press Enter..."
+                  (keyup.enter)="addPart()"
+                  (click)="toggleCustomDropdown('part', $event)" />
                 <span class="material-symbols-outlined">expand_more</span>
               </div>
               <div class="c-dropdown-menu" style="padding: 0; overflow: hidden;">
-                <div class="ms-item" (click)="toggleAllParts($event)" style="border-bottom: 1px solid var(--border-soft); padding: 12px 16px;">
+                <div class="ms-item" (click)="toggleAllParts($event)"
+                  style="border-bottom: 1px solid var(--border-soft); padding: 12px 16px;">
                   <div style="display:flex; align-items:center; gap: 12px;">
-                    <div class="ms-checkbox" [class.checked]="parts().length === availableParts.length && availableParts.length > 0">
-                       <span class="material-symbols-outlined" *ngIf="parts().length === availableParts.length && availableParts.length > 0" style="font-size: 14px; font-weight: bold; color: white;">check</span>
+                    <div class="ms-checkbox"
+                      [class.checked]="parts().length === availableParts.length && availableParts.length > 0">
+                      <span class="material-symbols-outlined"
+                        *ngIf="parts().length === availableParts.length && availableParts.length > 0"
+                        style="font-size: 14px; font-weight: bold; color: white;">check</span>
                     </div>
                     <span style="font-weight: 600; font-size: 13.5px; color: var(--text-primary);">Select All</span>
                   </div>
                 </div>
                 <div style="padding: 6px 0; max-height: 200px; overflow-y: auto;">
-                  <div class="ms-item" *ngFor="let part of availableParts" (click)="togglePart(part, $event)" style="padding: 8px 16px;">
+                  <div class="ms-item" *ngFor="let part of availableParts" (click)="togglePart(part, $event)"
+                    style="padding: 8px 16px;">
                     <div style="display:flex; align-items:center; gap: 12px;">
                       <div class="ms-checkbox" [class.checked]="parts().includes(part)">
-                         <span class="material-symbols-outlined" *ngIf="parts().includes(part)" style="font-size: 14px; font-weight: bold; color: white;">check</span>
+                        <span class="material-symbols-outlined" *ngIf="parts().includes(part)"
+                          style="font-size: 14px; font-weight: bold; color: white;">check</span>
                       </div>
                       <span style="font-size: 13px; color: var(--text-secondary);">{{ part }}</span>
                     </div>
@@ -196,7 +253,7 @@
           </div>
           <div class="tag-list">
             <span class="part-tag" *ngFor="let p of parts(); let i = index">
-              <span>{{ p }}</span> 
+              <span>{{ p }}</span>
               <button (click)="removePart(i)">
                 <span class="material-symbols-outlined" style="font-size: 14px; font-weight: bold;">close</span>
               </button>
@@ -208,15 +265,25 @@
 
     <!-- Right: Preview -->
     <div class="card" data-enter style="position:sticky;top:16px;">
-      <div class="card-header"><div class="card-title">PM Preview</div></div>
+      <div class="card-header">
+        <div class="card-title">PM Preview</div>
+      </div>
       <div class="card-body" style="display:flex;flex-direction:column;gap:0;">
-        <div class="preview-row"><span class="preview-label">Product</span><span class="preview-val" [style.color]="productId ? 'var(--text-primary)' : 'var(--text-muted)'">{{ productId || '—' }}</span></div>
-        <div class="preview-row"><span class="preview-label">Dept</span><span class="preview-val" [style.color]="department ? 'var(--text-primary)' : 'var(--text-muted)'">{{ department || '—' }}</span></div>
-        <div class="preview-row"><span class="preview-label">Asset</span><span class="preview-val" [style.color]="assetId ? 'var(--text-primary)' : 'var(--text-muted)'">{{ assetId || '—' }}</span></div>
-        <div class="preview-row"><span class="preview-label">Type</span><span class="preview-val">{{ pmType === 'Custom' ? customDurationValue + ' ' + customDurationUnit : (pmType || '—') }}</span></div>
-        <div class="preview-row"><span class="preview-label">Tasks</span><span class="preview-val">{{ checklist().length }} items</span></div>
-        <div class="preview-row"><span class="preview-label">Est. Time</span><span class="preview-val">{{ estimatedHours }} hrs</span></div>
-        <div class="preview-row"><span class="preview-label">Parts</span><span class="preview-val">{{ parts().length }} required</span></div>
+        <div class="preview-row"><span class="preview-label">Product</span><span class="preview-val"
+            [style.color]="productId ? 'var(--text-primary)' : 'var(--text-muted)'">{{ productId || '—' }}</span></div>
+        <div class="preview-row"><span class="preview-label">Dept</span><span class="preview-val"
+            [style.color]="department ? 'var(--text-primary)' : 'var(--text-muted)'">{{ department || '—' }}</span>
+        </div>
+        <div class="preview-row"><span class="preview-label">Asset</span><span class="preview-val"
+            [style.color]="assetId ? 'var(--text-primary)' : 'var(--text-muted)'">{{ assetId || '—' }}</span></div>
+        <div class="preview-row"><span class="preview-label">Type</span><span class="preview-val">{{ pmType === 'Custom'
+            ? customDurationValue + ' ' + customDurationUnit : (pmType || '—') }}</span></div>
+        <div class="preview-row"><span class="preview-label">Tasks</span><span class="preview-val">{{ checklist().length
+            }} items</span></div>
+        <div class="preview-row"><span class="preview-label">Est. Time</span><span class="preview-val">{{ estimatedHours
+            }} hrs</span></div>
+        <div class="preview-row"><span class="preview-label">Parts</span><span class="preview-val">{{ parts().length }}
+            required</span></div>
         <div style="margin-top:20px;">
           <button class="btn btn-primary" (click)="submitForm()" style="width:100%;">
             <span class="material-symbols-outlined">add_circle</span>Create PM
@@ -239,7 +306,8 @@
     <div class="card-body" style="padding:0; margin-bottom:24px;">
       <div class="form-group">
         <label class="form-label">Template Name</label>
-        <input type="text" [(ngModel)]="newTemplateName" class="form-input" placeholder="e.g. Weekly Calibration Setup"/>
+        <input type="text" [(ngModel)]="newTemplateName" class="form-input"
+          placeholder="e.g. Weekly Calibration Setup" />
       </div>
     </div>
     <div style="display:flex;gap:8px;">
@@ -257,12 +325,17 @@
     </div>
     <div class="card-body" style="padding:0; margin-bottom:24px; max-height:200px; overflow-y:auto;">
       <div class="empty-state" *ngIf="templates().length === 0" style="padding:20px 0;">No templates saved.</div>
-      <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--border-soft);" *ngFor="let t of templates()">
+      <div
+        style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--border-soft);"
+        *ngFor="let t of templates()">
         <div>
-          <div style="font-weight:600; font-size:13px;">{{ t.name }} <span style="font-size:10px; color:var(--text-muted); background:var(--bg-muted); padding:2px 4px; border-radius:4px; margin-left:4px;" *ngIf="t.department === 'All'">Global</span></div>
+          <div style="font-weight:600; font-size:13px;">{{ t.name }} <span
+              style="font-size:10px; color:var(--text-muted); background:var(--bg-muted); padding:2px 4px; border-radius:4px; margin-left:4px;"
+              *ngIf="t.department === 'All'">Global</span></div>
           <div style="font-size:11px; color:var(--text-muted);">{{ t.checklist.length }} items</div>
         </div>
-        <button class="btn btn-ghost" (click)="deleteTemplate(t)" *ngIf="canChangeDept || t.department !== 'All'" style="color:var(--error-mid); padding:4px 8px;">Delete</button>
+        <button class="btn btn-ghost" (click)="deleteTemplate(t)" *ngIf="canChangeDept || t.department !== 'All'"
+          style="color:var(--error-mid); padding:4px 8px;">Delete</button>
       </div>
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end;">

@@ -1,0 +1,50 @@
+<!-- SVG Filter for Liquid Glass Refraction Effect -->
+<svg class="hidden" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="liquid-glass-refraction">
+      <!-- Generates fluid noise -->
+      <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="2" result="noise" />
+      <!-- Displaces the background graphic using the noise to simulate thick, warped glass -->
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="4" xChannelSelector="R" yChannelSelector="G" result="displaced" />
+      <feMerge>
+        <feMergeNode in="displaced" />
+      </feMerge>
+    </filter>
+  </defs>
+</svg>
+
+<!-- Component Wrapper with Localized Mesh Gradient -->
+<!-- This gradient is purely to give the liquid glass something to distort. -->
+<div class="mesh-backdrop flex items-center justify-center rounded-full p-1 relative shadow-inner overflow-hidden">
+  
+  <label class="relative flex items-center cursor-pointer w-16 h-8 rounded-full z-10 group">
+    <input 
+      type="checkbox" 
+      class="sr-only peer" 
+      [checked]="themeService.isDark()" 
+      (change)="themeService.toggle()" 
+      aria-label="Toggle Dark Mode">
+    
+    <!-- Liquid Glass Track -->
+    <div class="glass-track absolute inset-0 rounded-full border shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)] transition-all duration-300
+                border-white/40 bg-white/10 peer-checked:bg-black/20 peer-checked:border-white/20">
+    </div>
+
+    <!-- Liquid Glass Thumb -->
+    <div class="glass-thumb absolute left-1 w-6 h-6 rounded-full shadow-md transform transition-transform duration-300 ease-out flex items-center justify-center border
+                bg-gradient-to-br from-white/90 to-white/40 border-white/60 peer-checked:translate-x-8 peer-checked:border-white/20 peer-checked:from-gray-800/80 peer-checked:to-gray-600/40">
+      
+      <!-- Icons -->
+      <span class="material-symbols-outlined text-[13px] text-amber-500 transition-opacity duration-300 drop-shadow-sm" 
+            [class.opacity-0]="themeService.isDark()"
+            style="font-variation-settings: 'FILL' 1;">
+        light_mode
+      </span>
+      <span class="material-symbols-outlined text-[13px] text-blue-200 transition-opacity duration-300 absolute drop-shadow-sm" 
+            [class.opacity-0]="!themeService.isDark()"
+            style="font-variation-settings: 'FILL' 1;">
+        dark_mode
+      </span>
+    </div>
+  </label>
+</div>
