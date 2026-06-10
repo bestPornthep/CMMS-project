@@ -1,4 +1,4 @@
-﻿import { TranslatePipe } from '../../shared/pipes/translate.pipe';
+import { TranslatePipe } from '../../shared/pipes/translate.pipe';
 import { Component, computed, inject, signal, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -6,7 +6,7 @@ import { Router } from '@angular/router';
 import { PmService } from '../../core/services/pm.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
-import { PMTask, PMTaskFrequency, PMTaskStatus, Template } from '../../core/models/pm.model';
+import { PMTaskFrequency, PMTaskStatus, Template } from '../../core/models/pm.model';
 
 @Component({
   selector: 'app-pm-create',
@@ -309,7 +309,7 @@ export class PmCreateComponent {
       case 'Monthly': nextDueDate.setDate(nextDueDate.getDate() + 30); break;
       case 'Quarterly': nextDueDate.setDate(nextDueDate.getDate() + 90); break;
       case 'Yearly': nextDueDate.setDate(nextDueDate.getDate() + 365); break;
-      case 'Custom':
+      case 'Custom': {
         finalFrequency = `${this.customDurationValue} ${this.customDurationUnit}`;
         const val = this.customDurationValue;
         switch (this.customDurationUnit) {
@@ -319,6 +319,7 @@ export class PmCreateComponent {
           case 'Year(s)': nextDueDate.setFullYear(nextDueDate.getFullYear() + val); break;
         }
         break;
+      }
     }
 
     this.pmService.addPmTask({
