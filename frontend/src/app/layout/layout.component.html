@@ -1,4 +1,4 @@
-<div class="app">
+﻿<div class="app">
   <!-- SIDEBAR -->
   <aside class="sidebar">
     <div class="sidebar-header">
@@ -88,6 +88,9 @@
       </div>
 
       <div class="topbar-right">
+        <!-- Liquid Glass Dark Mode Toggle -->
+        <app-liquid-glass-toggle></app-liquid-glass-toggle>
+
         <!-- Language Toggle -->
         <button class="topbar-btn" style="font-weight: 700; font-size: 13px; font-family: monospace;" (click)="translationService.toggleLanguage()" [title]="translationService.currentLang() === 'en' ? 'Switch to Thai' : 'Switch to English'">
           {{ translationService.currentLang() === 'en' ? 'TH' : 'EN' }}
@@ -231,3 +234,4 @@
       </div>
   </div>
 </div>
+

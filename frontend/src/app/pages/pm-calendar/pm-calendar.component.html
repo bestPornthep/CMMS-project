@@ -1,4 +1,4 @@
-<div class="pm-calendar-page overflow-y-auto h-full">
+﻿<div class="pm-calendar-page overflow-y-auto h-full">
 
 
       <div class="page-header" data-enter>
@@ -21,7 +21,7 @@
             <div style="margin-left:auto;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
               <!-- Department Filter (Custom Dropdown) -->
               <div style="display:flex;align-items:center;gap:8px;">
-                <span style="font-size:12px;color:var(--text-muted);font-weight:600;">Dept:</span>
+                <span style="font-size:12px;color:var(--color-text-muted);font-weight:600;">Dept:</span>
                 <div class="custom-dropdown" [class.open]="dropdownOpen">
                   <button class="dropdown-trigger" [class.disabled]="!canChangeDept" (click)="toggleDropdown($event)" type="button" aria-haspopup="listbox" [attr.aria-expanded]="dropdownOpen">
                     <span class="material-symbols-outlined trigger-icon">domain</span>
@@ -58,17 +58,17 @@
               </div>
 
               <div style="display:flex;align-items:center;gap:12px;white-space:nowrap;">
-                <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);cursor:pointer;">
+                <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--color-text-muted);cursor:pointer;">
                   <input type="checkbox" [(ngModel)]="filterScheduled" style="accent-color:var(--color-info);cursor:pointer;">
                   <span style="width:8px;height:8px;border-radius:50%;background:var(--color-info);display:inline-block;"></span> Scheduled
                 </label>
-                <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);cursor:pointer;">
+                <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--color-text-muted);cursor:pointer;">
                   <input type="checkbox" [(ngModel)]="filterDone" style="accent-color:var(--color-success);cursor:pointer;">
                   <span style="width:8px;height:8px;border-radius:50%;background:var(--color-success);display:inline-block;"></span> Done
                 </label>
-                <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);cursor:pointer;">
-                  <input type="checkbox" [(ngModel)]="filterOverdue" style="accent-color:var(--error-mid);cursor:pointer;">
-                  <span style="width:8px;height:8px;border-radius:50%;background:var(--error-mid);display:inline-block;"></span> Overdue
+                <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--color-text-muted);cursor:pointer;">
+                  <input type="checkbox" [(ngModel)]="filterOverdue" style="accent-color:var(--color-error-mid);cursor:pointer;">
+                  <span style="width:8px;height:8px;border-radius:50%;background:var(--color-error-mid);display:inline-block;"></span> Overdue
                 </label>
               </div>
             </div>
@@ -103,50 +103,50 @@
 
         <!-- Right sidebar -->
         <div class="side-card" data-enter>
-          <div class="card" style="border-left:3px solid var(--error-mid);">
+          <div class="card" style="border-left:3px solid var(--color-error-mid);">
             <div class="card-header"><div class="card-title" style="color:var(--error);">⚠ Overdue PMs</div></div>
             <div class="card-body" style="padding-top:8px;padding-bottom:8px;">
               <div *ngFor="let t of overdueTasks()" class="overdue-item" (click)="goToRecord(t.id, true)" style="cursor: pointer; transition: background 0.2s ease; border-radius: 4px; padding: 10px 8px;" onmouseover="this.style.background='var(--bg-page)'" onmouseout="this.style.background='transparent'">
-                <div style="font-size:13px;font-weight:600;color:var(--text-primary);">{{ t.id }}</div>
+                <div style="font-size:13px;font-weight:600;color:var(--color-text-primary);">{{ t.id }}</div>
                 <div class="badge badge-error" style="font-size:10px;">{{ t.status }}</div>
               </div>
-              <div *ngIf="overdueTasks().length === 0" style="padding: 10px 0; color: var(--text-muted); font-size: 13px;">No overdue tasks.</div>
+              <div *ngIf="overdueTasks().length === 0" style="padding: 10px 0; color: var(--color-text-muted); font-size: 13px;">{{ 'No overdue tasks.' | tr }}</div>
             </div>
           </div>
 
           <div class="card">
-            <div class="card-header"><div class="card-title">Today's Schedule</div><span style="font-size:12px;color:var(--text-muted);" class="mono">{{ realToday | date:'MMM d' }}</span></div>
+            <div class="card-header"><div class="card-title">{{ 'Today's Schedule' | tr }}</div><span style="font-size:12px;color:var(--color-text-muted);" class="mono">{{ realToday | date:'MMM d' }}</span></div>
             <div class="card-body" style="padding-top:8px;padding-bottom:8px;">
               <div *ngFor="let t of todayTasks()" class="today-item" (click)="goToRecord(t.id, true)" style="cursor: pointer; transition: background 0.2s ease; border-radius: 4px; padding: 8px;" onmouseover="this.style.background='var(--bg-page)'" onmouseout="this.style.background='transparent'">
-                <div class="today-dot" style="background:var(--blue);"></div>
+                <div class="today-dot" style="background:var(--color-blue);"></div>
                 <div style="flex:1;min-width:0;">
-                  <div style="font-size:13px;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ t.title }}</div>
-                  <div style="font-size:11px;color:var(--text-muted);">{{ t.id }} · {{ t.department }}</div>
+                  <div style="font-size:13px;font-weight:600;color:var(--color-text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ t.title }}</div>
+                  <div style="font-size:11px;color:var(--color-text-muted);">{{ t.id }} · {{ t.department }}</div>
                 </div>
               </div>
-              <div *ngIf="todayTasks().length === 0" style="padding: 10px 0; color: var(--text-muted); font-size: 13px;">Nothing scheduled for today.</div>
+              <div *ngIf="todayTasks().length === 0" style="padding: 10px 0; color: var(--color-text-muted); font-size: 13px;">{{ 'Nothing scheduled for today.' | tr }}</div>
             </div>
           </div>
 
           <div class="card">
-            <div class="card-header"><div class="card-title">Month Summary</div></div>
+            <div class="card-header"><div class="card-title">{{ 'Month Summary' | tr }}</div></div>
             <div class="card-body">
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
                 <div style="text-align:center;padding:12px;background:var(--color-info-bg);border-radius:var(--radius-md);">
                   <div style="font-size:22px;font-weight:800;letter-spacing:-0.5px;color:var(--color-info);">{{ monthSummary().scheduled }}</div>
-                  <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Scheduled</div>
+                  <div style="font-size:11px;color:var(--color-text-muted);margin-top:2px;">{{ 'Scheduled' | tr }}</div>
                 </div>
                 <div style="text-align:center;padding:12px;background:var(--color-success-bg);border-radius:var(--radius-md);">
                   <div style="font-size:22px;font-weight:800;letter-spacing:-0.5px;color:var(--color-success);">{{ monthSummary().completed }}</div>
-                  <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Done</div>
+                  <div style="font-size:11px;color:var(--color-text-muted);margin-top:2px;">{{ 'Done' | tr }}</div>
                 </div>
                 <div style="text-align:center;padding:12px;background:var(--error-bg);border-radius:var(--radius-md);">
                   <div style="font-size:22px;font-weight:800;letter-spacing:-0.5px;color:var(--error);">{{ monthSummary().overdue }}</div>
-                  <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Overdue</div>
+                  <div style="font-size:11px;color:var(--color-text-muted);margin-top:2px;">{{ 'Overdue' | tr }}</div>
                 </div>
-                <div style="text-align:center;padding:12px;background:var(--bg-card-alt);border-radius:var(--radius-md);border:1px solid var(--border);">
-                  <div style="font-size:22px;font-weight:800;letter-spacing:-0.5px;color:var(--text-secondary);">{{ monthSummary().pendingApproval }}</div>
-                  <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">To Approve</div>
+                <div style="text-align:center;padding:12px;background:var(--color-bg-card-alt);border-radius:var(--radius-md);border:1px solid var(--color-border);">
+                  <div style="font-size:22px;font-weight:800;letter-spacing:-0.5px;color:var(--color-text-secondary);">{{ monthSummary().pendingApproval }}</div>
+                  <div style="font-size:11px;color:var(--color-text-muted);margin-top:2px;">{{ 'To Approve' | tr }}</div>
                 </div>
               </div>
             </div>
@@ -155,3 +155,5 @@
       </div>
     
 </div>
+
+

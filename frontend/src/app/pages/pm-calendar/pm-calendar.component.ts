@@ -1,3 +1,4 @@
+﻿import { TranslatePipe } from '../../shared/pipes/translate.pipe';
 import { Component, computed, inject, signal, HostListener } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -9,7 +10,7 @@ import { PMTask } from '../../core/models/pm.model';
 @Component({
   selector: 'app-pm-calendar',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, TranslatePipe],
   providers: [DatePipe],
   templateUrl: './pm-calendar.component.html',
   styleUrl: './pm-calendar.component.scss'
@@ -271,3 +272,4 @@ export class PmCalendarComponent {
     };
   });
 }
+
