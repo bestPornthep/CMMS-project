@@ -187,13 +187,13 @@
     .cal-dow{padding:10px;font-size:11px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;background:var(--bg-card);border-right:1px solid var(--border-soft);border-bottom:1px solid var(--border);text-align:center;}
     .cal-day{min-height:120px;padding:8px;border-right:1px solid var(--border-soft);border-bottom:1px solid var(--border-soft);background:var(--bg-card);transition:background var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);cursor:pointer;position:relative;}
     .cal-day:hover{background:var(--bg-page);box-shadow:inset 0 0 0 1px var(--border-strong);}
-    .cal-day.today{background:rgba(26,86,219,0.02);}
+    .cal-day.today{background:rgba(14,165,233,0.04);}
     .cal-day.other-month{background:var(--bg-page);opacity:0.6;}
     .cal-day.other-month:hover{opacity:0.8;}
     .cal-date{font-family:var(--font-sans);font-size:13px;font-weight:600;color:var(--text-secondary);line-height:1;display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;margin-bottom:6px;transition:all var(--dur-fast) var(--ease-out);}
-    .cal-day.today .cal-date{color:white;background:var(--blue);font-weight:700;box-shadow:0 2px 6px rgba(26,86,219,0.3);}
+    .cal-day.today .cal-date{color:white;background:var(--color-info-mid);font-weight:700;border-radius:50%;box-shadow:0 2px 8px rgba(14,165,233,0.45);}
     .cal-chips{display:flex;flex-direction:column;gap:4px;}
-    .cal-chip{font-size:10.5px;padding:4px 6px;border-radius:var(--radius-sm);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600;line-height:1.2;box-shadow:0 1px 2px rgba(0,0,0,0.02);border:1px solid transparent;transition:transform var(--dur-fast) var(--ease-out);}
+    .cal-chip{font-size:10.5px;padding:4px 8px;border-radius:var(--radius-md);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600;line-height:1.2;box-shadow:0 1px 2px rgba(0,0,0,0.02);border:1px solid transparent;transition:transform var(--dur-fast) var(--ease-out);}
     .cal-chip:hover{transform:translateY(-1px);box-shadow:0 3px 6px rgba(0,0,0,0.05);}
     .cal-chip.pm{background:var(--blue-light);color:var(--blue-text);border-color:rgba(26,86,219,0.1);}
     .cal-chip.completed{background:var(--success-bg);color:var(--success-text);border-color:rgba(16,185,129,0.1);}
