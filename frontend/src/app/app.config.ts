@@ -12,8 +12,16 @@ export function initializeApp(authService: AuthService, pmService: PmService, th
   return async () => {
     // ThemeService constructor already applied the theme; nothing extra needed.
     void themeService;
-    await authService.init();
-    await pmService.loadData();
+    try {
+      await authService.init();
+    } catch (e) {
+      console.error('Auth init failed', e);
+    }
+    try {
+      await pmService.loadData();
+    } catch (e) {
+      console.error('PM data load failed', e);
+    }
   };
 }
 

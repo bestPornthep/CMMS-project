@@ -28,7 +28,22 @@ export class PmService {
     ]).then(([assets, tasks, templates]) => {
       this.assetsSignal.set(assets);
       this.pmTasksSignal.set(tasks);
-      this.templatesSignal.set(templates);
+      
+      const mockDefaultTemplates: Template[] = [
+        { id: 'def-fac-1', name: 'Standard HVAC Inspection', department: 'Facility', isDefault: true, checklist: [{text: 'Check filters', requiresPhoto: true}, {text: 'Measure airflow', requiresPhoto: false}] },
+        { id: 'def-fac-2', name: 'Monthly Boiler PM', department: 'Facility', isDefault: true, checklist: [{text: 'Check pressure valve', requiresPhoto: true}, {text: 'Inspect burner', requiresPhoto: false}] },
+        { id: 'def-mech-1', name: 'CNC Daily Calibration', department: 'Mechanic', isDefault: true, checklist: [{text: 'Check spindle alignment', requiresPhoto: true}, {text: 'Lubricate guideways', requiresPhoto: false}] },
+        { id: 'def-mech-2', name: 'Conveyor Belt Tension', department: 'Mechanic', isDefault: true, checklist: [{text: 'Check belt tension', requiresPhoto: true}, {text: 'Inspect rollers', requiresPhoto: false}] },
+        { id: 'def-manu-1', name: 'Assembly Line Start-up', department: 'Manufacturing', isDefault: true, checklist: [{text: 'Test emergency stops', requiresPhoto: true}, {text: 'Verify sensor alignment', requiresPhoto: false}] },
+        { id: 'def-manu-2', name: 'Weekly SMT Maintenance', department: 'Manufacturing', isDefault: true, checklist: [{text: 'Clean nozzles', requiresPhoto: true}, {text: 'Check feeder tension', requiresPhoto: false}] },
+        { id: 'def-main-1', name: 'General Motor Lubrication', department: 'Maintenance', isDefault: true, checklist: [{text: 'Apply grease to bearings', requiresPhoto: true}, {text: 'Check for abnormal noise', requiresPhoto: false}] },
+        { id: 'def-main-2', name: 'Hydraulic System Check', department: 'Maintenance', isDefault: true, checklist: [{text: 'Check fluid levels', requiresPhoto: true}, {text: 'Inspect hoses for leaks', requiresPhoto: false}] },
+        { id: 'def-test-1', name: 'Tester Calibration Matrix', department: 'Test', isDefault: true, checklist: [{text: 'Run self-test diagnostic', requiresPhoto: true}, {text: 'Verify calibration certs', requiresPhoto: false}] },
+        { id: 'def-test-2', name: 'Probe Pin Inspection', department: 'Test', isDefault: true, checklist: [{text: 'Check for bent pins', requiresPhoto: true}, {text: 'Clean fixture surface', requiresPhoto: false}] },
+      ];
+      
+      // Filter out any templates from API that might have same IDs to avoid duplicates if backend starts returning them
+      this.templatesSignal.set([...mockDefaultTemplates, ...templates]);
     });
   }
 
@@ -80,6 +95,9 @@ export class PmService {
       throw new Error('Can only save templates for your own department.');
     }
 
+    tpl.isDefault = false;
+    tpl.createdBy = user.employeeId;
+
     this.api.createTemplate(tpl).then(saved => {
       this.templatesSignal.update(t => [...t, saved]);
     });
@@ -89,6 +107,7 @@ export class PmService {
     const user = this.authService.currentUser();
     if (!user) throw new Error('Unauthorized.');
     if (!tpl.id) throw new Error('Cannot update template without an id.');
+    if (tpl.isDefault) throw new Error('Cannot modify default templates.');
     if ((user.baseRole === 'engineer' || user.baseRole === 'technician') && tpl.department !== user.department) {
       throw new Error('Can only update templates for your own department.');
     }
@@ -101,6 +120,7 @@ export class PmService {
   deleteTemplate(tpl: Template): void {
     const user = this.authService.currentUser();
     if (!user) throw new Error('Unauthorized.');
+    if (tpl.isDefault) throw new Error('Cannot delete default templates.');
     if ((user.baseRole === 'engineer' || user.baseRole === 'technician') && tpl.department !== user.department) {
       throw new Error('Can only delete templates for your own department.');
     }

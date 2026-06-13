@@ -1,4 +1,4 @@
-﻿import { TranslatePipe } from '../../shared/pipes/translate.pipe';
+import { TranslatePipe } from '../../shared/pipes/translate.pipe';
 import { Component, computed, inject, signal, HostListener } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -97,7 +97,27 @@ export class PmCalendarComponent {
     const task = this.pmService.pmTasks().find(t => t.id === taskId);
     if (!task) return;
     
-    if (this.currentUser?.baseRole !== 'technician') {
+    // Authorization check: Engineers can see all dept tasks on calendar, but can only click/open tasks they own
+    const user = this.currentUser;
+    if (user?.baseRole === 'engineer') {
+      const allowedProducts = this.authService.getAccessibleProducts('pm.calendar.view');
+      const ownsProduct = allowedProducts.includes(task.productId || '') || (user.ownedProducts && user.ownedProducts.includes('*'));
+      
+      let createdByOtherEngineer = false;
+      if (task.createdBy && task.createdBy !== user.employeeId) {
+        const creator = this.authService.getUser(task.createdBy);
+        if (creator && creator.baseRole === 'engineer') {
+          createdByOtherEngineer = true;
+        }
+      }
+
+      if (!ownsProduct || createdByOtherEngineer) {
+        // Visual only, not authorized to view details
+        return;
+      }
+    }
+
+    if (user?.baseRole !== 'technician') {
       if (task.status === 'Pending Approval') {
         // Redirect to Approval Records (pm-record action tab)
         this.router.navigate(['/pm-record'], { queryParams: { task: taskId } });
@@ -152,15 +172,9 @@ export class PmCalendarComponent {
     if (user.baseRole === 'technician') {
       tasks = tasks.filter(t => t.department === user.department && t.assignedTo === user.employeeId);
     } else if (user.baseRole === 'engineer') {
-      const allowedProducts = this.authService.getAccessibleProducts('pm.calendar.view');
-      tasks = tasks.filter(t => t.department === user.department && allowedProducts.includes(t.productId || ''));
-      tasks = tasks.filter(t => {
-        if (t.createdBy && t.createdBy !== user.employeeId) {
-          const creator = this.authService.getUser(t.createdBy);
-          if (creator && creator.baseRole === 'engineer') return false;
-        }
-        return true;
-      });
+      // Engineers see all tasks in their department so they can gauge technician workload.
+      // Click access is restricted in goToRecord()
+      tasks = tasks.filter(t => t.department === user.department);
     } else {
       // Manager/Admin uses the dropdown
       const dept = this.selectedDept();

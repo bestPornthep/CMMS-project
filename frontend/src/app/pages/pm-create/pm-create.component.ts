@@ -61,11 +61,17 @@ export class PmCreateComponent {
   showSaveTemplateModal = false;
   showManageTemplateModal = false;
   newTemplateName = '';
-  templates = computed(() => {
+  defaultTemplates = computed(() => {
     const all = this.pmService.templates();
-    if (this.canChangeDept) return all;
-    return all.filter(t => t.department === 'All' || t.department === this.currentUser?.department);
+    return all.filter(t => t.isDefault && (this.canChangeDept || t.department === 'All' || t.department === this.currentUser?.department));
   });
+
+  personalTemplates = computed(() => {
+    const all = this.pmService.templates();
+    return all.filter(t => !t.isDefault && t.createdBy === this.currentUser?.employeeId);
+  });
+
+  templates = computed(() => [...this.defaultTemplates(), ...this.personalTemplates()]);
   dropdownOpen = false;
 
   openDropdown: string | null = null;
@@ -255,6 +261,9 @@ export class PmCreateComponent {
     this.showSaveTemplateModal = false;
     this.showManageTemplateModal = false;
     this.newTemplateName = '';
+    // Clear loaded template state so user doesn't accidentally overwrite the new template
+    this.loadedTemplateId = null;
+    this.loadedTemplateName = null;
   }
 
   deleteTemplate(tpl: Template) {

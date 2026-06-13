@@ -317,7 +317,7 @@ export class PmAssignComponent {
   newDelegationProducts = signal<string[]>([]);
   newDelegationDuration = signal<number>(30);
 
-  grantDelegation() {
+  async grantDelegation() {
     const users = this.newDelegationUsers();
     const products = this.newDelegationProducts();
     const duration = Number(this.newDelegationDuration());
@@ -352,7 +352,17 @@ export class PmAssignComponent {
     const validUntil = new Date();
     validUntil.setDate(validUntil.getDate() + duration);
 
-    this.authService.grantDelegation(users, products, validUntil);
+    // Call individually so the backend generates separate delegation IDs
+    // allowing them to be revoked individually later without touching the backend.
+    let timeOffset = 0;
+    for (const u of users) {
+      for (const p of products) {
+        const uniqueValidUntil = new Date(validUntil.getTime() + timeOffset);
+        await this.authService.grantDelegation([u], [p], uniqueValidUntil);
+        timeOffset += 100; // Stagger by 100ms to force backend to create separate records if it groups by timestamp
+      }
+    }
+    
     this.delegations.set(this.authService.getActiveDelegations());
     
     // Reset form
@@ -361,8 +371,8 @@ export class PmAssignComponent {
     this.newDelegationDuration.set(30);
   }
 
-  revokeDelegation(id: string) {
-    this.authService.revokeDelegation(id);
+  async revokeDelegation(id: string) {
+    await this.authService.revokeDelegation(id);
     this.delegations.set(this.authService.getActiveDelegations());
   }
 

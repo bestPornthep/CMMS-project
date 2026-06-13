@@ -6,7 +6,6 @@ import { PmService } from '../core/services/pm.service';
 import { TranslationService } from '../core/services/translation.service';
 import { TranslatePipe } from '../shared/pipes/translate.pipe';
 import { ToastService } from '../core/services/toast.service';
-import { ToastComponent } from '../shared/components/toast/toast.component';
 import { ThemeService } from '../core/services/theme.service';
 import { LiquidGlassToggleComponent } from '../shared/components/liquid-glass-toggle/liquid-glass-toggle.component';
 import { filter, map, mergeMap } from 'rxjs/operators';
@@ -14,7 +13,7 @@ import { filter, map, mergeMap } from 'rxjs/operators';
 @Component({
   selector: 'app-layout',
   standalone: true,
-  imports: [CommonModule, RouterModule, TranslatePipe, ToastComponent, LiquidGlassToggleComponent],
+  imports: [CommonModule, RouterModule, TranslatePipe, LiquidGlassToggleComponent],
   templateUrl: './layout.component.html',
   styleUrls: []
 })
@@ -151,9 +150,27 @@ export class LayoutComponent {
           notFoundMsg = 'Work order not found in your approval scope. If it is currently active, please check the Assigned PMs page.';
           if (task) {
             const isApprovalStatus = task.status === 'Pending Approval' || task.status === 'Done';
-            const isSameDept = user.baseRole === 'engineer' ? task.department === user.department : true;
-            if (isApprovalStatus && isSameDept) {
-              isAllowed = true;
+            
+            if (user.baseRole === 'engineer') {
+              const allowedProducts = this.authService.getAccessibleProducts('pm.calendar.view');
+              const ownsProduct = allowedProducts.includes(task.productId || '') || (user.ownedProducts && user.ownedProducts.includes('*'));
+              
+              let createdByOtherEngineer = false;
+              if (task.createdBy && task.createdBy !== user.employeeId) {
+                const creator = this.authService.getUser(task.createdBy);
+                if (creator && creator.baseRole === 'engineer') {
+                  createdByOtherEngineer = true;
+                }
+              }
+
+              if (isApprovalStatus && task.department === user.department && ownsProduct && !createdByOtherEngineer) {
+                isAllowed = true;
+              }
+            } else {
+              // Manager
+              if (isApprovalStatus) {
+                isAllowed = true;
+              }
             }
           }
         } else if (user.baseRole === 'technician') {

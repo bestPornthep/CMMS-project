@@ -12,6 +12,7 @@ export interface Template {
   id?: string;
   name: string;
   department: string;
+  isDefault?: boolean;
   checklist: { text: string; requiresPhoto?: boolean }[];
   createdBy?: string;
 }

@@ -1,4 +1,4 @@
-﻿@use "tailwindcss";
+@use "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500&display=swap');
 
 @theme {
@@ -1546,4 +1546,28 @@ html { transition: background-color 260ms ease; }
 .theme-toggle--dark .theme-toggle__thumb {
   transform: translateX(27px);
   background: #c9d1d9;
+}
+
+/* ── Print Styles ─────────────────────────────────── */
+@media print {
+  .sidebar, .topbar {
+    display: none !important;
+  }
+  
+  .app, body, html {
+    height: auto !important;
+    overflow: visible !important;
+    display: block !important;
+    background: white !important;
+  }
+  
+  .canvas {
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  
+  .no-print {
+    display: none !important;
+  }
 }

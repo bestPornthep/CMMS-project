@@ -87,6 +87,7 @@
 | `id` | `UUID PK DEFAULT gen_random_uuid()` | |
 | `name` | `VARCHAR(100) NOT NULL` | |
 | `department` | `VARCHAR(50) NOT NULL` | |
+| `is_default` | `BOOLEAN DEFAULT false` | true for system-provided default templates |
 | `checklist` | `JSONB NOT NULL` | `[{text, requiresPhoto?}]` |
 | `created_by` | `VARCHAR(20) FK → users` | |
 | `created_at` | `TIMESTAMP DEFAULT NOW()` | |
@@ -173,9 +174,9 @@ Base URL: `${environment.apiUrl}/api/v1`
 
 | Method | Path | Body / Query | Response | Permission |
 |--------|------|-------------|----------|------------|
-| `GET` | `/templates` | `?department=Test` | `Template[]` | Scoped by department |
-| `POST` | `/templates` | `{ name, department, checklist }` | `Template` | `pm.create.submit` + same dept check |
-| `DELETE` | `/templates/:id` | — | `204` | Same department only |
+| `GET` | `/templates` | `?department=Test` | `Template[]` | Scoped by department. Returns system defaults (`is_default=true`) AND user's personal templates (`created_by=CurrentUser`). |
+| `POST` | `/templates` | `{ name, department, checklist }` | `Template` | `pm.create.submit` + same dept check. Created templates must be `is_default=false`. |
+| `DELETE` | `/templates/:id` | — | `204` | Same department only, and `is_default` must be false. |
 
 ### Delegations
 
@@ -503,6 +504,7 @@ model Template {
   id         String   @id @default(uuid())
   name       String
   department String
+  isDefault  Boolean  @default(false) @map("is_default")
   checklist  Json
   createdBy  String?  @map("created_by")
   createdAt  DateTime @default(now()) @map("created_at")

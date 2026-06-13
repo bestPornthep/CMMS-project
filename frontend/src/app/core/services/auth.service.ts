@@ -189,7 +189,7 @@ export class AuthService {
         if (dp.status !== 'active') continue;
         if (dp.validUntil && new Date(dp.validUntil) < new Date()) continue;
         const id = dp.id || `DEL-${this.generateId()}`;
-        const key = `${id}::${u.employeeId}`;
+        const key = `${id}::${u.employeeId}::${dp.productId}`;
         if (!map.has(key)) {
           map.set(key, { id, employeeId: u.employeeId, user: u.name, products: new Set([dp.productId]), validUntil: dp.validUntil });
         } else {
