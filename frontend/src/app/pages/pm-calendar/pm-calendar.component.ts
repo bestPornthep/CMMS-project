@@ -27,6 +27,10 @@ export class PmCalendarComponent {
   realToday = new Date();
   dropdownOpen = false;
   highlightedTaskId = signal<string | null>(null);
+
+  editingTask = signal<PMTask | null>(null);
+  editDescription: string = '';
+  editEntireSeries: boolean = true;
   
   // Filters
   selectedDept = signal('All');
@@ -125,9 +129,21 @@ export class PmCalendarComponent {
         // Only Done task gets the modal
         this.pmService.viewedTaskGlobal.set(task);
       } else {
-        // Scheduled and Overdue MUST NOT show modal
+        // Scheduled and Overdue
         if (fromSidebar) {
           this.highlightTask(taskId);
+        } else {
+          // Open edit modal for Pending/Scheduled tasks
+          this.editingTask.set(task);
+          // Only show 'edit entire series' option if it is part of a series
+          const seriesMatch = task.description?.match(/\[SeriesID:\s*([^\]]+)\]/);
+          this.editEntireSeries = !!seriesMatch;
+          
+          let displayDesc = task.description || '';
+          if (seriesMatch) {
+            displayDesc = displayDesc.replace(/\[SeriesID:\s*[^\]]+\]\n?/, '');
+          }
+          this.editDescription = displayDesc;
         }
       }
       return;
@@ -135,6 +151,29 @@ export class PmCalendarComponent {
 
     // Technicians always go to pm-record to execute
     this.router.navigate(['/pm-record'], { queryParams: { task: taskId } });
+  }
+
+  closeEditModal() {
+    this.editingTask.set(null);
+  }
+
+  async saveEditTask() {
+    const task = this.editingTask();
+    if (!task) return;
+
+    const seriesMatch = task.description?.match(/\[SeriesID:\s*([^\]]+)\]/);
+    const seriesId = seriesMatch ? seriesMatch[1] : null;
+
+    if (this.editEntireSeries && seriesId) {
+      await this.pmService.updatePmSchedule(seriesId, {
+        description: this.editDescription
+      });
+    } else {
+      const fullDesc = seriesId ? `[SeriesID: ${seriesId}]\n${this.editDescription}` : this.editDescription;
+      this.pmService.updateTask({ ...task, description: fullDesc });
+    }
+
+    this.closeEditModal();
   }
 
   highlightTask(taskId: string) {

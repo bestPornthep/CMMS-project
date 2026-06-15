@@ -1,4 +1,4 @@
-﻿import { TranslatePipe } from '../../shared/pipes/translate.pipe';
+import { TranslatePipe } from '../../shared/pipes/translate.pipe';
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -100,7 +100,41 @@ export class PmRecordComponent implements OnInit {
     if (!user) return [];
     
     if (user.baseRole === 'technician') {
-      return tasks.filter(t => (t.status === 'Pending' || t.status === 'In Progress' || t.status === 'Overdue') && t.assignedTo === user.employeeId);
+      const now = new Date();
+      const lookahead = new Date();
+      lookahead.setDate(now.getDate() + 14); // Hide future tasks more than 14 days out
+
+      const techTasks = tasks.filter(t => 
+        (t.status === 'Pending' || t.status === 'In Progress' || t.status === 'Overdue') && 
+        t.assignedTo === user.employeeId &&
+        (!t.nextDueDate || new Date(t.nextDueDate) <= lookahead)
+      );
+      
+      // Sort tasks first so the earliest task in a series is always chosen as the representative
+      techTasks.sort((a, b) => {
+        const timeA = a.nextDueDate ? new Date(a.nextDueDate).getTime() : 0;
+        const timeB = b.nextDueDate ? new Date(b.nextDueDate).getTime() : 0;
+        return timeA - timeB;
+      });
+
+      // Group by SeriesID so recurring schedules only appear once
+      const grouped: PMTask[] = [];
+      const seenSeries = new Set<string>();
+      
+      for (const task of techTasks) {
+        const seriesMatch = task.description?.match(/\[SeriesID:\s*([^\]]+)\]/);
+        if (seriesMatch) {
+          const seriesId = seriesMatch[1];
+          if (!seenSeries.has(seriesId)) {
+            seenSeries.add(seriesId);
+            grouped.push(task);
+          }
+        } else {
+          grouped.push(task);
+        }
+      }
+      
+      return grouped;
     }
     else {
       let filtered = tasks.filter(t => t.status === 'Pending Approval');
@@ -270,8 +304,6 @@ export class PmRecordComponent implements OnInit {
   getDisplayChecklist(task: PMTask | null): any[] {
     if (!task) return [];
     
-    // For Approvers viewing a task that is currently In Progress (rejected),
-    // we want to display the snapshot of what the tech submitted instead of the empty checklist.
     if (this.isApprover && task.status === 'In Progress' && task.recordNotes) {
        const notes = this.getParsedNotes(task.recordNotes);
        const rejectedNotes = notes.filter(n => n.type === 'rejected' && n.checklist && n.checklist.length > 0);
@@ -281,6 +313,11 @@ export class PmRecordComponent implements OnInit {
     }
     
     return task.checklist || [];
+  }
+
+  getCleanDescription(desc?: string): string {
+    if (!desc) return '';
+    return desc.replace(/\[SeriesID:\s*[^\]]+\]\n?/g, '').trim();
   }
 
   getFallbackRejectedAt(t: PMTask): Date | undefined {

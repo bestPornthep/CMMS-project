@@ -87,13 +87,18 @@
                   <div *ngFor="let task of day.tasks" 
                        class="cal-chip" 
                        [id]="'task-' + task.id"
-                       (click)="goToRecord(task.id, false)"
-                       [style.cursor]="(task.status === 'Pending Approval' || task.status === 'Done' || currentUser?.baseRole === 'technician') ? 'pointer' : 'default'"
+                       (click)="goToRecord(task.id, false); $event.stopPropagation()"
+                       style="cursor: pointer; display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 4px; box-sizing: border-box;"
                        [class.highlight-animation]="highlightedTaskId() === task.id"
-                       [class.pm]="task.status !== 'Done' && task.status !== 'Overdue'" 
+                       [class.pm]="task.status === 'Pending' || task.status === 'In Progress'"
+                       [class.warning]="task.status === 'Pending Approval'"
                        [class.completed]="task.status === 'Done'" 
                        [class.overdue]="task.status === 'Overdue'">
-                    {{ task.id }}
+                    <div style="display: flex; align-items: center; gap: 4px; overflow: hidden;">
+                      <span class="material-symbols-outlined" *ngIf="task.description?.includes('[SeriesID:')" style="font-size: 11px;">repeat</span>
+                      <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ task.assetId || task.id }}</span>
+                    </div>
+                    <span style="opacity: 0.7; font-size: 9px; flex-shrink: 0;">{{ task.frequency }}</span>
                   </div>
                 </div>
               </div>

@@ -179,8 +179,8 @@
         </div>
 
         <div *ngIf="viewedTask.description"
-          style="padding:12px; background:var(--color-blue-light); border-left:3px solid var(--color-blue-DEFAULT); border-radius:4px; font-size:13px; color:var(--color-blue-text);">
-          {{ viewedTask.description }}
+          style="margin-top: 16px; padding: 12px; background: var(--bg-card); border-radius: 8px; font-size: 14px; color: var(--text-secondary); line-height: 1.5; white-space: pre-wrap;">
+          {{ getCleanDescription(viewedTask.description) }}
         </div>
 
         <!-- Checklist (Only show if completed or in review) -->

@@ -17,6 +17,23 @@ export interface Template {
   createdBy?: string;
 }
 
+export interface PMSchedule {
+  id: string;
+  title: string;
+  description: string;
+  frequency: PMTaskFrequency;
+  assetId: string;
+  productId?: string;
+  department?: string;
+  estimatedHours: number;
+  checklist?: { text: string; requiresPhoto?: boolean }[];
+  partsRequired?: string[];
+  assignedTo?: string;
+  createdBy?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
 export interface PMTask {
   id: string;
   title: string;
@@ -27,6 +44,7 @@ export interface PMTask {
   estimatedHours: number;
   actualHours?: number;
   status: PMTaskStatus;
+  scheduleId?: string;
 
   productId?: string;
   department?: string;

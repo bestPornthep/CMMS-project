@@ -65,6 +65,20 @@
               </div>
           </div>
           <div class="form-group">
+            <label class="form-label">{{ 'Schedule Type' | tr | uppercase }}</label>
+            <div style="display: flex; gap: 16px; align-items: center; background: var(--color-bg-page); padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--color-border-soft);">
+              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13.5px; color: var(--color-text-primary);">
+                <input type="radio" [value]="true" [(ngModel)]="isRecurring" name="scheduleType" style="cursor: pointer;" />
+                Recurring Schedule
+              </label>
+              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13.5px; color: var(--color-text-primary);">
+                <input type="radio" [value]="false" [(ngModel)]="isRecurring" name="scheduleType" style="cursor: pointer;" />
+                One-Time Task
+              </label>
+            </div>
+          </div>
+          
+          <div class="form-group">
             <label class="form-label">{{ 'PM TYPE' | tr }}</label>
             <div class="c-dropdown form-dropdown" [class.open]="openDropdown === 'type'" (click)="toggleCustomDropdown('type', $event)">
               <div class="c-dropdown-trigger">
@@ -238,8 +252,13 @@
         <div class="preview-row"><span class="preview-label">{{ 'EST. TIME' | tr }}</span><span class="preview-val">{{ estimatedHours }} hrs</span></div>
         <div class="preview-row"><span class="preview-label">{{ 'Parts' | tr | uppercase }}</span><span class="preview-val">{{ parts().length }} required</span></div>
         <div style="margin-top:20px;">
-          <button class="btn btn-primary" (click)="submitForm()" style="width:100%;">
-            <span class="material-symbols-outlined">add_circle</span>{{ 'Create PM' | tr }}
+          <button class="btn btn-primary" (click)="submitForm()" style="width:100%; position: relative;" [disabled]="isGenerating">
+            <span class="material-symbols-outlined" *ngIf="!isGenerating">add_circle</span>
+            <span *ngIf="!isGenerating">{{ isRecurring ? ('Create Schedule' | tr) : ('Create PM' | tr) }}</span>
+            <span *ngIf="isGenerating" style="display: flex; align-items: center; gap: 8px;">
+              <span class="material-symbols-outlined" style="animation: spin 1s linear infinite;">autorenew</span>
+              {{ 'Generating Tasks...' | tr }}
+            </span>
           </button>
         </div>
       </div>

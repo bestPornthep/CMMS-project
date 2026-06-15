@@ -25,6 +25,9 @@ export class PmCreateComponent {
   pmType: PMTaskFrequency = 'Monthly';
   customDurationValue: number = 1;
   customDurationUnit: string = 'month(s)';
+  
+  isRecurring: boolean = true;
+  isGenerating: boolean = false;
 
   productId: string = '';
   department: string = '';
@@ -331,22 +334,44 @@ export class PmCreateComponent {
       }
     }
 
-    this.pmService.addPmTask({
-      productId: this.productId,
-      department: this.department,
-      assetId: this.assetId,
-      title: selectedAsset?.name || 'New Asset PM',
-      description: this.description,
-      frequency: finalFrequency,
-      nextDueDate: nextDueDate,
-      estimatedHours: this.estimatedHours,
-      status: 'Pending' as PMTaskStatus,
-      createdBy: this.authService.currentUser()?.employeeId,
-      checklist: this.checklist().map(item => ({ text: item.text, done: false, requiresPhoto: item.requiresPhoto })),
-      partsRequired: [...this.parts()]
-    });
+    this.isGenerating = true;
 
-    this.router.navigate(['/pm-assign']);
+    try {
+      if (this.isRecurring) {
+        await this.pmService.addPmSchedule({
+          id: '', // Will be ignored by shim
+          title: selectedAsset?.name || 'New Asset PM',
+          description: this.description,
+          frequency: finalFrequency,
+          assetId: this.assetId,
+          productId: this.productId,
+          department: this.department,
+          estimatedHours: this.estimatedHours,
+          checklist: this.checklist().map(item => ({ text: item.text, requiresPhoto: item.requiresPhoto })),
+          partsRequired: [...this.parts()],
+          assignedTo: undefined,
+          createdBy: this.authService.currentUser()?.employeeId
+        });
+      } else {
+        this.pmService.addPmTask({
+          productId: this.productId,
+          department: this.department,
+          assetId: this.assetId,
+          title: selectedAsset?.name || 'New Asset PM',
+          description: this.description,
+          frequency: finalFrequency,
+          nextDueDate: nextDueDate,
+          estimatedHours: this.estimatedHours,
+          status: 'Pending' as PMTaskStatus,
+          createdBy: this.authService.currentUser()?.employeeId,
+          checklist: this.checklist().map(item => ({ text: item.text, done: false, requiresPhoto: item.requiresPhoto })),
+          partsRequired: [...this.parts()]
+        });
+      }
+    } finally {
+      this.isGenerating = false;
+      this.router.navigate(['/pm-assign']);
+    }
   }
 }
 

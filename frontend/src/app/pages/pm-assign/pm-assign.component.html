@@ -92,7 +92,12 @@
                 <div style="font-weight:500;">{{ task.title }}</div>
                 <div style="font-size:11px;color:var(--text-muted);">{{ task.assetId }}</div>
               </td>
-              <td><span class="badge badge-info">{{ task.frequency }}</span></td>
+              <td>
+                <span class="badge badge-info" style="display: inline-flex; align-items: center; gap: 4px;">
+                  <span class="material-symbols-outlined" *ngIf="task.description?.includes('[SeriesID:')" style="font-size: 14px;">repeat</span>
+                  {{ task.frequency }}
+                </span>
+              </td>
               <td style="color:var(--text-secondary);font-weight:500;font-size:12px;">{{ getCreatorName(task.createdBy) }}</td>
               <td style="color:var(--error-mid);font-weight:600;font-size:12px;">{{ task.nextDueDate | date: (task.frequency.includes('hour') ? 'MMM d, yyyy, h:mm a' : 'MMM d, yyyy') }}</td>
               <td>
@@ -157,7 +162,12 @@
                 <div style="font-weight:500;">{{ task.title }}</div>
                 <div style="font-size:11px;color:var(--text-muted);">{{ task.assetId }}</div>
               </td>
-              <td><span class="badge badge-info">{{ task.frequency }}</span></td>
+              <td>
+                <span class="badge badge-info" style="display: inline-flex; align-items: center; gap: 4px;">
+                  <span class="material-symbols-outlined" *ngIf="task.description?.includes('[SeriesID:')" style="font-size: 14px;">repeat</span>
+                  {{ task.frequency }}
+                </span>
+              </td>
               <td style="color:var(--text-secondary);font-weight:500;font-size:12px;">{{ getCreatorName(task.createdBy) }}</td>
               <td style="color:var(--text-secondary);font-weight:500;font-size:12px;">{{ task.nextDueDate | date: (task.frequency.includes('hour') ? 'MMM d, yyyy, h:mm a' : 'MMM d, yyyy') }}</td>
               <td>

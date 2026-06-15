@@ -25,9 +25,9 @@ export class LayoutComponent {
   private activatedRoute = inject(ActivatedRoute);
   private toast = inject(ToastService);
   themeService = inject(ThemeService);
-  
+
   user = this.authService.currentUser;
-  
+
   currentSection = signal('Overview');
   currentTitle = signal('Dashboard');
 
@@ -38,7 +38,7 @@ export class LayoutComponent {
     const user = this.user();
     const tasks = this.pmService.pmTasks();
     if (!user) return [];
-    
+
     let notifs: any[] = [];
 
     // 1. Overdue Tasks
@@ -49,14 +49,14 @@ export class LayoutComponent {
       const allowedProducts = this.authService.getAccessibleProducts('pm.record.submit');
       overdue = overdue.filter(t => t.department === user.department && allowedProducts.includes(t.productId || ''));
       overdue = overdue.filter(t => {
-         if (t.createdBy && t.createdBy !== user.employeeId) {
-            const creator = this.authService.getUser(t.createdBy);
-            if (creator && creator.baseRole === 'engineer') return false;
-         }
-         return true;
+        if (t.createdBy && t.createdBy !== user.employeeId) {
+          const creator = this.authService.getUser(t.createdBy);
+          if (creator && creator.baseRole === 'engineer') return false;
+        }
+        return true;
       });
     }
-    
+
     notifs = notifs.concat(overdue.map(t => ({
       id: t.id,
       type: 'overdue',
@@ -84,11 +84,11 @@ export class LayoutComponent {
         const allowedProducts = this.authService.getAccessibleProducts('pm.record.submit');
         pending = pending.filter(t => t.department === user.department && allowedProducts.includes(t.productId || ''));
         pending = pending.filter(t => {
-           if (t.createdBy && t.createdBy !== user.employeeId) {
-              const creator = this.authService.getUser(t.createdBy);
-              if (creator && creator.baseRole === 'engineer') return false;
-           }
-           return true;
+          if (t.createdBy && t.createdBy !== user.employeeId) {
+            const creator = this.authService.getUser(t.createdBy);
+            if (creator && creator.baseRole === 'engineer') return false;
+          }
+          return true;
         });
       }
 
@@ -97,6 +97,38 @@ export class LayoutComponent {
         type: 'approval',
         title: `Pending Approval: ${t.id}`,
         message: `Task for asset ${t.assetId} awaits your approval.`,
+        read: false
+      })));
+    }
+
+    // 4. Newly Assigned Tasks for Technicians
+    if (user.baseRole === 'technician') {
+      const assigned = tasks.filter(t => t.assignedTo === user.employeeId && t.status === 'In Progress' && (!t.recordNotes || !t.recordNotes.includes('[Rejected')));
+      
+      const groupedAssigned: any[] = [];
+      const seenSeriesAssigned = new Set<string>();
+      
+      // Sort by due date first so we get the most immediate one
+      assigned.sort((a, b) => new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime());
+
+      for (const t of assigned) {
+        const seriesMatch = t.description?.match(/\[SeriesID:\s*([^\]]+)\]/);
+        if (seriesMatch) {
+          const seriesId = seriesMatch[1];
+          if (!seenSeriesAssigned.has(seriesId)) {
+            seenSeriesAssigned.add(seriesId);
+            groupedAssigned.push(t);
+          }
+        } else {
+          groupedAssigned.push(t);
+        }
+      }
+
+      notifs = notifs.concat(groupedAssigned.map(t => ({
+        id: t.id,
+        type: 'assigned',
+        title: `New Assignment: ${t.id}`,
+        message: `You have been assigned to PM on asset ${t.assetId}.`,
         read: false
       })));
     }
@@ -124,7 +156,7 @@ export class LayoutComponent {
       if (data['title']) this.currentTitle.set(data['title']);
     });
   }
-  
+
   // Expose permission check for sidebar links
   hasPermission(permission: string): boolean {
     return this.authService.hasPermission(permission);
@@ -141,55 +173,59 @@ export class LayoutComponent {
     if (val) {
       const task = this.pmService.pmTasks().find(t => t.id === val || t.id.includes(val));
       const user = this.user();
-      
+
       let isAllowed = false;
       let notFoundMsg = 'Work order not found.';
-      
-      if (user) {
-        if (user.baseRole === 'manager' || user.baseRole === 'engineer') {
-          notFoundMsg = 'Work order not found in your approval scope. If it is currently active, please check the Assigned PMs page.';
-          if (task) {
-            const isApprovalStatus = task.status === 'Pending Approval' || task.status === 'Done';
-            
-            if (user.baseRole === 'engineer') {
-              const allowedProducts = this.authService.getAccessibleProducts('pm.calendar.view');
-              const ownsProduct = allowedProducts.includes(task.productId || '') || (user.ownedProducts && user.ownedProducts.includes('*'));
-              
-              let createdByOtherEngineer = false;
-              if (task.createdBy && task.createdBy !== user.employeeId) {
-                const creator = this.authService.getUser(task.createdBy);
-                if (creator && creator.baseRole === 'engineer') {
-                  createdByOtherEngineer = true;
-                }
-              }
 
-              if (isApprovalStatus && task.department === user.department && ownsProduct && !createdByOtherEngineer) {
-                isAllowed = true;
+      if (user && task) {
+        if (user.baseRole === 'manager' || user.baseRole === 'engineer') {
+          const isApprovalStatus = task.status === 'Pending Approval' || task.status === 'Done';
+
+          if (user.baseRole === 'engineer') {
+            const allowedProducts = this.authService.getAccessibleProducts('pm.calendar.view');
+            const ownsProduct = allowedProducts.includes(task.productId || '') || (user.ownedProducts && user.ownedProducts.includes('*'));
+
+            let createdByOtherEngineer = false;
+            if (task.createdBy && task.createdBy !== user.employeeId) {
+              const creator = this.authService.getUser(task.createdBy);
+              if (creator && creator.baseRole === 'engineer') {
+                createdByOtherEngineer = true;
               }
-            } else {
-              // Manager
+            }
+
+            if (task.department === user.department && ownsProduct && !createdByOtherEngineer) {
               if (isApprovalStatus) {
                 isAllowed = true;
               }
             }
+          } else {
+            // Manager
+            if (isApprovalStatus) {
+              isAllowed = true;
+            }
           }
         } else if (user.baseRole === 'technician') {
-          notFoundMsg = 'Work order not found or you do not have permission to view it.';
-          if (task && (task.assignedTo === user.employeeId || task.completedBy === user.employeeId)) {
+          if (task.assignedTo === user.employeeId || task.completedBy === user.employeeId) {
             isAllowed = true;
           }
         } else {
           // Admins
-          if (task) isAllowed = true;
+          isAllowed = true;
         }
+
+        if (!isAllowed) {
+          notFoundMsg = `Work order ${task.id} is currently ${task.status} and cannot be viewed here.`;
+        }
+      } else if (!task) {
+        notFoundMsg = 'Work order not found.';
       }
-      
+
       if (isAllowed && task) {
         this.pmService.viewedTaskGlobal.set(task);
       } else {
         this.toast.warning(notFoundMsg);
       }
-      
+
       input.value = '';
       input.blur();
     }
@@ -232,6 +268,11 @@ export class LayoutComponent {
     this.pmService.viewedTaskGlobal.set(null);
   }
 
+  getCleanDescription(desc?: string): string {
+    if (!desc) return '';
+    return desc.replace(/\[SeriesID:\s*[^\]]+\]\n?/g, '').trim();
+  }
+
   getTechName(employeeId?: string): string {
     if (!employeeId || employeeId === 'CURRENT-USER' || employeeId === 'System') return 'System';
     const tech = this.authService.getAllUsers().find(u => u.employeeId === employeeId);
@@ -240,52 +281,52 @@ export class LayoutComponent {
 
   getParsedNotes(notes?: string): { type: string, text: string, timestamp?: Date, checklist?: any[] }[] {
     if (!notes) return [];
-    
+
     // Split on \n\n followed by a known tag
     const blocks = notes.split(/\n\n(?=\[(?:Rejected|Approver|Tech)(?:\|[^\]]+)?\])/);
-    
+
     return blocks.map(part => {
       let type = 'tech';
       let text = part.trim();
       let timestamp: Date | undefined;
       let checklist: any[] | undefined;
-      
+
       if (text.startsWith('[')) {
-         const firstCloseBracket = text.indexOf(']');
-         if (firstCloseBracket !== -1) {
-            const metaInside = text.substring(1, firstCloseBracket);
-            const metaParts = metaInside.split('|');
-            const rawType = metaParts[0];
-            
-            if (['Rejected', 'Approver', 'Tech'].includes(rawType)) {
-               type = rawType.toLowerCase();
-               if (metaParts.length > 1) {
-                  timestamp = new Date(metaParts[1]);
-               }
-               
-               const colonIdx = text.indexOf(']:', firstCloseBracket);
-               if (colonIdx !== -1) {
-                  const betweenBracketAndColon = text.substring(firstCloseBracket + 1, colonIdx);
-                  if (betweenBracketAndColon.startsWith('~~')) {
-                     const jsonStr = betweenBracketAndColon.substring(2);
-                     try { checklist = JSON.parse(jsonStr); } catch(e) {}
-                  }
-                  
-                  if (!checklist && metaParts.length > 2) {
-                     const firstPipe = text.indexOf('|');
-                     const secondPipe = text.indexOf('|', firstPipe + 1);
-                     const lastBracket = text.lastIndexOf(']]:');
-                     if (secondPipe !== -1 && lastBracket !== -1) {
-                         const jsonStr = text.substring(secondPipe + 1, lastBracket + 1);
-                         try { checklist = JSON.parse(jsonStr); } catch(e) {}
-                     }
-                  }
-                  text = text.substring(colonIdx + 2).trim();
-               } else {
-                  text = text.substring(firstCloseBracket + 1).trim();
-               }
+        const firstCloseBracket = text.indexOf(']');
+        if (firstCloseBracket !== -1) {
+          const metaInside = text.substring(1, firstCloseBracket);
+          const metaParts = metaInside.split('|');
+          const rawType = metaParts[0];
+
+          if (['Rejected', 'Approver', 'Tech'].includes(rawType)) {
+            type = rawType.toLowerCase();
+            if (metaParts.length > 1) {
+              timestamp = new Date(metaParts[1]);
             }
-         }
+
+            const colonIdx = text.indexOf(']:', firstCloseBracket);
+            if (colonIdx !== -1) {
+              const betweenBracketAndColon = text.substring(firstCloseBracket + 1, colonIdx);
+              if (betweenBracketAndColon.startsWith('~~')) {
+                const jsonStr = betweenBracketAndColon.substring(2);
+                try { checklist = JSON.parse(jsonStr); } catch (e) { }
+              }
+
+              if (!checklist && metaParts.length > 2) {
+                const firstPipe = text.indexOf('|');
+                const secondPipe = text.indexOf('|', firstPipe + 1);
+                const lastBracket = text.lastIndexOf(']]:');
+                if (secondPipe !== -1 && lastBracket !== -1) {
+                  const jsonStr = text.substring(secondPipe + 1, lastBracket + 1);
+                  try { checklist = JSON.parse(jsonStr); } catch (e) { }
+                }
+              }
+              text = text.substring(colonIdx + 2).trim();
+            } else {
+              text = text.substring(firstCloseBracket + 1).trim();
+            }
+          }
+        }
       }
       return { type, text, timestamp, checklist };
     });
@@ -294,12 +335,12 @@ export class LayoutComponent {
   getDisplayChecklist(task: any): any[] {
     if (!task) return [];
     if (task.recordNotes && task.recordNotes.includes('[Rejected')) {
-       const parsed = this.getParsedNotes(task.recordNotes);
-       for (let i = parsed.length - 1; i >= 0; i--) {
-           if (parsed[i].type === 'tech' && parsed[i].checklist) {
-               return parsed[i].checklist!;
-           }
-       }
+      const parsed = this.getParsedNotes(task.recordNotes);
+      for (let i = parsed.length - 1; i >= 0; i--) {
+        if (parsed[i].type === 'tech' && parsed[i].checklist) {
+          return parsed[i].checklist!;
+        }
+      }
     }
     return task.checklist || [];
   }

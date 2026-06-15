@@ -1,4 +1,4 @@
-﻿<div class="pm-record-page overflow-y-auto h-full" style="min-width: 900px;">
+<div class="pm-record-page overflow-y-auto h-full" style="min-width: 900px;">
   <div class="page-header" data-enter>
     <div>
       <h1 class="page-title">{{ 'Record PM' | tr }}</h1>
@@ -81,8 +81,8 @@
           </div>
 
           <div *ngIf="selectedTask.description"
-            style="padding:12px; background:var(--color-blue-light); border-left:3px solid var(--color-blue); border-radius:4px; font-size:13px; color:var(--color-blue-text);">
-            {{ selectedTask.description }}
+            style="padding:12px; background:var(--bg-card); border-radius:8px; font-size:14px; color:var(--text-secondary); line-height: 1.5; white-space: pre-wrap;">
+            {{ getCleanDescription(selectedTask.description) }}
           </div>
 
           <div *ngIf="selectedTask.recordNotes">

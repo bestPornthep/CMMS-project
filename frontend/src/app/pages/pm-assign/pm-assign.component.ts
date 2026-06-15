@@ -42,14 +42,64 @@ export class PmAssignComponent {
     let tasks = this.pmService.pmTasks().filter(t => t.status !== 'Pending' && this.canManageTask(t));
     const dept = this.deptFilter();
     if (dept !== 'All') tasks = tasks.filter(t => t.department === dept);
-    return tasks;
+    
+    // Sort tasks first so the earliest task in a series is always chosen as the representative
+    tasks.sort((a, b) => {
+      const timeA = a.nextDueDate ? new Date(a.nextDueDate).getTime() : 0;
+      const timeB = b.nextDueDate ? new Date(b.nextDueDate).getTime() : 0;
+      return timeA - timeB;
+    });
+
+    // Group by SeriesID so recurring schedules only appear once in the Assigned list
+    const grouped: PMTask[] = [];
+    const seenSeries = new Set<string>();
+    
+    for (const task of tasks) {
+      const seriesMatch = task.description?.match(/\[SeriesID:\s*([^\]]+)\]/);
+      if (seriesMatch) {
+        const seriesId = seriesMatch[1];
+        if (!seenSeries.has(seriesId)) {
+          seenSeries.add(seriesId);
+          grouped.push(task);
+        }
+      } else {
+        grouped.push(task);
+      }
+    }
+    
+    return grouped;
   });
 
   pendingTasks = computed(() => {
     let tasks = this.pmService.pmTasks().filter(t => t.status === 'Pending' && this.canManageTask(t));
     const dept = this.deptFilter();
     if (dept !== 'All') tasks = tasks.filter(t => t.department === dept);
-    return tasks;
+    
+    // Sort tasks first so the earliest task in a series is always chosen as the representative
+    tasks.sort((a, b) => {
+      const timeA = a.nextDueDate ? new Date(a.nextDueDate).getTime() : 0;
+      const timeB = b.nextDueDate ? new Date(b.nextDueDate).getTime() : 0;
+      return timeA - timeB;
+    });
+
+    // Group by SeriesID so recurring schedules only appear once in the Unassigned list
+    const grouped: PMTask[] = [];
+    const seenSeries = new Set<string>();
+    
+    for (const task of tasks) {
+      const seriesMatch = task.description?.match(/\[SeriesID:\s*([^\]]+)\]/);
+      if (seriesMatch) {
+        const seriesId = seriesMatch[1];
+        if (!seenSeries.has(seriesId)) {
+          seenSeries.add(seriesId);
+          grouped.push(task);
+        }
+      } else {
+        grouped.push(task);
+      }
+    }
+    
+    return grouped;
   });
 
   // Dynamically populated technicians based on assignment rules
@@ -255,25 +305,41 @@ export class PmAssignComponent {
     const tech = this.bulkAssignee();
     const taskIds = this.selectedTasks();
     
-    // Update all selected tasks
     const tasks = this.pmService.pmTasks();
+    const tasksToAssign: PMTask[] = [];
+
     for (const task of tasks) {
       if (taskIds.has(task.id)) {
-        // Validate Product-Asset match before assignment
-        const asset = this.pmService.assets().find(a => a.id === task.assetId);
-        if (!asset || asset.location !== task.productId) {
-           this.toast.error(`Task ${task.id} has a Product-Asset mismatch and cannot be assigned.`);
-           return;
+        tasksToAssign.push(task);
+        
+        // If it's part of a series, also assign all other pending tasks in that series
+        const seriesMatch = task.description?.match(/\[SeriesID:\s*([^\]]+)\]/);
+        if (seriesMatch) {
+          const seriesId = seriesMatch[1];
+          const otherSeriesTasks = tasks.filter(t => t.id !== task.id && t.status === 'Pending' && t.description?.includes(`[SeriesID: ${seriesId}]`));
+          tasksToAssign.push(...otherSeriesTasks);
         }
-
-        this.pmService.updateTask({
-          ...task,
-          assignedTo: tech.employeeId,
-          status: 'In Progress',
-          assignedAt: new Date(),
-          assignedBy: this.currentUser?.employeeId
-        });
       }
+    }
+
+    // Deduplicate in case a task was pushed twice
+    const uniqueTasks = Array.from(new Set(tasksToAssign));
+
+    for (const task of uniqueTasks) {
+      // Validate Product-Asset match before assignment
+      const asset = this.pmService.assets().find(a => a.id === task.assetId);
+      if (!asset || asset.location !== task.productId) {
+         this.toast.error(`Task ${task.id} has a Product-Asset mismatch and cannot be assigned.`);
+         return;
+      }
+
+      this.pmService.updateTask({
+        ...task,
+        assignedTo: tech.employeeId,
+        status: 'In Progress',
+        assignedAt: new Date(),
+        assignedBy: this.currentUser?.employeeId
+      });
     }
     
     // Reset state
@@ -301,14 +367,32 @@ export class PmAssignComponent {
       return;
     }
     
-    // Update the task status to In Progress
-    this.pmService.updateTask({
-      ...task,
-      status: 'In Progress',
-      assignedTo: tech,
-      assignedAt: new Date(),
-      assignedBy: this.currentUser?.employeeId
-    });
+    const seriesMatch = task.description?.match(/\[SeriesID:\s*([^\]]+)\]/);
+    if (seriesMatch) {
+      const seriesId = seriesMatch[1];
+      const allSeriesTasks = this.pmService.pmTasks().filter(t => 
+        t.status === 'Pending' && 
+        t.description?.includes(`[SeriesID: ${seriesId}]`)
+      );
+      
+      for (const t of allSeriesTasks) {
+        this.pmService.updateTask({
+          ...t,
+          status: 'In Progress',
+          assignedTo: tech,
+          assignedAt: new Date(),
+          assignedBy: this.currentUser?.employeeId
+        });
+      }
+    } else {
+      this.pmService.updateTask({
+        ...task,
+        status: 'In Progress',
+        assignedTo: tech,
+        assignedAt: new Date(),
+        assignedBy: this.currentUser?.employeeId
+      });
+    }
   }
 
   // --- Delegations ---

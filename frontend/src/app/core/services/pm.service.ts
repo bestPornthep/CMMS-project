@@ -66,6 +66,26 @@ export class PmService {
     });
   }
 
+  async addPmSchedule(schedule: import('../models/pm.model').PMSchedule): Promise<void> {
+    const user = this.authService.currentUser();
+    if (!user || !this.authService.hasPermission('pm.create.submit')) {
+      throw new Error('Unauthorized to create PM schedules.');
+    }
+    const accessible = this.authService.getAccessibleProducts('pm.create.submit');
+    if (!accessible.includes(schedule.productId || '')) {
+      throw new Error('Product access denied.');
+    }
+    const asset = this.assets().find(a => a.id === schedule.assetId);
+    if (!asset || asset.location !== schedule.productId || asset.department !== schedule.department) {
+      throw new Error('Invalid Product-Asset combination.');
+    }
+
+    await this.api.createSchedule(schedule);
+    // Reload tasks to show the generated series
+    const newTasks = await this.api.getTasks();
+    this.pmTasksSignal.set(newTasks);
+  }
+
   updateTask(updatedTask: PMTask): void {
     const user = this.authService.currentUser();
     if (!user) throw new Error('Unauthorized.');
@@ -80,6 +100,18 @@ export class PmService {
     this.api.updateTask(updatedTask).then(updated => {
       this.pmTasksSignal.update(tasks => tasks.map(t => t.id === updated.id ? updated : t));
     });
+  }
+
+  async updatePmSchedule(seriesId: string, updates: Partial<import('../models/pm.model').PMSchedule>): Promise<void> {
+    const user = this.authService.currentUser();
+    if (!user) throw new Error('Unauthorized.');
+
+    // We assume permission to update the series if they can update tasks.
+    // In a real backend, this would be a single API call with auth checks.
+    await this.api.updateSchedule(seriesId, updates);
+    // Reload tasks
+    const newTasks = await this.api.getTasks();
+    this.pmTasksSignal.set(newTasks);
   }
 
   deleteTask(id: string): void {
