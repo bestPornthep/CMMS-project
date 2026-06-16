@@ -1,5 +1,5 @@
 import { TranslatePipe } from '../../shared/pipes/translate.pipe';
-import { Component, computed, inject, signal, HostListener } from '@angular/core';
+import { Component, computed, inject, signal, HostListener, OnDestroy } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
@@ -15,7 +15,7 @@ import { PMTask } from '../../core/models/pm.model';
   templateUrl: './pm-calendar.component.html',
   styleUrl: './pm-calendar.component.scss'
 })
-export class PmCalendarComponent {
+export class PmCalendarComponent implements OnDestroy {
   private pmService = inject(PmService);
   private authService = inject(AuthService);
   private datePipe = inject(DatePipe);
@@ -23,6 +23,7 @@ export class PmCalendarComponent {
   private route = inject(ActivatedRoute);
 
   // State
+  private isDestroyed = false; // E3 fix: guard async timeouts
   currentDate = signal(new Date());
   realToday = new Date();
   dropdownOpen = false;
@@ -176,6 +177,10 @@ export class PmCalendarComponent {
     this.closeEditModal();
   }
 
+  ngOnDestroy() {
+    this.isDestroyed = true; // E3 fix: prevents stale timeout from navigating on the wrong page
+  }
+
   highlightTask(taskId: string) {
     this.highlightedTaskId.set(taskId);
     const task = this.pmService.pmTasks().find(t => t.id === taskId);
@@ -183,11 +188,13 @@ export class PmCalendarComponent {
       const d = new Date(task.nextDueDate);
       this.currentDate.set(new Date(d.getFullYear(), d.getMonth(), 1));
       setTimeout(() => {
+        if (this.isDestroyed) return; // E3 fix
         const el = document.getElementById('task-' + taskId);
         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
         
         // Clear highlight after animation (2s)
         setTimeout(() => {
+          if (this.isDestroyed) return; // E3 fix
           this.highlightedTaskId.set(null);
           this.router.navigate([], {
             relativeTo: this.route,
@@ -318,7 +325,7 @@ export class PmCalendarComponent {
     const overdue = this.overdueTasks().length;
 
     return {
-      scheduled: monthTasks.length + overdue,
+      scheduled: monthTasks.length,
       completed,
       overdue,
       pendingApproval

@@ -23,7 +23,7 @@ export class PmService {
   loadData(): Promise<void> {
     return Promise.all([
       this.api.getAssets(),
-      this.api.getTasks(),
+      this.api.getTasks(undefined, undefined, undefined, undefined, 'Done'), // Exclude 'Done' tasks on initial load
       this.api.getTemplates(),
     ]).then(([assets, tasks, templates]) => {
       this.assetsSignal.set(assets);
@@ -44,6 +44,18 @@ export class PmService {
       
       // Filter out any templates from API that might have same IDs to avoid duplicates if backend starts returning them
       this.templatesSignal.set([...mockDefaultTemplates, ...templates]);
+    });
+  }
+
+  loadHistoricalTasks(): Promise<void> {
+    // Only fetch 'Done' tasks
+    return this.api.getTasks('Done').then(tasks => {
+      // Merge with existing tasks (avoiding duplicates)
+      this.pmTasksSignal.update(existing => {
+        const existingIds = new Set(existing.map(t => t.id));
+        const newTasks = tasks.filter(t => !existingIds.has(t.id));
+        return [...existing, ...newTasks];
+      });
     });
   }
 
@@ -91,9 +103,14 @@ export class PmService {
     if (!user) throw new Error('Unauthorized.');
 
     if (user.baseRole === 'engineer' || user.baseRole === 'technician') {
-      const allowed = this.authService.getAccessibleProducts('pm.assign.submit');
-      if (!allowed.includes(updatedTask.productId || '') && updatedTask.assignedTo !== user.employeeId) {
-        throw new Error('Unauthorized to update this task.');
+      // Technicians can always update tasks assigned to them
+      if (user.baseRole === 'technician' && updatedTask.assignedTo === user.employeeId) {
+        // allowed
+      } else {
+        const allowed = this.authService.getAccessibleProducts('pm.assign.submit');
+        if (!allowed.includes(updatedTask.productId || '')) {
+          throw new Error('Unauthorized to update this task.');
+        }
       }
     }
 

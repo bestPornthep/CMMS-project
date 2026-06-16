@@ -1,17 +1,19 @@
-import { Component, computed, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, computed, inject, signal, OnInit } from '@angular/core';
+import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { TranslatePipe } from '../../shared/pipes/translate.pipe';
 import { PmService } from '../../core/services/pm.service';
 import { AuthService } from '../../core/services/auth.service';
 
 @Component({
   selector: 'app-pm-reports',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, TranslatePipe],
+  providers: [DatePipe],
   templateUrl: './pm-reports.component.html',
   styleUrl: './pm-reports.component.scss'
 })
-export class PmReportsComponent {
+export class PmReportsComponent implements OnInit {
   private pmService = inject(PmService);
   private authService = inject(AuthService);
 
@@ -22,6 +24,11 @@ export class PmReportsComponent {
   endDate = signal<string>('');
   selectedProducts = signal<string[]>([]);
   selectedAssets = signal<string[]>([]);
+
+  ngOnInit() {
+    // Lazy load historical data only when visiting reports
+    this.pmService.loadHistoricalTasks().catch(console.error);
+  }
 
   productDropdownOpen = signal(false);
   assetDropdownOpen = signal(false);
@@ -77,7 +84,17 @@ export class PmReportsComponent {
   });
 
   filteredTasks = computed(() => {
+    const user = this.authService.currentUser();
     let list = this.tasks().filter(t => t.status === 'Done');
+
+    // M6 fix: enforce role-based scope even if route guard is bypassed
+    if (user) {
+      if (user.baseRole === 'technician') {
+        list = list.filter(t => t.completedBy === user.employeeId);
+      } else if (user.baseRole === 'engineer') {
+        list = list.filter(t => t.department === user.department);
+      }
+    }
 
     if (this.selectedProducts().length > 0) {
       list = list.filter(t => t.productId && this.selectedProducts().includes(t.productId));

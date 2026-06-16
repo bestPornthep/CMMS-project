@@ -58,7 +58,8 @@ export class DashboardComponent implements OnInit {
   });
   
   assignedTasks = computed(() => {
-    return this.tasks().filter(t => t.status === 'In Progress' || t.assignedTo).length;
+    // M5 fix: only count In Progress, not all tasks that ever had assignedTo set
+    return this.tasks().filter(t => t.status === 'In Progress').length;
   });
 
   // Recent activity stream (last 5 done or assigned)

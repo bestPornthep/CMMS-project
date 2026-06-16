@@ -179,7 +179,8 @@ export class LayoutComponent {
 
       if (user && task) {
         if (user.baseRole === 'manager' || user.baseRole === 'engineer') {
-          const isApprovalStatus = task.status === 'Pending Approval' || task.status === 'Done';
+          // C5 fix: include In Progress (rejected tasks) so engineers can search them
+          const isApprovalStatus = task.status === 'Pending Approval' || task.status === 'Done' || task.status === 'In Progress';
 
           if (user.baseRole === 'engineer') {
             const allowedProducts = this.authService.getAccessibleProducts('pm.calendar.view');

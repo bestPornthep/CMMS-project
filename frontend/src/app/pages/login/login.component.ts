@@ -23,17 +23,20 @@ export class LoginComponent {
 
   errorMessage = '';
   showPassword = false;
+  isLoading = false;
 
   togglePassword(): void {
     this.showPassword = !this.showPassword;
   }
 
   async onSubmit(): Promise<void> {
-    if (this.loginForm.invalid) {
-      this.errorMessage = 'Please enter Employee ID and Password.';
+    if (this.loginForm.invalid || this.isLoading) {
+      if (this.loginForm.invalid) this.errorMessage = 'Please enter Employee ID and Password.';
       return;
     }
 
+    this.isLoading = true;
+    this.errorMessage = '';
     const { employeeId, password } = this.loginForm.value;
 
     try {
@@ -44,6 +47,8 @@ export class LoginComponent {
       }
     } catch (e) {
       this.errorMessage = 'Invalid credentials. Please try again.';
+    } finally {
+      this.isLoading = false;
     }
   }
 }

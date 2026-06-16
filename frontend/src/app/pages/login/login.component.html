@@ -1,4 +1,4 @@
-﻿<main class="login-page">
+<main class="login-page">
   <section class="login-card anim-enter">
     <div class="brand-block">
       <img class="brand-logo" src="/Logo.png" alt="Kimball Electronics logo" />
@@ -32,7 +32,7 @@
 
       <div class="alert" *ngIf="errorMessage">{{ errorMessage }}</div>
 
-      <button class="btn" type="submit">Sign in</button>
+      <button class="btn" type="submit" [disabled]="isLoading">{{ isLoading ? 'Signing in...' : 'Sign in' }}</button>
     </form>
     
   </section>

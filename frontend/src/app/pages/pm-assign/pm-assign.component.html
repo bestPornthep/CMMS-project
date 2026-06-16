@@ -44,17 +44,19 @@
         <div class="bulk-bar" style="display:flex; align-items:center; gap:12px; background:var(--blue-light); padding:8px 16px; border-radius:var(--radius-lg); border:1px solid rgba(26,86,219,0.2); flex-wrap:nowrap;">
           <span class="material-symbols-outlined" style="color:var(--blue); flex-shrink:0;">checklist</span>
           <span style="font-weight:600; color:var(--blue-text); font-size:13px; white-space:nowrap; flex-shrink:0;">{{ selectedTasks().size }} selected</span>
-          <div class="c-dropdown" [class.open]="bulkDropdownOpen" (click)="toggleDropdown('bulk', $event)" style="flex-shrink:0;">
+          <div class="c-dropdown" [class.open]="bulkDropdownOpen && getBulkTechnicians().length > 0" (click)="toggleDropdown('bulk', $event)" style="flex-shrink:0;" [style.opacity]="getBulkTechnicians().length === 0 ? '0.5' : '1'" [style.pointer-events]="getBulkTechnicians().length === 0 ? 'none' : 'auto'">
             <div class="c-dropdown-trigger" style="height:32px; width:180px; flex-shrink:0; display:flex; align-items:center;">
-              <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:left; max-width:130px; display:inline-block;">{{ bulkAssignee() ? getTechNameWithWorkload(bulkAssignee()!.employeeId) : 'Assign all to...' }}</span>
+              <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:left; max-width:130px; display:inline-block;">
+                {{ getBulkTechnicians().length === 0 ? 'Cross-dept not allowed' : (bulkAssignee() ? getTechNameWithWorkload(bulkAssignee()!.employeeId) : 'Assign all to...') }}
+              </span>
               <span class="material-symbols-outlined" style="flex-shrink:0; margin-left:auto;">expand_more</span>
             </div>
-            <div class="c-dropdown-menu" *ngIf="bulkDropdownOpen">
+            <div class="c-dropdown-menu" *ngIf="bulkDropdownOpen && getBulkTechnicians().length > 0">
               <div class="c-dropdown-item" (click)="bulkAssignee.set(null)">Select technician...</div>
               <div class="c-dropdown-item" *ngFor="let t of getBulkTechnicians()" (click)="bulkAssignee.set(t)">{{ getTechNameWithWorkload(t.employeeId) }}</div>
             </div>
           </div>
-          <button class="btn btn-primary" style="padding:0 16px; height:32px; white-space:nowrap; flex-shrink:0; display:inline-flex; align-items:center; justify-content:center; gap:6px;" (click)="openBulkAssignModal()">
+          <button class="btn btn-primary" style="padding:0 16px; height:32px; white-space:nowrap; flex-shrink:0; display:inline-flex; align-items:center; justify-content:center; gap:6px;" (click)="openBulkAssignModal()" [disabled]="getBulkTechnicians().length === 0 || !bulkAssignee()">
             <span class="material-symbols-outlined" style="font-size:18px; line-height:1;">person_add</span>
             <span style="font-size:13px; font-weight:600; line-height:1;">Assign Selected</span>
           </button>

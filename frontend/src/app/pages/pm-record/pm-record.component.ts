@@ -1,6 +1,6 @@
 import { TranslatePipe } from '../../shared/pipes/translate.pipe';
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PmService } from '../../core/services/pm.service';
 import { AuthService } from '../../core/services/auth.service';
@@ -12,6 +12,7 @@ import { ActivatedRoute, Router } from '@angular/router';
   selector: 'app-pm-record',
   standalone: true,
   imports: [CommonModule, FormsModule, TranslatePipe],
+  providers: [DatePipe],
   templateUrl: './pm-record.component.html',
   styleUrl: './pm-record.component.scss'
 })
@@ -23,6 +24,9 @@ export class PmRecordComponent implements OnInit {
   private toast = inject(ToastService);
 
   ngOnInit() {
+    // Lazy load historical data for the history tab
+    this.pmService.loadHistoricalTasks().catch(console.error);
+
     this.route.queryParams.subscribe(params => {
       const taskId = params['task'];
       if (taskId) {
@@ -338,9 +342,13 @@ export class PmRecordComponent implements OnInit {
   }
 
   toggleChecklist(index: number) {
-    if (this.isApprover) return; // Approvers review but do not modify the checklist
+    if (this.isApprover) return;
     if (this.selectedTask && this.selectedTask.checklist) {
-      this.selectedTask.checklist[index].done = !this.selectedTask.checklist[index].done;
+      // C3 fix: deep copy to avoid mutating the signal store reference
+      const newChecklist = this.selectedTask.checklist.map((item, i) =>
+        i === index ? { ...item, done: !item.done } : { ...item }
+      );
+      this.selectedTask = { ...this.selectedTask, checklist: newChecklist };
     }
   }
 
@@ -348,9 +356,11 @@ export class PmRecordComponent implements OnInit {
     event.stopPropagation();
     if (this.isApprover) return;
     if (this.selectedTask && this.selectedTask.checklist) {
-      // simulate upload
-      this.selectedTask.checklist[index].photoUrl = 'assets/demo-photo.jpg';
-      this.selectedTask.checklist[index].done = true;
+      // C3 fix: deep copy before mutating
+      const newChecklist = this.selectedTask.checklist.map((item, i) =>
+        i === index ? { ...item, photoUrl: 'assets/demo-photo.jpg', done: true } : { ...item }
+      );
+      this.selectedTask = { ...this.selectedTask, checklist: newChecklist };
     }
   }
 
@@ -378,13 +388,17 @@ export class PmRecordComponent implements OnInit {
         this.toast.warning('Please enter a valid actual time spent (in hours).');
         return;
       }
+      if (this.actualHours > 999) {
+        this.toast.warning('Actual hours cannot exceed 999. Please enter a realistic value.');
+        return;
+      }
       const ts = new Date().toISOString();
       const newNote = `[Tech|${ts}]: ${this.completionNotes}`;
       
       let updatedNotes = this.selectedTask.recordNotes || '';
       if (updatedNotes) {
         // Remove any existing Tech notes safely using regex split so multiline notes aren't chopped
-        updatedNotes = updatedNotes.split(/\n\n(?=\[(?:Rejected|Approver|Tech)(?:\|[^\]]+)?\]:)/).filter(n => !n.startsWith('[Tech')).join('\n\n');
+        updatedNotes = updatedNotes.split(/\n\n(?=\[(?:Rejected|Approver|Tech)(?:\|[^\]]+)?\])/).filter(n => !n.startsWith('[Tech')).join('\n\n');
       }
       
       this.pmService.updateTask({

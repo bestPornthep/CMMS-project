@@ -1395,6 +1395,7 @@ a { color: inherit; text-decoration: none; }
   color: var(--color-text-secondary);
   line-height: 1.5;
   white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .note-tech {

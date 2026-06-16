@@ -95,20 +95,22 @@ export class PmCreateComponent {
     // If Product changes, reset Asset if it does not belong to the new Product.
     if (this.assetId) {
       const asset = this.pmService.assets().find(a => a.id === this.assetId);
-      if (asset && asset.location !== p) {
+      if (asset && asset.location.toLowerCase() !== p.toLowerCase()) {
         this.assetId = '';
       }
     }
+    this.openDropdown = null;
   }
 
   selectDept(d: string) {
     this.department = d;
     if (this.assetId) {
       const asset = this.pmService.assets().find(a => a.id === this.assetId);
-      if (asset && asset.department !== d) {
+      if (asset && asset.department.toLowerCase() !== d.toLowerCase()) {
         this.assetId = '';
       }
     }
+    this.openDropdown = null;
   }
 
   selectAsset(a: string) {
@@ -120,8 +122,12 @@ export class PmCreateComponent {
         this.department = asset.department;
       }
     }
+    this.openDropdown = null;
   }
-  selectType(t: string) { this.pmType = t as PMTaskFrequency; }
+  selectType(t: string) { 
+    this.pmType = t as PMTaskFrequency; 
+    this.openDropdown = null;
+  }
 
   togglePart(part: string, event: Event) {
     event.stopPropagation();
@@ -148,11 +154,17 @@ export class PmCreateComponent {
   availableParts = ['Bearing Assembly 6205', 'Filter Element HF-04', 'Seal Kit SK-22', 'Lubricant SAE-30 (1L)', 'Drive Belt B-440', 'O-Ring Set OR-12'];
 
   availableAssets() {
-    const accessibleProducts = this.products();
+    const accessibleProducts = this.products().map(p => p.toLowerCase());
+    const filterProd = this.productId?.toLowerCase() || '';
+    const filterDept = this.department?.toLowerCase() || '';
+
     return this.pmService.assets().filter(a => {
-      if (!accessibleProducts.includes(a.location)) return false;
-      if (this.productId && a.location !== this.productId) return false;
-      if (this.department && a.department !== this.department) return false;
+      const aLoc = a.location?.toLowerCase() || '';
+      const aDept = a.department?.toLowerCase() || '';
+
+      if (!accessibleProducts.includes(aLoc)) return false;
+      if (filterProd && aLoc !== filterProd) return false;
+      if (filterDept && aDept !== filterDept) return false;
       return true;
     });
   }
@@ -164,7 +176,11 @@ export class PmCreateComponent {
 
   getFilteredAssets() {
     const val = (this.assetId || '').toLowerCase();
-    return this.availableAssets().filter(a => a.id.toLowerCase().includes(val) || a.name.toLowerCase().includes(val));
+    return this.availableAssets().filter(a => {
+      const idMatch = a.id ? a.id.toLowerCase().includes(val) : false;
+      const nameMatch = a.name ? a.name.toLowerCase().includes(val) : false;
+      return idMatch || nameMatch;
+    });
   }
 
   getFilteredParts() {
@@ -284,6 +300,17 @@ export class PmCreateComponent {
       return;
     }
 
+    // Validate custom duration
+    if (this.pmType === 'Custom' && (this.customDurationValue <= 0 || !Number.isFinite(this.customDurationValue))) {
+      this.toast.error('Custom duration must be a positive number.');
+      return;
+    }
+
+    // Warn but don't block if checklist is empty
+    if (this.checklist().length === 0) {
+      this.toast.warning('No checklist items added — technician will have no steps to follow.');
+    }
+
     const isNewProduct = !this.products().includes(this.productId);
     const selectedAsset = this.pmService.assets().find(a => a.id === this.assetId);
     const isNewAsset = !selectedAsset;
@@ -295,21 +322,27 @@ export class PmCreateComponent {
       }
     }
 
-    try {
-      if (isNewProduct) {
+    // Create product first if new, then asset
+    if (isNewProduct) {
+      try {
         await this.pmService.createProduct({ id: this.productId, name: this.productId });
+      } catch (e) {
+        this.toast.error('Failed to create new product. Please try again.');
+        return;
       }
-      if (isNewAsset) {
+    }
+    if (isNewAsset) {
+      try {
         await this.pmService.createAsset({
           id: this.assetId,
           name: this.assetId,
           location: this.productId,
           department: this.department
         });
+      } catch (e) {
+        this.toast.error('Failed to create new asset. Please try again.');
+        return;
       }
-    } catch (e) {
-      this.toast.error('Failed to create new product/asset. Please try again.');
-      return;
     }
 
     const nextDueDate = new Date();
@@ -340,7 +373,7 @@ export class PmCreateComponent {
       if (this.isRecurring) {
         await this.pmService.addPmSchedule({
           id: '', // Will be ignored by shim
-          title: selectedAsset?.name || 'New Asset PM',
+          title: selectedAsset?.name || this.assetId,
           description: this.description,
           frequency: finalFrequency,
           assetId: this.assetId,
@@ -353,24 +386,35 @@ export class PmCreateComponent {
           createdBy: this.authService.currentUser()?.employeeId
         });
       } else {
-        this.pmService.addPmTask({
-          productId: this.productId,
-          department: this.department,
-          assetId: this.assetId,
-          title: selectedAsset?.name || 'New Asset PM',
-          description: this.description,
-          frequency: finalFrequency,
-          nextDueDate: nextDueDate,
-          estimatedHours: this.estimatedHours,
-          status: 'Pending' as PMTaskStatus,
-          createdBy: this.authService.currentUser()?.employeeId,
-          checklist: this.checklist().map(item => ({ text: item.text, done: false, requiresPhoto: item.requiresPhoto })),
-          partsRequired: [...this.parts()]
-        });
+        // addPmTask is synchronous in pm.service but calls async API internally
+        // Wrap in try/catch to surface any errors
+        try {
+          this.pmService.addPmTask({
+            productId: this.productId,
+            department: this.department,
+            assetId: this.assetId,
+            title: selectedAsset?.name || this.assetId,
+            description: this.description,
+            frequency: finalFrequency,
+            nextDueDate: nextDueDate,
+            estimatedHours: this.estimatedHours,
+            status: 'Pending' as PMTaskStatus,
+            createdBy: this.authService.currentUser()?.employeeId,
+            checklist: this.checklist().map(item => ({ text: item.text, done: false, requiresPhoto: item.requiresPhoto })),
+            partsRequired: [...this.parts()]
+          });
+        } catch (inner) {
+          this.isGenerating = false;
+          this.toast.error('Failed to create PM task. Check your access and try again.');
+          return;
+        }
       }
+      // Only navigate on actual success
+      this.router.navigate(['/pm-assign']);
+    } catch (e) {
+      this.toast.error('Failed to generate PM schedule. Please try again.');
     } finally {
       this.isGenerating = false;
-      this.router.navigate(['/pm-assign']);
     }
   }
 }

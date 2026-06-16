@@ -66,15 +66,45 @@
           </div>
           <div class="form-group">
             <label class="form-label">{{ 'Schedule Type' | tr | uppercase }}</label>
-            <div style="display: flex; gap: 16px; align-items: center; background: var(--color-bg-page); padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--color-border-soft);">
-              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13.5px; color: var(--color-text-primary);">
-                <input type="radio" [value]="true" [(ngModel)]="isRecurring" name="scheduleType" style="cursor: pointer;" />
-                Recurring Schedule
-              </label>
-              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13.5px; color: var(--color-text-primary);">
-                <input type="radio" [value]="false" [(ngModel)]="isRecurring" name="scheduleType" style="cursor: pointer;" />
-                One-Time Task
-              </label>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+              <div
+                (click)="isRecurring = true"
+                style="
+                  display:flex; align-items:center; gap:10px;
+                  padding:12px 16px; border-radius:var(--radius-md); cursor:pointer;
+                  border:2px solid; transition:all 0.18s ease;
+                  font-size:13.5px; font-weight:600;
+                "
+                [style.border-color]="isRecurring ? 'var(--color-blue)' : 'var(--color-border-soft)'"
+                [style.background]="isRecurring ? 'var(--blue-light, rgba(26,86,219,0.08))' : 'var(--color-bg-card)'"
+                [style.color]="isRecurring ? 'var(--color-blue)' : 'var(--color-text-secondary)'"
+              >
+                <span class="material-symbols-outlined" style="font-size:20px;">repeat</span>
+                <div>
+                  <div>Recurring</div>
+                  <div style="font-size:11px; font-weight:400; opacity:0.75;">Generates full-year series</div>
+                </div>
+                <span class="material-symbols-outlined" style="margin-left:auto; font-size:18px;" *ngIf="isRecurring">check_circle</span>
+              </div>
+              <div
+                (click)="isRecurring = false"
+                style="
+                  display:flex; align-items:center; gap:10px;
+                  padding:12px 16px; border-radius:var(--radius-md); cursor:pointer;
+                  border:2px solid; transition:all 0.18s ease;
+                  font-size:13.5px; font-weight:600;
+                "
+                [style.border-color]="!isRecurring ? 'var(--color-blue)' : 'var(--color-border-soft)'"
+                [style.background]="!isRecurring ? 'var(--blue-light, rgba(26,86,219,0.08))' : 'var(--color-bg-card)'"
+                [style.color]="!isRecurring ? 'var(--color-blue)' : 'var(--color-text-secondary)'"
+              >
+                <span class="material-symbols-outlined" style="font-size:20px;">task_alt</span>
+                <div>
+                  <div>One-Time</div>
+                  <div style="font-size:11px; font-weight:400; opacity:0.75;">Single occurrence only</div>
+                </div>
+                <span class="material-symbols-outlined" style="margin-left:auto; font-size:18px;" *ngIf="!isRecurring">check_circle</span>
+              </div>
             </div>
           </div>
           

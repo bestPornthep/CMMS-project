@@ -235,7 +235,8 @@ export class PmAssignComponent {
     if (user.baseRole === 'admin' || user.baseRole === 'manager') return true;
     
     if (user.baseRole === 'engineer') {
-      if (user.ownedProducts && !(user.ownedProducts.includes('*') || user.ownedProducts.includes(task.productId!))) {
+      // C4 fix: productId may be undefined — guard before includes()
+      if (task.productId && user.ownedProducts && !(user.ownedProducts.includes('*') || user.ownedProducts.includes(task.productId))) {
          return false;
       }
       if (task.createdBy && task.createdBy !== user.employeeId) {
@@ -298,6 +299,11 @@ export class PmAssignComponent {
       this.toast.warning('Please select a technician to assign.');
       return;
     }
+    // M3 fix: detect cross-dept selection and warn the user
+    if (this.getBulkTechnicians().length === 0) {
+      this.toast.error('Cannot bulk assign: selected tasks span multiple departments. Please assign tasks one-by-one or filter by a single department.');
+      return;
+    }
     this.showBulkModal.set(true);
   }
 
@@ -305,27 +311,31 @@ export class PmAssignComponent {
     const tech = this.bulkAssignee();
     const taskIds = this.selectedTasks();
     
-    const tasks = this.pmService.pmTasks();
+    const allTasks = this.pmService.pmTasks();
+    const seenSeries = new Set<string>();
     const tasksToAssign: PMTask[] = [];
 
-    for (const task of tasks) {
-      if (taskIds.has(task.id)) {
+    for (const task of allTasks) {
+      if (!taskIds.has(task.id)) continue;
+
+      const seriesMatch = task.description?.match(/\[SeriesID:\s*([^\]]+)\]/);
+      if (seriesMatch) {
+        const seriesId = seriesMatch[1];
+        if (seenSeries.has(seriesId)) continue; // already handling this series
+        seenSeries.add(seriesId);
+
+        // Only assign the NEXT (earliest) pending task in the series
+        const nextTask = allTasks
+          .filter(t => t.status === 'Pending' && t.description?.includes(`[SeriesID: ${seriesId}]`))
+          .sort((a, b) => new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime())[0];
+
+        if (nextTask) tasksToAssign.push(nextTask);
+      } else {
         tasksToAssign.push(task);
-        
-        // If it's part of a series, also assign all other pending tasks in that series
-        const seriesMatch = task.description?.match(/\[SeriesID:\s*([^\]]+)\]/);
-        if (seriesMatch) {
-          const seriesId = seriesMatch[1];
-          const otherSeriesTasks = tasks.filter(t => t.id !== task.id && t.status === 'Pending' && t.description?.includes(`[SeriesID: ${seriesId}]`));
-          tasksToAssign.push(...otherSeriesTasks);
-        }
       }
     }
 
-    // Deduplicate in case a task was pushed twice
-    const uniqueTasks = Array.from(new Set(tasksToAssign));
-
-    for (const task of uniqueTasks) {
+    for (const task of tasksToAssign) {
       // Validate Product-Asset match before assignment
       const asset = this.pmService.assets().find(a => a.id === task.assetId);
       if (!asset || asset.location !== task.productId) {
@@ -370,14 +380,14 @@ export class PmAssignComponent {
     const seriesMatch = task.description?.match(/\[SeriesID:\s*([^\]]+)\]/);
     if (seriesMatch) {
       const seriesId = seriesMatch[1];
-      const allSeriesTasks = this.pmService.pmTasks().filter(t => 
-        t.status === 'Pending' && 
-        t.description?.includes(`[SeriesID: ${seriesId}]`)
-      );
-      
-      for (const t of allSeriesTasks) {
+      // Only assign the NEXT (earliest) pending task in the series
+      const nextTask = this.pmService.pmTasks()
+        .filter(t => t.status === 'Pending' && t.description?.includes(`[SeriesID: ${seriesId}]`))
+        .sort((a, b) => new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime())[0];
+
+      if (nextTask) {
         this.pmService.updateTask({
-          ...t,
+          ...nextTask,
           status: 'In Progress',
           assignedTo: tech,
           assignedAt: new Date(),
@@ -396,7 +406,8 @@ export class PmAssignComponent {
   }
 
   // --- Delegations ---
-  delegations = signal<any[]>(this.authService.getActiveDelegations());
+  // Computed so it stays reactive when authService updates
+  delegations = computed(() => this.authService.getActiveDelegations());
   newDelegationUsers = signal<string[]>([]);
   newDelegationProducts = signal<string[]>([]);
   newDelegationDuration = signal<number>(30);
@@ -447,7 +458,7 @@ export class PmAssignComponent {
       }
     }
     
-    this.delegations.set(this.authService.getActiveDelegations());
+    // delegations is computed and will update automatically
     
     // Reset form
     this.newDelegationUsers.set([]);
@@ -457,7 +468,6 @@ export class PmAssignComponent {
 
   async revokeDelegation(id: string) {
     await this.authService.revokeDelegation(id);
-    this.delegations.set(this.authService.getActiveDelegations());
   }
 
   toggleDelegationUser(user: string) {

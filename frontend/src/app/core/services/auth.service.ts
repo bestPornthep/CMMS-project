@@ -137,13 +137,6 @@ export class AuthService {
 
   // ── Delegations ──────────────────────────────────────────────────────────
 
-  private generateId(): string {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-      const r = Math.random() * 16 | 0;
-      return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
-    });
-  }
-
   async grantDelegation(targetIds: string[], products: string[], validUntil: Date): Promise<void> {
     const currentUser = this.currentUser();
     if (!currentUser) throw new Error('Unauthorized.');
@@ -188,9 +181,13 @@ export class AuthService {
       for (const dp of u.delegatedProducts || []) {
         if (dp.status !== 'active') continue;
         if (dp.validUntil && new Date(dp.validUntil) < new Date()) continue;
-        const id = dp.id || `DEL-${this.generateId()}`;
-        const key = `${id}::${u.employeeId}::${dp.productId}`;
+        
+        // Group by user + validUntil so multiple products granted at once show as one row
+        const timeKey = dp.validUntil ? new Date(dp.validUntil).getTime() : '0';
+        const key = `${u.employeeId}::${timeKey}`;
+        
         if (!map.has(key)) {
+          const id = dp.id || `DEL-${u.employeeId}-${dp.productId}`;
           map.set(key, { id, employeeId: u.employeeId, user: u.name, products: new Set([dp.productId]), validUntil: dp.validUntil });
         } else {
           map.get(key)!.products.add(dp.productId);
