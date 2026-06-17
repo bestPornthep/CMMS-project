@@ -170,7 +170,7 @@ input[type="date"].filter-input {
 
   th, td {
     padding: 11px 16px;
-    text-align: left;
+    text-align: center;
     border-bottom: 1px solid var(--color-border-soft);
   }
 
@@ -180,7 +180,7 @@ input[type="date"].filter-input {
     color: var(--color-text-muted);
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    background: var(--color-bg-card-alt);
+    background: var(--color-bg-card);
     position: sticky;
     top: 0;
   }

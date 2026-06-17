@@ -23,8 +23,8 @@
                   <span class="material-symbols-outlined">expand_more</span>
                 </div>
                 <div class="c-dropdown-menu">
-                  <div class="c-dropdown-item" (click)="selectProduct('')">Select product...</div>
-                  <div class="c-dropdown-item" *ngFor="let p of getFilteredProducts()" (click)="selectProduct(p)">{{ p }}</div>
+                  <div class="c-dropdown-item" (click)="selectProduct('', $event)">Select product...</div>
+                  <div class="c-dropdown-item" *ngFor="let p of getFilteredProducts()" (click)="selectProduct(p, $event)">{{ p }}</div>
                 </div>
               </div>
           </div>
@@ -37,8 +37,8 @@
                 <span class="material-symbols-outlined">expand_more</span>
               </div>
               <div class="c-dropdown-menu">
-                <div class="c-dropdown-item" (click)="selectDept('')">Select department...</div>
-                <div class="c-dropdown-item" *ngFor="let d of departments" (click)="selectDept(d)">{{ d }}</div>
+                <div class="c-dropdown-item" (click)="selectDept('', $event)">Select department...</div>
+                <div class="c-dropdown-item" *ngFor="let d of departments" (click)="selectDept(d, $event)">{{ d }}</div>
               </div>
             </div>
             <!-- Fixed text for Eng/Tech -->
@@ -59,8 +59,8 @@
                   <span class="material-symbols-outlined">expand_more</span>
                 </div>
                 <div class="c-dropdown-menu" *ngIf="productId">
-                  <div class="c-dropdown-item" (click)="selectAsset('')">Select asset...</div>
-                  <div class="c-dropdown-item" *ngFor="let a of getFilteredAssets()" (click)="selectAsset(a.id)">{{ a.id }} — {{ a.name }}</div>
+                  <div class="c-dropdown-item" (click)="selectAsset('', $event)">Select asset...</div>
+                  <div class="c-dropdown-item" *ngFor="let a of getFilteredAssets()" (click)="selectAsset(a.id, $event)">{{ a.id }} — {{ a.name }}</div>
                 </div>
               </div>
           </div>
@@ -116,13 +116,13 @@
                 <span class="material-symbols-outlined">expand_more</span>
               </div>
               <div class="c-dropdown-menu">
-                <div class="c-dropdown-item" (click)="selectType('')">Select type...</div>
-                <div class="c-dropdown-item" (click)="selectType('Daily')">Daily</div>
-                <div class="c-dropdown-item" (click)="selectType('Weekly')">Weekly</div>
-                <div class="c-dropdown-item" (click)="selectType('Monthly')">Monthly</div>
-                <div class="c-dropdown-item" (click)="selectType('Quarterly')">Quarterly</div>
-                <div class="c-dropdown-item" (click)="selectType('Yearly')">Yearly</div>
-                <div class="c-dropdown-item" (click)="selectType('Custom')">Custom</div>
+                <div class="c-dropdown-item" (click)="selectType('', $event)">Select type...</div>
+                <div class="c-dropdown-item" (click)="selectType('Daily', $event)">Daily</div>
+                <div class="c-dropdown-item" (click)="selectType('Weekly', $event)">Weekly</div>
+                <div class="c-dropdown-item" (click)="selectType('Monthly', $event)">Monthly</div>
+                <div class="c-dropdown-item" (click)="selectType('Quarterly', $event)">Quarterly</div>
+                <div class="c-dropdown-item" (click)="selectType('Yearly', $event)">Yearly</div>
+                <div class="c-dropdown-item" (click)="selectType('Custom', $event)">Custom</div>
               </div>
             </div>
           </div>
@@ -138,10 +138,10 @@
                   <span class="material-symbols-outlined">expand_more</span>
                 </div>
                 <div class="c-dropdown-menu">
-                  <div class="c-dropdown-item" (click)="customDurationUnit = 'hour(s)'">hour(s)</div>
-                  <div class="c-dropdown-item" (click)="customDurationUnit = 'day(s)'">day(s)</div>
-                  <div class="c-dropdown-item" (click)="customDurationUnit = 'month(s)'">month(s)</div>
-                  <div class="c-dropdown-item" (click)="customDurationUnit = 'Year(s)'">Year(s)</div>
+                  <div class="c-dropdown-item" (click)="customDurationUnit = 'hour(s)'; openDropdown = null; $event.stopPropagation()">hour(s)</div>
+                  <div class="c-dropdown-item" (click)="customDurationUnit = 'day(s)'; openDropdown = null; $event.stopPropagation()">day(s)</div>
+                  <div class="c-dropdown-item" (click)="customDurationUnit = 'month(s)'; openDropdown = null; $event.stopPropagation()">month(s)</div>
+                  <div class="c-dropdown-item" (click)="customDurationUnit = 'Year(s)'; openDropdown = null; $event.stopPropagation()">Year(s)</div>
                 </div>
               </div>
             </div>

@@ -90,7 +90,8 @@ export class PmCreateComponent {
     this.openDropdown = this.openDropdown === dropdown ? null : dropdown;
   }
 
-  selectProduct(p: string) {
+  selectProduct(p: string, event: Event) {
+    event.stopPropagation();
     this.productId = p;
     // If Product changes, reset Asset if it does not belong to the new Product.
     if (this.assetId) {
@@ -102,7 +103,8 @@ export class PmCreateComponent {
     this.openDropdown = null;
   }
 
-  selectDept(d: string) {
+  selectDept(d: string, event: Event) {
+    event.stopPropagation();
     this.department = d;
     if (this.assetId) {
       const asset = this.pmService.assets().find(a => a.id === this.assetId);
@@ -113,7 +115,8 @@ export class PmCreateComponent {
     this.openDropdown = null;
   }
 
-  selectAsset(a: string) {
+  selectAsset(a: string, event: Event) {
+    event.stopPropagation();
     this.assetId = a;
     if (a) {
       const asset = this.pmService.assets().find(x => x.id === a);
@@ -124,7 +127,8 @@ export class PmCreateComponent {
     }
     this.openDropdown = null;
   }
-  selectType(t: string) { 
+  selectType(t: string, event: Event) {
+    event.stopPropagation();
     this.pmType = t as PMTaskFrequency; 
     this.openDropdown = null;
   }

@@ -8,7 +8,7 @@ import { AuthService } from '../../core/services/auth.service';
 @Component({
   selector: 'app-pm-reports',
   standalone: true,
-  imports: [CommonModule, FormsModule, TranslatePipe],
+  imports: [CommonModule, FormsModule],
   providers: [DatePipe],
   templateUrl: './pm-reports.component.html',
   styleUrl: './pm-reports.component.scss'
@@ -102,21 +102,24 @@ export class PmReportsComponent implements OnInit {
     if (this.selectedAssets().length > 0) {
       list = list.filter(t => t.assetId && this.selectedAssets().includes(t.assetId));
     }
+
     if (this.startDate()) {
       const start = new Date(this.startDate()).getTime();
       list = list.filter(t => t.completedAt && new Date(t.completedAt).getTime() >= start);
     }
     if (this.endDate()) {
-      const end = new Date(this.endDate()).getTime();
-      list = list.filter(t => t.completedAt && new Date(t.completedAt).getTime() <= end + 86400000);
+      const end = new Date(this.endDate()).setHours(23, 59, 59, 999);
+      list = list.filter(t => t.completedAt && new Date(t.completedAt).getTime() <= end);
     }
 
-    return list.sort((a, b) => {
-      const timeA = a.completedAt ? new Date(a.completedAt).getTime() : 0;
-      const timeB = b.completedAt ? new Date(b.completedAt).getTime() : 0;
-      return timeB - timeA;
-    });
+    return list.sort((a, b) => new Date(b.completedAt || 0).getTime() - new Date(a.completedAt || 0).getTime());
   });
+
+  getTechName(employeeId: string | undefined): string {
+    if (!employeeId) return '—';
+    const tech = this.authService.getUser(employeeId);
+    return tech?.name || employeeId;
+  }
 
   printReport() {
     window.print();

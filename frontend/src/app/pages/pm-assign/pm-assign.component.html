@@ -96,7 +96,7 @@
               </td>
               <td>
                 <span class="badge badge-info" style="display: inline-flex; align-items: center; gap: 4px;">
-                  <span class="material-symbols-outlined" *ngIf="task.description?.includes('[SeriesID:')" style="font-size: 14px;">repeat</span>
+                  <span class="material-symbols-outlined" *ngIf="task.description && task.description.includes('[SeriesID:')" style="font-size: 14px;">repeat</span>
                   {{ task.frequency }}
                 </span>
               </td>
@@ -166,7 +166,7 @@
               </td>
               <td>
                 <span class="badge badge-info" style="display: inline-flex; align-items: center; gap: 4px;">
-                  <span class="material-symbols-outlined" *ngIf="task.description?.includes('[SeriesID:')" style="font-size: 14px;">repeat</span>
+                  <span class="material-symbols-outlined" *ngIf="task.description && task.description.includes('[SeriesID:')" style="font-size: 14px;">repeat</span>
                   {{ task.frequency }}
                 </span>
               </td>

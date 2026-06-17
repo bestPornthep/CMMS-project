@@ -100,12 +100,18 @@
         </thead>
         <tbody>
           <tr *ngFor="let task of filteredTasks()">
-            <td><span class="mono" style="font-weight: 600; color: var(--color-text-primary);">{{task.id}}</span></td>
-            <td>{{task.title}}</td>
+            <td><span class="mono" style="color:var(--color-blue-DEFAULT); font-weight:600; cursor:pointer;">{{task.id}}</span></td>
+            <td>
+              <div style="font-weight:500;">{{task.title}}</div>
+            </td>
             <td>{{task.productId}}</td>
             <td>{{task.assetId}}</td>
-            <td>{{task.completedBy || '—'}}</td>
-            <td>{{task.completedAt | date:'medium'}}</td>
+            <td>
+              <div style="font-weight:600; color:var(--color-text-primary);">{{getTechName(task.completedBy)}}</div>
+            </td>
+            <td style="color:var(--color-text-secondary); font-size:12px;">
+              {{task.completedAt | date:'medium'}}
+            </td>
           </tr>
           <tr *ngIf="filteredTasks().length === 0">
             <td colspan="6" style="text-align: center; padding: 40px; color: var(--color-text-muted);">
