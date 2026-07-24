@@ -2963,10 +2963,29 @@ model Asset {
   @@map("cmms_assets")
 }
 
+model PmSchedule {
+  id             String   @id
+  title          String   @db.NVarChar(200)
+  description    String?  @db.NVarChar(Max)
+  frequency      String   @db.VarChar(50)
+  assetId        String   @map("asset_id") @db.VarChar(30)
+  productId      String   @map("product_id") @db.VarChar(20)
+  department     String   @db.VarChar(50)
+  estimatedHours Decimal  @map("estimated_hours") @db.Decimal(5, 2)
+  checklist      String   @default("[]") @db.NVarChar(Max)
+  partsRequired  String   @default("[]") @map("parts_required") @db.NVarChar(Max)
+  assignedTo     String?  @map("assigned_to") @db.VarChar(20)
+  createdBy      String?  @map("created_by") @db.VarChar(20)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  @@map("cmms_pm_schedules")
+}
+
 model PmTask {
   id             String    @id
   title          String
   description    String?   @db.NVarChar(Max)
+  scheduleId     String?   @map("schedule_id")
   frequency      String
   assetId        String    @map("asset_id")
   productId      String    @map("product_id")

@@ -307,7 +307,7 @@ export class PmAssignComponent {
     this.showBulkModal.set(true);
   }
 
-  confirmBulkAssign() {
+  async confirmBulkAssign() {
     const tech = this.bulkAssignee();
     const taskIds = this.selectedTasks();
     
@@ -335,23 +335,30 @@ export class PmAssignComponent {
       }
     }
 
-    for (const task of tasksToAssign) {
-      // Validate Product-Asset match before assignment
+    const mismatchedTask = tasksToAssign.find(task => {
       const asset = this.pmService.assets().find(a => a.id === task.assetId);
-      if (!asset || asset.location !== task.productId) {
-         this.toast.error(`Task ${task.id} has a Product-Asset mismatch and cannot be assigned.`);
-         return;
-      }
+      return !asset || asset.location !== task.productId;
+    });
+    if (mismatchedTask) {
+      this.toast.error(`Task ${mismatchedTask.id} has a Product-Asset mismatch and cannot be assigned.`);
+      return;
+    }
 
-      this.pmService.updateTask({
+    const results = await Promise.allSettled(
+      tasksToAssign.map(task => this.pmService.updateTask({
         ...task,
         assignedTo: tech.employeeId,
         status: 'In Progress',
         assignedAt: new Date(),
         assignedBy: this.currentUser?.employeeId
-      });
+      }))
+    );
+
+    const failures = results.filter(r => r.status === 'rejected');
+    if (failures.length > 0) {
+      this.toast.error(`${failures.length} task(s) failed to assign. Please check and try again.`);
     }
-    
+
     // Reset state
     this.showBulkModal.set(false);
     this.selectedTasks.set(new Set());

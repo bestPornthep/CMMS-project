@@ -73,4 +73,8 @@ export class CreatePmTaskDto {
   @IsOptional()
   @IsString()
   assignedTo?: string;
+
+  @IsOptional()
+  @IsString()
+  scheduleId?: string;
 }

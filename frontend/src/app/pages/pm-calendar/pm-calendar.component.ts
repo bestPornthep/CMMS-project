@@ -1,11 +1,12 @@
 import { TranslatePipe } from '../../shared/pipes/translate.pipe';
-import { Component, computed, inject, signal, HostListener, OnDestroy } from '@angular/core';
+import { Component, computed, inject, signal, HostListener, OnDestroy, DestroyRef } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { PmService } from '../../core/services/pm.service';
 import { AuthService } from '../../core/services/auth.service';
 import { PMTask } from '../../core/models/pm.model';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 @Component({
   selector: 'app-pm-calendar',
@@ -21,6 +22,7 @@ export class PmCalendarComponent implements OnDestroy {
   private datePipe = inject(DatePipe);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
+  private destroyRef = inject(DestroyRef);
 
   // State
   private isDestroyed = false; // E3 fix: guard async timeouts
@@ -46,7 +48,7 @@ export class PmCalendarComponent implements OnDestroy {
       this.selectedDept.set(user.department || 'All');
     }
 
-    this.route.queryParams.subscribe(params => {
+    this.route.queryParams.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(params => {
       const taskId = params['task'];
       if (taskId) {
         this.highlightTask(taskId);

@@ -390,10 +390,8 @@ export class PmCreateComponent {
           createdBy: this.authService.currentUser()?.employeeId
         });
       } else {
-        // addPmTask is synchronous in pm.service but calls async API internally
-        // Wrap in try/catch to surface any errors
         try {
-          this.pmService.addPmTask({
+          await this.pmService.addPmTask({
             productId: this.productId,
             department: this.department,
             assetId: this.assetId,

@@ -11,6 +11,7 @@ import { PmTasksController } from './pm-tasks.controller';
 import { TemplatesController } from './templates.controller';
 import { DelegationsController } from './delegations.controller';
 import { AuditLogsController } from './audit-logs.controller';
+import { PmSchedulesController } from './pm-schedules.controller';
 import { CmmsService } from './cmms.service';
 import { SchedulerService } from './scheduler.service';
 
@@ -25,6 +26,7 @@ import { SchedulerService } from './scheduler.service';
     TemplatesController,
     DelegationsController,
     AuditLogsController,
+    PmSchedulesController,
   ],
   providers: [AppService, CmmsService, SchedulerService],
 })

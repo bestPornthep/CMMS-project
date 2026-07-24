@@ -71,7 +71,11 @@ export class ApiService {
   }
 
   getUser(id: string): Promise<User | undefined> {
-    return firstValueFrom(this.http.get<User>(`${this.baseUrl}/users/${id}`)).catch(() => undefined);
+    return firstValueFrom(this.http.get<User>(`${this.baseUrl}/users/${id}`))
+      .catch((err: any) => {
+        if (err?.status === 404) return undefined;
+        throw err;
+      });
   }
 
   getAllUsers(): Promise<User[]> {

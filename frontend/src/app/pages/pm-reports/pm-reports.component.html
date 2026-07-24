@@ -1,6 +1,46 @@
 <div class="dropdown-backdrop" *ngIf="productDropdownOpen() || assetDropdownOpen()" (click)="closeDropdowns()"></div>
 
-<div class="pm-reports-page" data-enter>
+<!-- Export PM Form Modal -->
+<div class="modal-backdrop" *ngIf="exportModalOpen()" (click)="closeExportModal()"></div>
+<div class="modal-content" *ngIf="exportModalOpen()">
+  <div class="modal-header">
+    <h3>Export Machine PM Forms</h3>
+    <button class="close-btn" (click)="closeExportModal()"><span class="material-symbols-outlined">close</span></button>
+  </div>
+  <div class="modal-body">
+    <div class="form-group">
+      <label>Form Year</label>
+      <select class="form-input" [ngModel]="exportYear()" (ngModelChange)="exportYear.set($event)">
+        <option [ngValue]="exportYear() - 1">{{ exportYear() - 1 }}</option>
+        <option [ngValue]="exportYear()">{{ exportYear() }}</option>
+        <option [ngValue]="exportYear() + 1">{{ exportYear() + 1 }}</option>
+        <option [ngValue]="exportYear() + 2">{{ exportYear() + 2 }}</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Machines to Export</label>
+      <div class="export-asset-list">
+        <div class="ms-item" *ngFor="let a of availableAssets()" (click)="toggleExportAsset(a)">
+          <div class="ms-checkbox" [class.checked]="exportSelectedAssets().includes(a)">
+            <span class="material-symbols-outlined" *ngIf="exportSelectedAssets().includes(a)">check</span>
+          </div>
+          <span>{{ getAssetName(a) }} ({{ a }})</span>
+        </div>
+        <div *ngIf="availableAssets().length === 0" style="color:var(--color-text-muted); font-size:12px; padding:10px;">
+          No machines available.
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-outline" (click)="closeExportModal()">Cancel</button>
+    <button class="btn btn-primary" (click)="generatePdf()" [disabled]="exportSelectedAssets().length === 0">
+      Generate PDF
+    </button>
+  </div>
+</div>
+
+<div class="pm-reports-page" data-enter [class.hide-in-print]="printMode() === 'form'">
 
   <div class="page-header no-print">
     <div>
@@ -8,8 +48,11 @@
       <p class="page-sub">Pull approved PM records for audit evidence.</p>
     </div>
     <div class="header-actions">
-      <button class="btn btn-primary" (click)="printReport()">
-        <span class="material-symbols-outlined">print</span> Print / Export PDF
+      <button class="btn btn-outline" (click)="printReport()">
+        <span class="material-symbols-outlined">table_view</span> Print Table
+      </button>
+      <button class="btn btn-primary" (click)="openExportModal()">
+        <span class="material-symbols-outlined">description</span> Export Machine PM Form
       </button>
     </div>
   </div>
@@ -81,7 +124,7 @@
     </div>
   </div>
 
-  <div class="card" data-enter style="overflow: hidden;">
+  <div class="card" data-enter style="overflow: hidden;" [class.no-print]="printMode() === 'form'">
     <div class="card-header no-print">
       <div class="card-title">Completed PM Records</div>
       <div class="card-sub">{{ filteredTasks().length }} record(s)</div>
@@ -122,5 +165,108 @@
       </table>
     </div>
   </div>
+</div>
 
+<!-- PRINT ONLY FORM LAYOUT — Kimball Monthly PM Check Sheet (FM-MF-02) -->
+<div class="pm-form-print-only" *ngIf="printMode() === 'form'">
+  <div class="pm-form-page" *ngFor="let page of exportFormData()">
+
+    <!-- ── Form header ── -->
+    <div class="kpm-header">
+      <div class="kpm-logo">
+        <strong>Kimball Electronics</strong><br>
+        <span>THAILAND, LTD.</span>
+      </div>
+      <div class="kpm-title">MONTHLY PREVENTIVE MAINTENANCE CHECK SHEET</div>
+      <div class="kpm-year">Year : {{ page.year }}</div>
+    </div>
+
+    <!-- ── Main check sheet table ── -->
+    <!--
+      Column layout (9 cols):
+      1: #/label   2: Description   3: Month/WW/Date label   4-9: 6 month columns
+    -->
+    <table class="kpm-table">
+      <!-- Fixed column widths: #(25) | Desc(210) | label(48) | 6×month(52 each) -->
+      <colgroup>
+        <col style="width:25px">
+        <col style="width:210px">
+        <col style="width:48px">
+        <col *ngFor="let m of page.months" style="width:52px">
+      </colgroup>
+      <thead>
+        <!-- Row 1: Machine Name + "Work Week" spanning header -->
+        <tr>
+          <th class="kpm-meta-label" colspan="2">MACHINE NAME : {{ page.assetName }}</th>
+          <th class="kpm-ww-header" colspan="7">Work Week of Month / Maintenance Date</th>
+        </tr>
+        <!-- Row 2: Machine No + Month labels -->
+        <tr>
+          <th class="kpm-meta-label" colspan="1">MACHINE NO. :</th>
+          <th class="kpm-meta-value">{{ page.assetId }}</th>
+          <th class="kpm-month-label">Month</th>
+          <th class="kpm-month-col" *ngFor="let m of page.months">{{ MONTH_NAMES[m] }}</th>
+        </tr>
+        <!-- Row 3: WW row -->
+        <tr>
+          <th class="kpm-col-num" rowspan="2"></th>
+          <th class="kpm-col-desc" rowspan="2">Description</th>
+          <th class="kpm-ww-date-label">WW</th>
+          <th class="kpm-ww-date-val" *ngFor="let m of page.months">{{ page.wwByMonth[m] || '' }}</th>
+        </tr>
+        <!-- Row 4: Date row -->
+        <tr>
+          <th class="kpm-ww-date-label">Date</th>
+          <th class="kpm-ww-date-val" *ngFor="let m of page.months">{{ page.dateByMonth[m] || '' }}</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        <!-- ข้อปฏิบัติ (Checklist items) -->
+        <tr *ngFor="let row of page.checklistRows; let i = index">
+          <td class="kpm-col-num">{{ i + 1 }}</td>
+          <td class="kpm-col-desc" colspan="2">{{ row.text }}</td>
+          <td class="kpm-check-cell" *ngFor="let m of page.months">{{ row.marks[m] || '' }}</td>
+        </tr>
+        <!-- Empty filler rows to keep the form a standard height -->
+        <tr *ngFor="let _ of [].constructor(Math.max(0, 12 - page.checklistRows.length))" class="kpm-empty-row">
+          <td class="kpm-col-num"></td>
+          <td colspan="2"></td>
+          <td *ngFor="let m of page.months"></td>
+        </tr>
+
+        <!-- Signature / Approved -->
+        <tr class="kpm-footer-row">
+          <td colspan="3" class="kpm-footer-label">Signature</td>
+          <td *ngFor="let m of page.months"></td>
+        </tr>
+        <tr class="kpm-footer-row">
+          <td colspan="3" class="kpm-footer-label">Approved</td>
+          <td *ngFor="let m of page.months"></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- ── Below-table rows ── -->
+    <div class="kpm-remark-row">Remark :</div>
+    <div class="kpm-remark-row">Spare part replacement:</div>
+    <div class="kpm-legend">
+      Remark :&nbsp; <strong>√</strong> = For checking is complete &nbsp;&nbsp;&nbsp;
+      <strong>−</strong> = Does not checking
+    </div>
+
+    <!-- ── Footer ── -->
+    <div class="kpm-doc-footer">
+      <div class="kpm-doc-left">
+        <div>Ref.Doc.P-EN-7.5-01</div>
+        <div>QSD : QSD : 10000040841</div>
+      </div>
+      <div class="kpm-doc-center">DC : 374750 &nbsp;&nbsp; FM-MF-02</div>
+      <div class="kpm-doc-right">
+        <div>Effective Date: 27/Sep/2021</div>
+        <div>Rev.L</div>
+      </div>
+    </div>
+
+  </div>
 </div>

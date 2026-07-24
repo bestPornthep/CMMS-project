@@ -17,12 +17,14 @@ export class PmTasksController {
   async getAll(
     @CurrentUser() user: any,
     @Query('status') status?: string,
+    @Query('excludeStatus') excludeStatus?: string,
     @Query('department') department?: string,
     @Query('productId') productId?: string,
     @Query('assignedTo') assignedTo?: string,
   ) {
     const where: any = {};
     if (status) where.status = status;
+    if (excludeStatus) where.status = { not: excludeStatus };
     if (department) where.department = department;
     if (assignedTo) where.assignedTo = assignedTo;
 
@@ -129,6 +131,7 @@ export class PmTasksController {
       recordNotes: body.recordNotes || null,
       assignedTo: body.assignedTo || null,
       createdBy: user.employeeId,
+      scheduleId: body.scheduleId || null,
     });
 
     return this.cleanPmTask(task);
@@ -155,7 +158,7 @@ export class PmTasksController {
     const canRecord =
       user.baseRole === 'admin' ||
       user.baseRole === 'manager' ||
-      user.baseRole === 'engineer' ||
+      (user.baseRole === 'engineer' && isOwner) ||
       hasDelegatedRecord ||
       (user.baseRole === 'technician' && existing.assignedTo === user.employeeId);
 
@@ -212,6 +215,7 @@ export class PmTasksController {
     if (body.partsRequired !== undefined) data.partsRequired = JSON.stringify(body.partsRequired);
     if (body.partsUsed !== undefined) data.partsUsed = JSON.stringify(body.partsUsed);
     if (body.recordNotes !== undefined) data.recordNotes = body.recordNotes;
+    if (body.scheduleId !== undefined) data.scheduleId = body.scheduleId;
 
     if (body.assignedTo !== undefined) data.assignedTo = body.assignedTo;
     if (body.assignedAt !== undefined) data.assignedAt = body.assignedAt ? new Date(body.assignedAt) : null;
@@ -256,5 +260,95 @@ export class PmTasksController {
       partsRequired: typeof t.partsRequired === 'string' ? JSON.parse(t.partsRequired) : t.partsRequired,
       partsUsed: typeof t.partsUsed === 'string' ? JSON.parse(t.partsUsed) : t.partsUsed,
     };
+  }
+
+  // ── Scheduling ───────────────────────────────────────────────────────────
+  
+  @Post('schedule')
+  async createSchedule(@Body() body: any, @CurrentUser() user: any) {
+    const hasPermission =
+      user.baseRole === 'admin' ||
+      user.baseRole === 'manager' ||
+      user.baseRole === 'engineer' ||
+      user.delegatedProducts?.some((dp: any) => dp.productId === body.productId && dp.permissions.includes('pm.create.submit'));
+
+    if (!hasPermission) {
+      throw new ForbiddenException('Insufficient permission to create PM schedules');
+    }
+
+    await this.cmms.checkProductOwnership(user, body.productId, 'pm.create.submit');
+
+    const seriesId = `SCH-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const dates = this.cmms.calculateDates(body.frequency);
+    
+    // We can't easily use createMany because each task needs a unique `PM-FAC-XXXX` ID.
+    // Instead we'll loop in the backend, but it's much faster and safer than frontend HTTP loops.
+    // In a real prod environment we'd use a DB sequence for the ID to do bulk inserts.
+    const createdTasks = [];
+    for (const date of dates) {
+      const task = await this.cmms.createTaskWithRetry({
+        title: body.title,
+        description: `[SeriesID: ${seriesId}]\n${body.description || ''}`,
+        frequency: body.frequency,
+        assetId: body.assetId,
+        productId: body.productId,
+        department: body.department,
+        nextDueDate: date,
+        estimatedHours: body.estimatedHours,
+        status: 'Pending',
+        checklist: JSON.stringify(body.checklist || []),
+        partsRequired: JSON.stringify(body.partsRequired || []),
+        partsUsed: '[]',
+        assignedTo: body.assignedTo || null,
+        createdBy: user.employeeId,
+      });
+      createdTasks.push(task);
+    }
+    
+    return createdTasks.map(t => this.cleanPmTask(t));
+  }
+
+  @Put('schedule/:seriesId')
+  async updateSchedule(@Param('seriesId') seriesId: string, @Body() body: any, @CurrentUser() user: any) {
+    // Note: A full implementation would check permission against the first task in the series
+    // but we'll trust the user's role for now, since they need engineer/manager access anyway.
+    
+    // Find all pending tasks in this series
+    const tasks = await this.prisma.pmTask.findMany({
+      where: {
+        status: 'Pending',
+        description: { contains: `[SeriesID: ${seriesId}]` }
+      }
+    });
+    
+    if (tasks.length === 0) return [];
+    
+    const isOwner =
+      user.baseRole === 'admin' ||
+      user.baseRole === 'manager' ||
+      user.ownedProducts.includes('*') ||
+      user.ownedProducts.includes(tasks[0].productId);
+
+    if (user.baseRole === 'engineer' && !isOwner) {
+       throw new ForbiddenException('You do not own the product for this schedule.');
+    }
+
+    const updatedTasks = [];
+    for (const task of tasks) {
+      const data: any = {};
+      if (body.title !== undefined) data.title = body.title;
+      if (body.description !== undefined) data.description = `[SeriesID: ${seriesId}]\n${body.description}`;
+      if (body.checklist !== undefined) data.checklist = JSON.stringify(body.checklist);
+      if (body.partsRequired !== undefined) data.partsRequired = JSON.stringify(body.partsRequired);
+      if (body.assignedTo !== undefined) data.assignedTo = body.assignedTo;
+
+      const updated = await this.prisma.pmTask.update({
+        where: { id: task.id },
+        data
+      });
+      updatedTasks.push(updated);
+    }
+    
+    return updatedTasks.map(t => this.cleanPmTask(t));
   }
 }

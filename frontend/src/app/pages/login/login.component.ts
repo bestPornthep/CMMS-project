@@ -2,6 +2,7 @@ import { Component, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
+import { PmService } from '../../core/services/pm.service';
 import { CommonModule } from '@angular/common';
 
 @Component({
@@ -14,6 +15,7 @@ import { CommonModule } from '@angular/common';
 export class LoginComponent {
   private fb = inject(FormBuilder);
   private authService = inject(AuthService);
+  private pmService = inject(PmService);
   private router = inject(Router);
 
   loginForm = this.fb.group({
@@ -41,6 +43,7 @@ export class LoginComponent {
 
     try {
       if (await this.authService.login(employeeId!, password!)) {
+        await this.pmService.loadData();
         this.router.navigate(['/dashboard']);
       } else {
         this.errorMessage = 'Invalid credentials. Please try again.';

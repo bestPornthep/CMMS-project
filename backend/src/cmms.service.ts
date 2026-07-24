@@ -92,4 +92,46 @@ export class CmmsService {
       },
     });
   }
+
+  // ── Scheduling Logic ───────────────────────────────────────────────────────
+  calculateDates(frequency: string, startDate?: Date): Date[] {
+    const dates: Date[] = [];
+    let current = startDate ? new Date(startDate) : new Date();
+    const oneYearFromNow = new Date(current);
+    oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+
+    const maxTasks = 365;
+
+    let addFunc = (d: Date) => d.setMonth(d.getMonth() + 1);
+
+    if (frequency === 'Daily') addFunc = (d: Date) => d.setDate(d.getDate() + 1);
+    else if (frequency === 'Weekly') addFunc = (d: Date) => d.setDate(d.getDate() + 7);
+    else if (frequency === 'Monthly') addFunc = (d: Date) => d.setMonth(d.getMonth() + 1);
+    else if (frequency === 'Quarterly') addFunc = (d: Date) => d.setMonth(d.getMonth() + 3);
+    else if (frequency === 'Yearly') addFunc = (d: Date) => d.setFullYear(d.getFullYear() + 1);
+    else {
+      const parts = frequency.split(' ');
+      if (parts.length === 2) {
+        const val = parseInt(parts[0], 10);
+        const unit = parts[1];
+        if (unit === 'hour(s)') addFunc = (d: Date) => d.setHours(d.getHours() + val);
+        else if (unit === 'day(s)') addFunc = (d: Date) => d.setDate(d.getDate() + val);
+        else if (unit === 'month(s)') addFunc = (d: Date) => d.setMonth(d.getMonth() + val);
+        else if (unit === 'Year(s)') addFunc = (d: Date) => d.setFullYear(d.getFullYear() + val);
+      }
+    }
+
+    while (dates.length < maxTasks) {
+      const nextDate = new Date(current);
+      addFunc(nextDate);
+
+      if (nextDate.getTime() === current.getTime()) break; // infinite loop guard
+      if (nextDate >= oneYearFromNow) break;
+
+      dates.push(nextDate);
+      current = nextDate;
+    }
+
+    return dates;
+  }
 }

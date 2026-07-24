@@ -3,6 +3,7 @@ import { Component, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../../core/services/auth.service';
 import { ApiService } from '../../core/services/api.service';
+import { ToastService } from '../../core/services/toast.service';
 import { AuditLog } from '../../core/models/pm.model';
 
 @Component({
@@ -15,6 +16,7 @@ import { AuditLog } from '../../core/models/pm.model';
 export class PmAuditComponent {
   private authService = inject(AuthService);
   private api = inject(ApiService);
+  private toast = inject(ToastService);
 
   auditLogs = signal<AuditLog[]>([]);
 
@@ -22,7 +24,8 @@ export class PmAuditComponent {
     const user = this.authService.currentUser();
     if (user) {
       this.api.getAuditLogs(user.employeeId, user.baseRole, user.department)
-        .then(logs => this.auditLogs.set(logs));
+        .then(logs => this.auditLogs.set(logs))
+        .catch(() => this.toast.error('Failed to load audit logs. Please refresh the page.'));
     }
   }
 

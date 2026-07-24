@@ -1,5 +1,5 @@
 import { TranslatePipe } from '../../shared/pipes/translate.pipe';
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal, DestroyRef } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PmService } from '../../core/services/pm.service';
@@ -7,6 +7,7 @@ import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
 import { PMTask } from '../../core/models/pm.model';
 import { ActivatedRoute, Router } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 @Component({
   selector: 'app-pm-record',
@@ -22,16 +23,26 @@ export class PmRecordComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private toast = inject(ToastService);
+  private destroyRef = inject(DestroyRef);
 
   ngOnInit() {
-    // Lazy load historical data for the history tab
-    this.pmService.loadHistoricalTasks().catch(console.error);
+    // Lazy load historical data, then re-check route param in case target task is a Done task
+    this.pmService.loadHistoricalTasks()
+      .then(() => {
+        const taskId = this.route.snapshot.queryParams['task'];
+        if (taskId) this.resolveTaskFromParam(taskId);
+      })
+      .catch(() => this.toast.error('Failed to load task history. Some records may be missing.'));
 
-    this.route.queryParams.subscribe(params => {
+    this.route.queryParams.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(params => {
       const taskId = params['task'];
-      if (taskId) {
-        const task = this.pmService.pmTasks().find(t => t.id === taskId);
-        if (task) {
+      if (taskId) this.resolveTaskFromParam(taskId);
+    });
+  }
+
+  private resolveTaskFromParam(taskId: string) {
+    const task = this.pmService.pmTasks().find(t => t.id === taskId);
+    if (!task) return;
           const user = this.authService.currentUser();
           
           if (user?.baseRole === 'engineer' || user?.baseRole === 'technician') {
@@ -87,14 +98,7 @@ export class PmRecordComponent implements OnInit {
           } else {
             this.viewTaskDetails(task);
           }
-        }
-      }
-    });
-  }
 
-  get isApprover(): boolean {
-    const role = this.authService.currentUser()?.baseRole;
-    return role === 'engineer' || role === 'manager' || role === 'admin';
   }
 
   // Get tasks based on role: Techs execute, Eng/Mgr approve
@@ -156,6 +160,11 @@ export class PmRecordComponent implements OnInit {
       return filtered;
     }
   });
+
+  get isApprover(): boolean {
+    const role = this.authService.currentUser()?.baseRole;
+    return role === 'engineer' || role === 'manager' || role === 'admin';
+  }
 
   activeTab = 'action';
   historyFilter = signal<'All' | 'Approved' | 'Rejected' | 'Pending' | 'Done'>('All');

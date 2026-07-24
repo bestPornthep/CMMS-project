@@ -157,6 +157,71 @@ input[type="date"].filter-input {
   z-index: 10;
 }
 
+/* ── Modal ───────────────────────────────────────── */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(2px);
+  z-index: 1000;
+}
+
+.modal-content {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  width: 90%;
+  max-width: 500px;
+  z-index: 1001;
+  display: flex;
+  flex-direction: column;
+
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--color-border-soft);
+
+    h3 { margin: 0; font-size: 16px; font-weight: 600; color: var(--color-text-primary); }
+    .close-btn {
+      background: none; border: none; cursor: pointer; color: var(--color-text-muted);
+      display: flex; align-items: center; justify-content: center;
+      &:hover { color: var(--color-text-primary); }
+    }
+  }
+
+  .modal-body {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .modal-footer {
+    padding: 16px 24px;
+    border-top: 1px solid var(--color-border-soft);
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    background: var(--color-bg-card-alt);
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  }
+}
+
+.export-asset-list {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  max-height: 200px;
+  overflow-y: auto;
+  background: var(--color-bg-page);
+}
+
 /* ── Card sub-label ──────────────────────────────── */
 .card-sub {
   font-size: 12px;
@@ -194,21 +259,223 @@ input[type="date"].filter-input {
   tbody tr:last-child td { border-bottom: none; }
 }
 
+/* ── Print Form Layout (Hidden on Screen) ────────── */
+.pm-form-print-only {
+  display: none;
+}
+
 /* ── Print ───────────────────────────────────────── */
 @media print {
-  .no-print { display: none !important; }
+  .no-print, .hide-in-print { display: none !important; }
 
-  .data-table {
+  .pm-form-print-only {
+    display: block !important;
+  }
+
+  /* One page-break between every form page */
+  .pm-form-page {
+    page-break-after: always;
+    font-family: Arial, sans-serif;
+    font-size: 10px;
+    color: #000;
+    padding: 0;
+  }
+
+  /* ── Header bar ── */
+  .kpm-header {
+    display: grid;
+    grid-template-columns: 130px 1fr auto;
+    align-items: center;
+    border: 1.5px solid #000;
+    padding: 6px 10px;
+    margin-bottom: 0;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .kpm-logo {
+    font-size: 11px;
+    line-height: 1.3;
+    border-right: 1px solid #000;
+    padding-right: 10px;
+    strong { font-weight: 900; color: #00308F; }
+    span { font-size: 9px; color: #333; }
+  }
+
+  .kpm-title {
+    text-align: center;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+  }
+
+  .kpm-year {
+    font-size: 10px;
+    text-align: right;
+    white-space: nowrap;
+    padding-left: 10px;
+  }
+
+  /* ── Check sheet table ── */
+  .kpm-table {
     width: 100%;
+    border-collapse: collapse;
+    border: 1.5px solid #000;
+    border-top: none;
+    table-layout: fixed;
 
+    th, td {
+      border: 1px solid #000;
+      padding: 3px 5px;
+      font-size: 9px;
+      vertical-align: middle;
+      text-align: center;
+      overflow: hidden;
+    }
+
+    /* Column widths */
+    th.kpm-meta-label, td.kpm-col-num { width: 25px; }
+    th.kpm-col-desc, td.kpm-col-desc   { width: 200px; text-align: left; }
+    th.kpm-ww-date-label               { width: 45px; }
+    th.kpm-month-col,
+    td.kpm-check-cell,
+    th.kpm-ww-date-val,
+    td.kpm-ww-date-val                 { width: 52px; }
+  }
+
+  /* Header row styles */
+  .kpm-meta-label {
+    text-align: left;
+    font-weight: 700;
+    background: #e8e8e8 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    white-space: nowrap;
+    font-size: 9px;
+  }
+
+  .kpm-meta-value {
+    text-align: left;
+    font-weight: 400;
+    background: #fff !important;
+    font-size: 9px;
+  }
+
+  .kpm-ww-header {
+    text-align: center;
+    font-weight: 400;
+    background: #fff !important;
+    font-size: 9px;
+  }
+
+  .kpm-month-label {
+    background: #e8e8e8 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    font-weight: 400;
+    font-size: 9px;
+  }
+
+  .kpm-month-col {
+    background: #fff !important;
+    font-weight: 700;
+    font-size: 9px;
+  }
+
+  .kpm-col-desc {
+    text-align: left;
+    background: #f5f5f5 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    font-weight: 400;
+    font-size: 9px;
+    word-break: break-word;
+  }
+
+  .kpm-col-num {
+    text-align: center;
+    background: #f5f5f5 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .kpm-ww-date-label {
+    text-align: center;
+    background: #e8e8e8 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    font-weight: 400;
+  }
+
+  .kpm-ww-date-val {
+    font-size: 9px;
+    background: #fff !important;
+  }
+
+  .kpm-check-cell {
+    font-size: 13px;
+    font-weight: 700;
+    color: #000 !important;
+  }
+
+  .kpm-empty-row td {
+    height: 18px;
+  }
+
+  .kpm-footer-row td {
+    height: 22px;
+    background: #f9f9f9 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .kpm-footer-label {
+    text-align: center;
+    font-weight: 600;
+    font-size: 9px;
+  }
+
+  /* ── Below-table rows ── */
+  .kpm-remark-row {
+    border: 1px solid #000;
+    border-top: none;
+    padding: 4px 8px;
+    font-size: 9px;
+    min-height: 18px;
+  }
+
+  .kpm-legend {
+    border: 1px solid #000;
+    border-top: none;
+    padding: 4px 8px;
+    font-size: 9px;
+  }
+
+  /* ── Document footer ── */
+  .kpm-doc-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-top: 6px;
+    font-size: 8px;
+    color: #333;
+  }
+
+  .kpm-doc-center { text-align: center; }
+
+  .kpm-doc-right { text-align: right; }
+
+  /* Fallback styles for the data-table if printed in table mode */
+  .data-table {
     th {
       font-size: 10px;
       padding: 6px;
       color: #333 !important;
       background: #f5f5f5 !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
       position: static;
     }
-
     td {
       font-size: 11px;
       padding: 6px;
@@ -218,8 +485,8 @@ input[type="date"].filter-input {
   }
 
   @page {
-    size: landscape;
-    margin: 1cm;
+    size: A4 landscape;
+    margin: 8mm;
   }
 }
 
