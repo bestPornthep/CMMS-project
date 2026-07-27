@@ -104,7 +104,7 @@
               <td style="color:var(--error-mid);font-weight:600;font-size:12px;">{{ task.nextDueDate | date: (task.frequency.includes('hour') ? 'MMM d, yyyy, h:mm a' : 'MMM d, yyyy') }}</td>
               <td>
                 <div style="display:flex;align-items:center;justify-content:center;gap:6px;">
-                  <div class="c-dropdown form-dropdown" [class.open]="techDropdownOpen[task.id]" (click)="techDropdownOpen[task.id] = !techDropdownOpen[task.id]; $event.stopPropagation();" style="width:140px;">
+                  <div class="c-dropdown form-dropdown" [class.open]="techDropdownOpen[task.id]" (click)="toggleTechDropdown(task.id, $event)" style="width:140px;">
                     <div class="c-dropdown-trigger" style="height:32px; width:100%; display:flex; align-items:center; padding:6px 10px;">
                       <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100px; display:inline-block; text-align:left;">{{ selectedTech[task.id] ? getTechNameWithWorkload(selectedTech[task.id], getWindowDays(task.frequency)) : 'Select Tech...' }}</span>
                       <span class="material-symbols-outlined" style="margin-left:auto; flex-shrink:0;">expand_more</span>

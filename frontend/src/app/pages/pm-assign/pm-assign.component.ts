@@ -238,6 +238,13 @@ export class PmAssignComponent {
     }
   }
 
+  toggleTechDropdown(taskId: string, event: Event) {
+    event.stopPropagation();
+    const wasOpen = !!this.techDropdownOpen[taskId];
+    this.techDropdownOpen = {};
+    if (!wasOpen) this.techDropdownOpen[taskId] = true;
+  }
+
   @HostListener('document:click')
   onDocumentClick() {
     this.bulkDropdownOpen = false;
