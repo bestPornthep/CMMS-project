@@ -163,10 +163,18 @@
               [placeholder]="isApprover ? 'Approval notes or feedback...' : 'Any issues found or notes...'"></textarea>
           </div>
 
+          <!-- Too early notice -->
+          <div *ngIf="!isApprover && isTooEarly(selectedTask)"
+            style="padding:10px 14px; background:var(--color-bg-card-alt); border:1px solid var(--color-border-soft); border-radius:var(--radius-md); font-size:13px; color:var(--color-text-secondary); display:flex; align-items:center; gap:8px;">
+            <span class="material-symbols-outlined" style="font-size:18px; color:var(--color-warning, #d97706);">schedule</span>
+            This task is not due for more than 14 days. You can view it but cannot execute it yet.
+          </div>
+
           <!-- Submit Button -->
           <div style="margin-top: 10px; display: flex; gap: 10px;">
             <button class="btn btn-primary" (click)="submitRecord()"
-              style="flex: 1; justify-content:center; padding:12px; font-size:14px;">
+              style="flex: 1; justify-content:center; padding:12px; font-size:14px;"
+              [disabled]="!isApprover && isTooEarly(selectedTask)">
               <span class="material-symbols-outlined">{{ isApprover ? 'verified' : 'check_circle' }}</span> {{
               isApprover ? 'Approve PM Record' : 'Submit PM Record' }}
             </button>

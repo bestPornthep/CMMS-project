@@ -114,8 +114,7 @@ export class PmRecordComponent implements OnInit {
 
       const techTasks = tasks.filter(t => 
         (t.status === 'Pending' || t.status === 'In Progress' || t.status === 'Overdue') && 
-        t.assignedTo === user.employeeId &&
-        (!t.nextDueDate || new Date(t.nextDueDate) <= lookahead)
+        t.assignedTo === user.employeeId
       );
       
       // Sort tasks first so the earliest task in a series is always chosen as the representative
@@ -164,6 +163,13 @@ export class PmRecordComponent implements OnInit {
   get isApprover(): boolean {
     const role = this.authService.currentUser()?.baseRole;
     return role === 'engineer' || role === 'manager' || role === 'admin';
+  }
+
+  isTooEarly(task: PMTask): boolean {
+    if (!task.nextDueDate) return false;
+    const lookahead = new Date();
+    lookahead.setDate(lookahead.getDate() + 14);
+    return new Date(task.nextDueDate) > lookahead;
   }
 
   activeTab = 'action';
