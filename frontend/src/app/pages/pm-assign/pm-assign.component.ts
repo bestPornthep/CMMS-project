@@ -144,7 +144,7 @@ export class PmAssignComponent {
 
   private readonly MAX_PM_HOURS_PER_MONTH = 70;
 
-  private getWindowDays(frequency: string): number {
+  getWindowDays(frequency: string): number {
     switch (frequency) {
       case 'Daily': return 1;
       case 'Weekly': return 7;
@@ -165,14 +165,13 @@ export class PmAssignComponent {
     }
   }
 
-  getTechWorkload(techId: string): number {
+  getTechWorkload(techId: string, windowDays = 30): number {
     const today = new Date();
+    const cutoff = new Date();
+    cutoff.setDate(today.getDate() + windowDays);
 
     const tasks = this.pmService.pmTasks().filter((t: PMTask) => {
       if (t.assignedTo !== techId || t.status === 'Done') return false;
-      const windowDays = this.getWindowDays(t.frequency);
-      const cutoff = new Date();
-      cutoff.setDate(today.getDate() + windowDays);
       return new Date(t.nextDueDate) <= cutoff;
     });
 
@@ -180,11 +179,11 @@ export class PmAssignComponent {
     return Math.round((totalHours / this.MAX_PM_HOURS_PER_MONTH) * 100);
   }
 
-  getTechNameWithWorkload(employeeId?: string): string {
+  getTechNameWithWorkload(employeeId?: string, windowDays = 30): string {
     if (!employeeId) return 'Unassigned';
     const tech = this.authService.getAllUsers().find(u => u.employeeId === employeeId);
     if (!tech) return employeeId;
-    const workload = this.getTechWorkload(employeeId);
+    const workload = this.getTechWorkload(employeeId, windowDays);
     return `${tech.name} (${workload}%)`;
   }
 
