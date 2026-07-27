@@ -145,6 +145,7 @@ export class PmAssignComponent {
   private readonly MAX_PM_HOURS_PER_MONTH = 70;
 
   getWindowDays(frequency: string): number {
+    if (!frequency) return 30;
     switch (frequency) {
       case 'Daily': return 1;
       case 'Weekly': return 7;
