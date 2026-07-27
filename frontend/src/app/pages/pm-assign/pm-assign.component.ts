@@ -395,12 +395,12 @@ export class PmAssignComponent {
     this.bulkAssignee.set('');
   }
 
-  assignTask(task: PMTask) {
+  async assignTask(task: PMTask) {
     if (!this.canManageTask(task)) {
       this.toast.error('You cannot manage or reassign work owned by another Engineer or outside your responsibility.');
       return;
     }
-    
+
     // Validate Product-Asset match before assignment
     const asset = this.pmService.assets().find(a => a.id === task.assetId);
     if (!asset || asset.location !== task.productId) {
@@ -413,32 +413,37 @@ export class PmAssignComponent {
       this.toast.warning('Please select a technician first.');
       return;
     }
-    
-    const seriesMatch = task.description?.match(/\[SeriesID:\s*([^\]]+)\]/);
-    if (seriesMatch) {
-      const seriesId = seriesMatch[1];
-      // Only assign the NEXT (earliest) pending task in the series
-      const nextTask = this.pmService.pmTasks()
-        .filter(t => t.status === 'Pending' && t.description?.includes(`[SeriesID: ${seriesId}]`))
-        .sort((a, b) => new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime())[0];
 
-      if (nextTask) {
-        this.pmService.updateTask({
-          ...nextTask,
+    try {
+      const seriesMatch = task.description?.match(/\[SeriesID:\s*([^\]]+)\]/);
+      if (seriesMatch) {
+        const seriesId = seriesMatch[1];
+        const nextTask = this.pmService.pmTasks()
+          .filter(t => t.status === 'Pending' && t.description?.includes(`[SeriesID: ${seriesId}]`))
+          .sort((a, b) => new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime())[0];
+
+        if (nextTask) {
+          await this.pmService.updateTask({
+            ...nextTask,
+            status: 'In Progress',
+            assignedTo: tech,
+            assignedAt: new Date(),
+            assignedBy: this.currentUser?.employeeId
+          });
+        }
+      } else {
+        await this.pmService.updateTask({
+          ...task,
           status: 'In Progress',
           assignedTo: tech,
           assignedAt: new Date(),
           assignedBy: this.currentUser?.employeeId
         });
       }
-    } else {
-      this.pmService.updateTask({
-        ...task,
-        status: 'In Progress',
-        assignedTo: tech,
-        assignedAt: new Date(),
-        assignedBy: this.currentUser?.employeeId
-      });
+      this.toast.success('Task assigned successfully.');
+      this.selectedTech[task.id] = '';
+    } catch (err: any) {
+      this.toast.error(err?.message || 'Failed to assign task. Please check the server connection.');
     }
   }
 
