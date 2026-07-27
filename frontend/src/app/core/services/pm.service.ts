@@ -134,7 +134,7 @@ export class PmService {
 
   async deleteTask(id: string): Promise<void> {
     const user = this.authService.currentUser();
-    if (!user) throw new Error('Unauthorized.');
+    if (!user || !this.authService.hasPermission('pm.create.submit')) throw new Error('Unauthorized.');
     await this.api.deleteTask(id);
     this.pmTasksSignal.update(tasks => tasks.filter(t => t.id !== id));
   }

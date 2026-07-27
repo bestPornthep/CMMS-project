@@ -43,62 +43,58 @@ export class PmRecordComponent implements OnInit {
   private resolveTaskFromParam(taskId: string) {
     const task = this.pmService.pmTasks().find(t => t.id === taskId);
     if (!task) return;
-          const user = this.authService.currentUser();
-          
-          if (user?.baseRole === 'engineer' || user?.baseRole === 'technician') {
-            const allowedProducts = this.authService.getAccessibleProducts('pm.record.view');
-            const isSameDept = task.department === user.department;
-            
-            if (!isSameDept || (user.baseRole === 'engineer' && !allowedProducts.includes(task.productId || ''))) {
-              this.toast.error('You do not have permission to view tasks outside your section or product scope.');
-              this.router.navigate(['/pm-record']);
-              return;
-            }
 
-            if (user.baseRole === 'engineer' && task.createdBy && task.createdBy !== user.employeeId) {
-               const creator = this.authService.getUser(task.createdBy);
-               if (creator && creator.baseRole === 'engineer') {
-                 this.toast.error('You do not have permission to view tasks created by another Engineer.');
-                 this.router.navigate(['/pm-record']);
-                 return;
-               }
-            }
-          }
+    const user = this.authService.currentUser();
 
-          let isActionable = false;
-          let isHistory = false;
+    if (user?.baseRole === 'engineer' || user?.baseRole === 'technician') {
+      const allowedProducts = this.authService.getAccessibleProducts('pm.record.view');
+      const isSameDept = task.department === user.department;
 
-          if (user && user.baseRole === 'technician') {
-            isActionable = (task.status === 'Pending' || task.status === 'In Progress' || task.status === 'Overdue') && task.assignedTo === user.employeeId;
-            isHistory = (task.status === 'Done' || task.status === 'Pending Approval') && task.completedBy === user.employeeId;
-          } else {
-            isActionable = task.status === 'Pending Approval';
-            isHistory = task.status === 'Done' || (task.recordNotes?.includes('[Rejected') ?? false);
-          }
+      if (!isSameDept || (user.baseRole === 'engineer' && !allowedProducts.includes(task.productId || ''))) {
+        this.toast.error('You do not have permission to view tasks outside your section or product scope.');
+        this.router.navigate(['/pm-record']);
+        return;
+      }
 
-          if (isActionable) {
-            this.activeTab = 'action';
-            this.selectTask(task);
-            setTimeout(() => {
-              const el = document.getElementById('row-' + taskId);
-              if (el) {
-                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              }
-            }, 100);
-          } else if (isHistory) {
-            this.activeTab = 'history';
-            this.selectTask(task);
-            this.viewTaskDetails(task);
-            setTimeout(() => {
-              const el = document.getElementById('row-' + taskId);
-              if (el) {
-                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              }
-            }, 100);
-          } else {
-            this.viewTaskDetails(task);
-          }
+      if (user.baseRole === 'engineer' && task.createdBy && task.createdBy !== user.employeeId) {
+        const creator = this.authService.getUser(task.createdBy);
+        if (creator && creator.baseRole === 'engineer') {
+          this.toast.error('You do not have permission to view tasks created by another Engineer.');
+          this.router.navigate(['/pm-record']);
+          return;
+        }
+      }
+    }
 
+    let isActionable = false;
+    let isHistory = false;
+
+    if (user && user.baseRole === 'technician') {
+      isActionable = (task.status === 'Pending' || task.status === 'In Progress' || task.status === 'Overdue') && task.assignedTo === user.employeeId;
+      isHistory = (task.status === 'Done' || task.status === 'Pending Approval') && task.completedBy === user.employeeId;
+    } else {
+      isActionable = task.status === 'Pending Approval';
+      isHistory = task.status === 'Done' || (task.recordNotes?.includes('[Rejected') ?? false);
+    }
+
+    if (isActionable) {
+      this.activeTab = 'action';
+      this.selectTask(task);
+      setTimeout(() => {
+        const el = document.getElementById('row-' + taskId);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
+    } else if (isHistory) {
+      this.activeTab = 'history';
+      this.selectTask(task);
+      this.viewTaskDetails(task);
+      setTimeout(() => {
+        const el = document.getElementById('row-' + taskId);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
+    } else {
+      this.viewTaskDetails(task);
+    }
   }
 
   // Get tasks based on role: Techs execute, Eng/Mgr approve

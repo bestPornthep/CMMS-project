@@ -26,9 +26,13 @@ export class PmReportsComponent implements OnInit {
   selectedProducts = signal<string[]>([]);
   selectedAssets = signal<string[]>([]);
 
+  historyLoaded = signal(false);
+
   ngOnInit() {
     // Lazy load historical data only when visiting reports
-    this.pmService.loadHistoricalTasks().catch(console.error);
+    this.pmService.loadHistoricalTasks()
+      .then(() => this.historyLoaded.set(true))
+      .catch(console.error);
   }
 
   productDropdownOpen = signal(false);
@@ -264,12 +268,13 @@ export class PmReportsComponent implements OnInit {
     if (this.exportSelectedAssets().length === 0) return;
     this.printMode.set('form');
     this.closeExportModal();
-    
-    // Give Angular time to render the print DOM before triggering print
-    setTimeout(() => {
-      window.print();
-      // Reset back to normal view after printing (or if cancelled)
-      this.printMode.set('table');
-    }, 100);
+
+    // Wait two animation frames to guarantee Angular has rendered the print DOM
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        window.print();
+        this.printMode.set('table');
+      });
+    });
   }
 }

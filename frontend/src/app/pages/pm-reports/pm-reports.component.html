@@ -34,8 +34,8 @@
   </div>
   <div class="modal-footer">
     <button class="btn btn-outline" (click)="closeExportModal()">Cancel</button>
-    <button class="btn btn-primary" (click)="generatePdf()" [disabled]="exportSelectedAssets().length === 0">
-      Generate PDF
+    <button class="btn btn-primary" (click)="generatePdf()" [disabled]="exportSelectedAssets().length === 0 || !historyLoaded()">
+      {{ historyLoaded() ? 'Generate PDF' : 'Loading data...' }}
     </button>
   </div>
 </div>
@@ -259,7 +259,7 @@
     <div class="kpm-doc-footer">
       <div class="kpm-doc-left">
         <div>Ref.Doc.P-EN-7.5-01</div>
-        <div>QSD : QSD : 10000040841</div>
+        <div>QSD : 10000040841</div>
       </div>
       <div class="kpm-doc-center">DC : 374750 &nbsp;&nbsp; FM-MF-02</div>
       <div class="kpm-doc-right">
