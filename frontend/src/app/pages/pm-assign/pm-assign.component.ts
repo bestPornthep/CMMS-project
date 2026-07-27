@@ -142,26 +142,49 @@ export class PmAssignComponent {
     });
   }
 
-  getTechWorkload(techId: string): number {
-    const today = new Date();
-    const thirtyDaysFromNow = new Date();
-    thirtyDaysFromNow.setDate(today.getDate() + 30);
+  private readonly MAX_PM_HOURS_PER_MONTH = 70;
 
-    const tasks = this.pmService.pmTasks().filter((t: PMTask) => 
-      t.assignedTo === techId && 
-      t.status !== 'Done' && 
-      new Date(t.nextDueDate) <= thirtyDaysFromNow
-    );
-
-    const totalHours = tasks.reduce((sum, t) => sum + (t.estimatedHours || 0), 0);
-    return Math.round((totalHours / 70) * 100);
+  getWindowDays(frequency: string): number {
+    if (!frequency) return 30;
+    switch (frequency) {
+      case 'Daily': return 1;
+      case 'Weekly': return 7;
+      case 'Monthly': return 30;
+      case 'Quarterly': return 30;
+      case 'Yearly': return 30;
+      default: {
+        // Custom format: "N unit(s)" e.g. "2 day(s)", "3 hour(s)", "6 month(s)", "1 Year(s)"
+        const match = frequency.match(/^(\d+(?:\.\d+)?)\s+(.+)$/);
+        if (!match) return 30;
+        const n = parseFloat(match[1]);
+        const unit = match[2].toLowerCase();
+        if (unit.startsWith('hour')) return 1;
+        if (unit.startsWith('day')) return Math.min(n, 30);
+        // month(s) or year(s) — cap at 30
+        return 30;
+      }
+    }
   }
 
-  getTechNameWithWorkload(employeeId?: string): string {
+  getTechWorkload(techId: string, windowDays = 30): number {
+    const today = new Date();
+    const cutoff = new Date();
+    cutoff.setDate(today.getDate() + windowDays);
+
+    const tasks = this.pmService.pmTasks().filter((t: PMTask) => {
+      if (t.assignedTo !== techId || t.status === 'Done') return false;
+      return new Date(t.nextDueDate) <= cutoff;
+    });
+
+    const totalHours = tasks.reduce((sum, t) => sum + (Number(t.estimatedHours) || 0), 0);
+    return Math.round((totalHours / this.MAX_PM_HOURS_PER_MONTH) * 100);
+  }
+
+  getTechNameWithWorkload(employeeId?: string, windowDays = 30): string {
     if (!employeeId) return 'Unassigned';
     const tech = this.authService.getAllUsers().find(u => u.employeeId === employeeId);
     if (!tech) return employeeId;
-    const workload = this.getTechWorkload(employeeId);
+    const workload = this.getTechWorkload(employeeId, windowDays);
     return `${tech.name} (${workload}%)`;
   }
 
@@ -213,6 +236,13 @@ export class PmAssignComponent {
         case 'delegationProduct': this.delegationProductDropdownOpen = true; break;
       }
     }
+  }
+
+  toggleTechDropdown(taskId: string, event: Event) {
+    event.stopPropagation();
+    const wasOpen = !!this.techDropdownOpen[taskId];
+    this.techDropdownOpen = {};
+    if (!wasOpen) this.techDropdownOpen[taskId] = true;
   }
 
   @HostListener('document:click')
@@ -355,8 +385,12 @@ export class PmAssignComponent {
     );
 
     const failures = results.filter(r => r.status === 'rejected');
-    if (failures.length > 0) {
-      this.toast.error(`${failures.length} task(s) failed to assign. Please check and try again.`);
+    if (failures.length === 0) {
+      this.toast.success(`${tasksToAssign.length} task(s) assigned successfully.`);
+    } else if (failures.length < results.length) {
+      this.toast.warning(`${results.length - failures.length} assigned, ${failures.length} failed. Please check and retry.`);
+    } else {
+      this.toast.error(`All ${failures.length} task(s) failed to assign. Please check the server connection.`);
     }
 
     // Reset state
@@ -365,12 +399,12 @@ export class PmAssignComponent {
     this.bulkAssignee.set('');
   }
 
-  assignTask(task: PMTask) {
+  async assignTask(task: PMTask) {
     if (!this.canManageTask(task)) {
       this.toast.error('You cannot manage or reassign work owned by another Engineer or outside your responsibility.');
       return;
     }
-    
+
     // Validate Product-Asset match before assignment
     const asset = this.pmService.assets().find(a => a.id === task.assetId);
     if (!asset || asset.location !== task.productId) {
@@ -383,32 +417,41 @@ export class PmAssignComponent {
       this.toast.warning('Please select a technician first.');
       return;
     }
-    
-    const seriesMatch = task.description?.match(/\[SeriesID:\s*([^\]]+)\]/);
-    if (seriesMatch) {
-      const seriesId = seriesMatch[1];
-      // Only assign the NEXT (earliest) pending task in the series
-      const nextTask = this.pmService.pmTasks()
-        .filter(t => t.status === 'Pending' && t.description?.includes(`[SeriesID: ${seriesId}]`))
-        .sort((a, b) => new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime())[0];
 
-      if (nextTask) {
-        this.pmService.updateTask({
-          ...nextTask,
+    try {
+      const seriesMatch = task.description?.match(/\[SeriesID:\s*([^\]]+)\]/);
+      if (seriesMatch) {
+        const seriesId = seriesMatch[1];
+        const nextTask = this.pmService.pmTasks()
+          .filter(t => t.status === 'Pending' && t.description?.includes(`[SeriesID: ${seriesId}]`))
+          .sort((a, b) => new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime())[0];
+
+        if (nextTask) {
+          await this.pmService.updateTask({
+            ...nextTask,
+            status: 'In Progress',
+            assignedTo: tech,
+            assignedAt: new Date(),
+            assignedBy: this.currentUser?.employeeId
+          });
+          this.toast.success('Task assigned successfully.');
+          this.selectedTech[task.id] = '';
+        } else {
+          this.toast.warning('No pending task found in this series to assign.');
+        }
+      } else {
+        await this.pmService.updateTask({
+          ...task,
           status: 'In Progress',
           assignedTo: tech,
           assignedAt: new Date(),
           assignedBy: this.currentUser?.employeeId
         });
+        this.toast.success('Task assigned successfully.');
+        this.selectedTech[task.id] = '';
       }
-    } else {
-      this.pmService.updateTask({
-        ...task,
-        status: 'In Progress',
-        assignedTo: tech,
-        assignedAt: new Date(),
-        assignedBy: this.currentUser?.employeeId
-      });
+    } catch (err: any) {
+      this.toast.error(err?.message || 'Failed to assign task. Please check the server connection.');
     }
   }
 
