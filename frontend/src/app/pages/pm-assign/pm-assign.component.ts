@@ -385,8 +385,12 @@ export class PmAssignComponent {
     );
 
     const failures = results.filter(r => r.status === 'rejected');
-    if (failures.length > 0) {
-      this.toast.error(`${failures.length} task(s) failed to assign. Please check and try again.`);
+    if (failures.length === 0) {
+      this.toast.success(`${tasksToAssign.length} task(s) assigned successfully.`);
+    } else if (failures.length < results.length) {
+      this.toast.warning(`${results.length - failures.length} assigned, ${failures.length} failed. Please check and retry.`);
+    } else {
+      this.toast.error(`All ${failures.length} task(s) failed to assign. Please check the server connection.`);
     }
 
     // Reset state
@@ -430,6 +434,10 @@ export class PmAssignComponent {
             assignedAt: new Date(),
             assignedBy: this.currentUser?.employeeId
           });
+          this.toast.success('Task assigned successfully.');
+          this.selectedTech[task.id] = '';
+        } else {
+          this.toast.warning('No pending task found in this series to assign.');
         }
       } else {
         await this.pmService.updateTask({
@@ -439,9 +447,9 @@ export class PmAssignComponent {
           assignedAt: new Date(),
           assignedBy: this.currentUser?.employeeId
         });
+        this.toast.success('Task assigned successfully.');
+        this.selectedTech[task.id] = '';
       }
-      this.toast.success('Task assigned successfully.');
-      this.selectedTech[task.id] = '';
     } catch (err: any) {
       this.toast.error(err?.message || 'Failed to assign task. Please check the server connection.');
     }

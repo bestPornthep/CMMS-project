@@ -108,10 +108,6 @@ export class PmRecordComponent implements OnInit {
     if (!user) return [];
     
     if (user.baseRole === 'technician') {
-      const now = new Date();
-      const lookahead = new Date();
-      lookahead.setDate(now.getDate() + 14); // Hide future tasks more than 14 days out
-
       const techTasks = tasks.filter(t => 
         (t.status === 'Pending' || t.status === 'In Progress' || t.status === 'Overdue') && 
         t.assignedTo === user.employeeId
