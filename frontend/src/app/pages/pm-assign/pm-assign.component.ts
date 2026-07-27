@@ -142,19 +142,42 @@ export class PmAssignComponent {
     });
   }
 
+  private readonly MAX_PM_HOURS_PER_MONTH = 70;
+
+  private getWindowDays(frequency: string): number {
+    switch (frequency) {
+      case 'Daily': return 1;
+      case 'Weekly': return 7;
+      case 'Monthly': return 30;
+      case 'Quarterly': return 30;
+      case 'Yearly': return 30;
+      default: {
+        // Custom format: "N unit(s)" e.g. "2 day(s)", "3 hour(s)", "6 month(s)", "1 Year(s)"
+        const match = frequency.match(/^(\d+(?:\.\d+)?)\s+(.+)$/);
+        if (!match) return 30;
+        const n = parseFloat(match[1]);
+        const unit = match[2].toLowerCase();
+        if (unit.startsWith('hour')) return 1;
+        if (unit.startsWith('day')) return Math.min(n, 30);
+        // month(s) or year(s) — cap at 30
+        return 30;
+      }
+    }
+  }
+
   getTechWorkload(techId: string): number {
     const today = new Date();
-    const thirtyDaysFromNow = new Date();
-    thirtyDaysFromNow.setDate(today.getDate() + 30);
 
-    const tasks = this.pmService.pmTasks().filter((t: PMTask) => 
-      t.assignedTo === techId && 
-      t.status !== 'Done' && 
-      new Date(t.nextDueDate) <= thirtyDaysFromNow
-    );
+    const tasks = this.pmService.pmTasks().filter((t: PMTask) => {
+      if (t.assignedTo !== techId || t.status === 'Done') return false;
+      const windowDays = this.getWindowDays(t.frequency);
+      const cutoff = new Date();
+      cutoff.setDate(today.getDate() + windowDays);
+      return new Date(t.nextDueDate) <= cutoff;
+    });
 
-    const totalHours = tasks.reduce((sum, t) => sum + (t.estimatedHours || 0), 0);
-    return Math.round((totalHours / 70) * 100);
+    const totalHours = tasks.reduce((sum, t) => sum + (Number(t.estimatedHours) || 0), 0);
+    return Math.round((totalHours / this.MAX_PM_HOURS_PER_MONTH) * 100);
   }
 
   getTechNameWithWorkload(employeeId?: string): string {
