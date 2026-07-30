@@ -263,7 +263,17 @@ export class PmTasksController {
   }
 
   // ── Scheduling ───────────────────────────────────────────────────────────
-  
+  // NOTE: This is the only schedule-creation/update path the frontend actually
+  // calls (`ApiService.createSchedule()` / `updateSchedule()` → POST/PUT here).
+  // A separate `PmSchedulesController` existed at /api/v1/pm-schedules with a
+  // proper `PmSchedule`-row-backed implementation, but the frontend never
+  // called it — meaning `SchedulerService.topUpSchedules()` (which only tops
+  // up schedules that have a `PmSchedule` row) could never see schedules
+  // created here. Fixed by creating a real `PmSchedule` row below, in addition
+  // to keeping the legacy `[SeriesID: xxx]` text marker in `description` that
+  // the frontend still parses to group/display series (see
+  // `layout.component.ts`, `pm-assign.component.ts`, `pm-calendar.component.ts`).
+
   @Post('schedule')
   async createSchedule(@Body() body: any, @CurrentUser() user: any) {
     const hasPermission =
@@ -280,7 +290,27 @@ export class PmTasksController {
 
     const seriesId = `SCH-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     const dates = this.cmms.calculateDates(body.frequency);
-    
+
+    // Persist a real PmSchedule row (id = seriesId) so the nightly
+    // topUpSchedules() cron can keep generating future tasks for this series
+    // beyond the initial ~1 year batch created below.
+    await this.prisma.pmSchedule.create({
+      data: {
+        id: seriesId,
+        title: body.title,
+        description: body.description || null,
+        frequency: body.frequency,
+        assetId: body.assetId,
+        productId: body.productId,
+        department: body.department,
+        estimatedHours: body.estimatedHours,
+        checklist: JSON.stringify(body.checklist || []),
+        partsRequired: JSON.stringify(body.partsRequired || []),
+        assignedTo: body.assignedTo || null,
+        createdBy: user.employeeId,
+      },
+    });
+
     // We can't easily use createMany because each task needs a unique `PM-FAC-XXXX` ID.
     // Instead we'll loop in the backend, but it's much faster and safer than frontend HTTP loops.
     // In a real prod environment we'd use a DB sequence for the ID to do bulk inserts.
@@ -301,6 +331,7 @@ export class PmTasksController {
         partsUsed: '[]',
         assignedTo: body.assignedTo || null,
         createdBy: user.employeeId,
+        scheduleId: seriesId,
       });
       createdTasks.push(task);
     }
@@ -310,19 +341,48 @@ export class PmTasksController {
 
   @Put('schedule/:seriesId')
   async updateSchedule(@Param('seriesId') seriesId: string, @Body() body: any, @CurrentUser() user: any) {
-    // Note: A full implementation would check permission against the first task in the series
-    // but we'll trust the user's role for now, since they need engineer/manager access anyway.
-    
-    // Find all pending tasks in this series
+    const schedule = await this.prisma.pmSchedule.findUnique({ where: { id: seriesId } });
+
+    if (schedule) {
+      // Proper path: a PmSchedule row exists (series created after this fix).
+      const isOwner =
+        user.baseRole === 'admin' ||
+        user.baseRole === 'manager' ||
+        user.ownedProducts.includes('*') ||
+        user.ownedProducts.includes(schedule.productId);
+
+      if (user.baseRole === 'engineer' && !isOwner) {
+        throw new ForbiddenException('You do not own the product for this schedule.');
+      }
+
+      const scheduleData: any = {};
+      if (body.title !== undefined) scheduleData.title = body.title;
+      if (body.description !== undefined) scheduleData.description = body.description;
+      if (body.checklist !== undefined) scheduleData.checklist = JSON.stringify(body.checklist);
+      if (body.partsRequired !== undefined) scheduleData.partsRequired = JSON.stringify(body.partsRequired);
+      if (body.assignedTo !== undefined) scheduleData.assignedTo = body.assignedTo;
+      if (Object.keys(scheduleData).length > 0) {
+        await this.prisma.pmSchedule.update({ where: { id: seriesId }, data: scheduleData });
+      }
+
+      const tasks = await this.prisma.pmTask.findMany({
+        where: { scheduleId: seriesId, status: 'Pending' },
+      });
+      return this.applyScheduleUpdatesToTasks(tasks, seriesId, body);
+    }
+
+    // Legacy fallback: schedules created before this fix have no PmSchedule
+    // row. Preserve the old description-substring-search behavior so those
+    // existing series remain editable (not retroactively migrated).
     const tasks = await this.prisma.pmTask.findMany({
       where: {
         status: 'Pending',
-        description: { contains: `[SeriesID: ${seriesId}]` }
-      }
+        description: { contains: `[SeriesID: ${seriesId}]` },
+      },
     });
-    
+
     if (tasks.length === 0) return [];
-    
+
     const isOwner =
       user.baseRole === 'admin' ||
       user.baseRole === 'manager' ||
@@ -330,9 +390,13 @@ export class PmTasksController {
       user.ownedProducts.includes(tasks[0].productId);
 
     if (user.baseRole === 'engineer' && !isOwner) {
-       throw new ForbiddenException('You do not own the product for this schedule.');
+      throw new ForbiddenException('You do not own the product for this schedule.');
     }
 
+    return this.applyScheduleUpdatesToTasks(tasks, seriesId, body);
+  }
+
+  private async applyScheduleUpdatesToTasks(tasks: any[], seriesId: string, body: any) {
     const updatedTasks = [];
     for (const task of tasks) {
       const data: any = {};
@@ -344,11 +408,11 @@ export class PmTasksController {
 
       const updated = await this.prisma.pmTask.update({
         where: { id: task.id },
-        data
+        data,
       });
       updatedTasks.push(updated);
     }
-    
+
     return updatedTasks.map(t => this.cleanPmTask(t));
   }
 }
