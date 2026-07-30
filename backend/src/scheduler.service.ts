@@ -47,6 +47,7 @@ export class SchedulerService {
         { id: d.granteeId, name: grantee?.name ?? d.granteeId, isUser: true },
         d.productId,
         'security',
+        grantor?.department ?? null,
       );
     }
   }

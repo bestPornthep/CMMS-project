@@ -136,6 +136,7 @@ export class DelegationsController {
           { id: grantee.employeeId, name: grantee.name, isUser: true },
           productId,
           'security',
+          user.department,
         );
       }
     }
@@ -182,6 +183,7 @@ export class DelegationsController {
       { id: target.granteeId, name: grantee?.name || target.granteeId, isUser: true },
       target.productId,
       'security',
+      user.department,
     );
   }
 }

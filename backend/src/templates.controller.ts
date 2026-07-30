@@ -70,6 +70,7 @@ export class TemplatesController {
       { id: template.id, name: template.name, isUser: false },
       `${body.department} Shared Asset`,
       'system',
+      body.department,
     );
 
     return {
@@ -119,6 +120,7 @@ export class TemplatesController {
       { id: updated.id, name: updated.name, isUser: false },
       `${updated.department} Shared Asset`,
       'system',
+      updated.department,
     );
 
     return {
@@ -147,6 +149,7 @@ export class TemplatesController {
       { id: template.id, name: template.name, isUser: false },
       `${template.department} Shared Asset`,
       'system',
+      template.department,
     );
   }
 
@@ -172,6 +175,7 @@ export class TemplatesController {
       { id: template.id, name: template.name, isUser: false },
       `${template.department} Shared Asset`,
       'system',
+      template.department,
     );
   }
 }

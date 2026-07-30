@@ -14,14 +14,16 @@ export class AuditLogsController {
     @Query('type') type?: string,
     @Query('from') from?: string,
     @Query('actorId') actorId?: string,
+    @Query('department') department?: string,
   ) {
-    if (user.baseRole !== 'engineer' && user.baseRole !== 'manager') {
-      throw new ForbiddenException('Only engineers and managers can view audit logs');
+    if (user.baseRole !== 'admin' && user.baseRole !== 'engineer' && user.baseRole !== 'manager') {
+      throw new ForbiddenException('Only engineers, managers, and admins can view audit logs');
     }
 
     const where: any = {};
     if (type) where.type = type;
     if (actorId) where.actorId = actorId;
+    if (department) where.department = department;
     if (from) {
       where.timestamp = { gte: new Date(from) };
     }

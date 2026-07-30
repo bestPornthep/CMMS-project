@@ -78,6 +78,7 @@ export class CmmsService {
     target: { id?: string; name?: string; isUser: boolean } | null,
     productId: string | null,
     type: 'security' | 'system' | 'data',
+    department: string | null = null,
   ) {
     await this.prisma.auditLog.create({
       data: {
@@ -88,6 +89,7 @@ export class CmmsService {
         targetName: target?.name || null,
         targetIsUser: target?.isUser || false,
         productId,
+        department,
         type,
       },
     });

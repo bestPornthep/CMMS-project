@@ -3047,6 +3047,7 @@ model AuditLog {
   targetName   String?  @map("target_name")
   targetIsUser Boolean  @default(false) @map("target_is_user")
   productId    String?  @map("product_id")
+  department   String?  @map("department")
   type         String   @map("type") // 'security', 'system', 'data'
   timestamp    DateTime @default(now())
   @@map("cmms_audit_logs")
