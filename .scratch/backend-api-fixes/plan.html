@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Backend Support Plan — AssetIntel CMMS</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #161923; --border: #2a2f3d; --text: #e6e8ef;
+    --muted: #9aa2b1; --accent: #5b8cff; --good: #3ddc97; --bad: #ff6b6b; --warn: #ffb84d;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 40px; line-height: 1.55; }
+  .wrap { max-width: 980px; margin: 0 auto; }
+  h1 { font-size: 28px; margin-bottom: 4px; }
+  .subtitle { color: var(--muted); margin-bottom: 32px; }
+  h2 { border-bottom: 2px solid var(--border); padding-bottom: 8px; margin-top: 48px; color: var(--accent); }
+  h3 { margin-top: 24px; color: var(--text); }
+  .ticket { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin: 16px 0; }
+  .ticket-header { display: flex; justify-content: space-between; align-items: center; }
+  .ticket-title { font-size: 18px; font-weight: 600; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 700; text-transform: uppercase; padding: 3px 10px; border-radius: 999px; margin-left: 8px; }
+  .tag.bug { background: rgba(255,107,107,.15); color: var(--bad); border: 1px solid rgba(255,107,107,.4); }
+  .tag.feature { background: rgba(91,140,255,.15); color: var(--accent); border: 1px solid rgba(91,140,255,.4); }
+  .tag.risk { background: rgba(255,184,77,.15); color: var(--warn); border: 1px solid rgba(255,184,77,.4); }
+  .priority { color: var(--muted); font-size: 13px; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  th, td { border: 1px solid var(--border); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: #1d212c; color: var(--muted); }
+  code { background: #1d212c; padding: 2px 6px; border-radius: 4px; font-size: 13px; color: #f0ad4e; }
+  pre { background: #1d212c; padding: 14px; border-radius: 8px; overflow-x: auto; border: 1px solid var(--border); }
+  ul { padding-left: 22px; }
+  .diagram { background: #1d212c; border: 1px solid var(--border); border-radius: 8px; padding: 24px; margin: 16px 0; }
+  .flow { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .box { background: var(--panel); border: 1px solid var(--accent); border-radius: 8px; padding: 10px 14px; text-align: center; min-width: 130px; font-size: 13px; }
+  .box.bad { border-color: var(--bad); }
+  .box.good { border-color: var(--good); }
+  .arrow { color: var(--muted); font-size: 20px; }
+  .col { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .row { display: flex; gap: 24px; justify-content: center; flex-wrap: wrap; }
+  .caption { text-align: center; color: var(--muted); font-size: 12px; margin-top: 6px; }
+  .badge-list { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0 0; }
+  .qbox { background: rgba(255,184,77,.08); border: 1px solid rgba(255,184,77,.4); border-radius: 8px; padding: 14px 18px; margin: 16px 0; }
+  .qbox b { color: var(--warn); }
+  .approve { background: rgba(61,220,151,.1); border: 1px solid var(--good); border-radius: 10px; padding: 20px; margin-top: 40px; text-align: center; }
+  .toc { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px 24px; }
+  .toc a { color: var(--accent); text-decoration: none; }
+  .toc li { margin: 4px 0; }
+  .legend { display:flex; gap:16px; font-size:12px; color:var(--muted); margin-top:8px; }
+  .legend span::before { content:"■ "; }
+  .legend .l-good::before { color: var(--good); }
+  .legend .l-bad::before { color: var(--bad); }
+  .legend .l-accent::before { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Backend Support Plan</h1>
+  <div class="subtitle">Branch <code>feature/update_feature_backend</code> — closing gaps between the Angular frontend's expected API contract (<code>api.service.ts</code>) and the current NestJS backend.</div>
+
+  <div class="toc">
+    <b>Tickets in this plan</b>
+    <ul>
+      <li><a href="#t1">T1 — Add missing <code>PUT /templates/:id</code> endpoint</a> <span class="tag bug">Bug</span></li>
+      <li><a href="#t2">T2 — Fix <code>POST /products</code> to grant creator ownership</a> <span class="tag bug">Bug</span></li>
+      <li><a href="#t3">T3 — Fix <code>GET /audit-logs</code> department filter</a> <span class="tag bug">Bug</span></li>
+      <li><a href="#t4">T4 — Wire <code>/pm-tasks/schedule</code> into the real <code>PmSchedule</code> model (fixes silent 1-year cliff)</a> <span class="tag bug">Bug</span></li>
+      <li><a href="#t5">T5 — Add <code>isDefault</code> to Template schema</a> <span class="tag feature">Feature</span></li>
+      <li><a href="#reconcile">Reconciliation with <code>backend_schedule_spec.md</code></a> <span class="tag risk">Cross-check</span></li>
+      <li><a href="#open">Open questions — need your decision before coding</a> <span class="tag risk">Decision</span></li>
+    </ul>
+  </div>
+
+  <h2 id="t1">T1 — Add missing <code>PUT /templates/:id</code></h2>
+  <div class="ticket">
+    <div class="ticket-header">
+      <div class="ticket-title">Frontend calls an endpoint that returns 404</div>
+      <span class="priority">Priority: High</span>
+    </div>
+    <p><b>Problem:</b> <code>ApiService.updateTemplate(id, template)</code> calls <code>PUT /api/v1/templates/:id</code>. <code>TemplatesController</code> only has <code>GET</code>, <code>POST</code>, and two <code>DELETE</code> routes — no <code>PUT</code>. Every edit-template action in the UI currently fails.</p>
+
+    <div class="diagram">
+      <div class="flow">
+        <div class="box">pm-create UI<br><span style="color:var(--muted)">Edit Template</span></div>
+        <div class="arrow">&#8594;</div>
+        <div class="box">ApiService<br><code>PUT /templates/:id</code></div>
+        <div class="arrow">&#8594;</div>
+        <div class="box bad">TemplatesController<br><span style="color:var(--bad)">no @Put() handler</span></div>
+        <div class="arrow">&#8594;</div>
+        <div class="box bad">404 Not Found</div>
+      </div>
+      <div class="caption">Current behavior — every template edit fails silently at the network layer.</div>
+    </div>
+
+    <h3>Plan</h3>
+    <ul>
+      <li>Add <code>@Put(':id')</code> handler to <code>TemplatesController</code>.</li>
+      <li>Permission: same as create — <code>admin</code>/<code>manager</code> any department, <code>engineer</code> only own department. <code>technician</code> forbidden.</li>
+      <li>Reject cross-department name collisions the same way <code>create()</code> does (unique <code>[name, department]</code>).</li>
+      <li>Call <code>CmmsService.logAction('Updated PM Template', ...)</code> for audit trail, matching the pattern used by create/delete.</li>
+      <li>Parse/stringify <code>checklist</code> JSON the same way as the other handlers.</li>
+    </ul>
+    <p><b>Files touched:</b> <code>backend/src/templates.controller.ts</code></p>
+    <p><b>Verify:</b> Edit a template from pm-create UI → 200 OK, checklist persists, audit log entry created. Engineer editing another department's template → 403.</p>
+  </div>
+
+  <h2 id="t2">T2 — Fix <code>POST /products</code> creator ownership</h2>
+  <div class="ticket">
+    <div class="ticket-header">
+      <div class="ticket-title">Product creator can't immediately use what they created</div>
+      <span class="priority">Priority: High</span>
+    </div>
+    <p><b>Problem:</b> <code>ProductsController.create()</code> inserts a <code>Product</code> row but never inserts a matching <code>UserOwnedProduct</code> row. An <code>engineer</code>/<code>manager</code> who creates a product cannot create PM schedules against it until an admin manually grants ownership.</p>
+
+    <div class="diagram">
+      <div class="row">
+        <div class="col">
+          <b style="color:var(--bad)">Current</b>
+          <div class="box">POST /products</div>
+          <div class="arrow">&#8595;</div>
+          <div class="box">Product row created</div>
+          <div class="arrow">&#8595;</div>
+          <div class="box bad">No ownership row<br><span style="color:var(--muted)">creator can't use it</span></div>
+        </div>
+        <div class="col">
+          <b style="color:var(--good)">Proposed</b>
+          <div class="box">POST /products</div>
+          <div class="arrow">&#8595;</div>
+          <div class="box">Product row created</div>
+          <div class="arrow">&#8595;</div>
+          <div class="box good">UserOwnedProduct row<br>(creator, productId)</div>
+        </div>
+      </div>
+    </div>
+
+    <h3>Plan</h3>
+    <ul>
+      <li>In <code>ProductsController.create()</code>, after creating the <code>Product</code>, insert a <code>UserOwnedProduct</code> row for <code>{ employeeId: user.employeeId, productId: body.id }</code>.</li>
+      <li>Wrap both writes in a Prisma <code>$transaction</code> so a failed ownership insert rolls back the product create.</li>
+      <li>No change needed to who's allowed to create products (stays <code>admin</code>/<code>manager</code> only — matches current guard).</li>
+    </ul>
+    <p><b>Files touched:</b> <code>backend/src/products.controller.ts</code></p>
+    <p><b>Verify:</b> Manager creates a product → can immediately create a PM schedule for it without admin intervention. Row appears in <code>cmms_user_owned_products</code>.</p>
+  </div>
+
+  <h2 id="t3">T3 — Fix <code>GET /audit-logs</code> department filter + admin lockout bug</h2>
+  <div class="ticket">
+    <div class="ticket-header">
+      <div class="ticket-title">Query param silently dropped, and admin is wrongly blocked from viewing audit logs</div>
+      <span class="priority">Priority: Medium</span>
+    </div>
+    <p><b>Problem 1:</b> Frontend sends <code>GET /api/v1/audit-logs?department=X</code> for <code>engineer</code>/<code>manager</code> roles. <code>AuditLogsController</code> destructures <code>@Query('type')</code>, <code>@Query('from')</code>, <code>@Query('actorId')</code> — never <code>@Query('department')</code>. Result: engineers/managers see audit logs from every department, not just their own.</p>
+    <p><b>Problem 2 (confirmed in code):</b> the role guard is an exclusion check —</p>
+    <pre style="background:#111;padding:10px;border-radius:6px;overflow-x:auto;">if (user.baseRole !== 'engineer' && user.baseRole !== 'manager') {
+  throw new ForbiddenException('Only engineers and managers can view audit logs');
+}</pre>
+    <p>— which also blocks <code>admin</code>. This is an access-control bug, not intentional design: locking the highest-privilege role out of the audit trail undermines its purpose (incident review, compliance). Fixing alongside the department filter since it's the same controller/handler.</p>
+
+    <h3>Plan</h3>
+    <ul>
+      <li>Add <code>department String? @map("department")</code> to the <code>AuditLog</code> Prisma model + migration.</li>
+      <li>Add a <code>department: string | null</code> param to <code>CmmsService.logAction()</code>; update all 6 call sites (<code>delegations.controller.ts</code> ×2, <code>templates.controller.ts</code> ×3, <code>scheduler.service.ts</code> ×1) to pass the relevant department (typically <code>actor.department</code>).</li>
+      <li>Add <code>@Query('department') department?: string</code> to <code>AuditLogsController.getAll()</code> and filter <code>where.department = department</code> when provided.</li>
+      <li>Change the role guard to allow <code>admin</code> in addition to <code>engineer</code>/<code>manager</code>; <code>technician</code> remains blocked.</li>
+      <li>Existing rows will have <code>department: null</code> — not backfilled in this ticket.</li>
+    </ul>
+    <p><b>Files touched:</b> <code>backend/prisma/schema.prisma</code>, new migration, <code>backend/src/cmms.service.ts</code>, <code>backend/src/audit-logs.controller.ts</code>, <code>backend/src/delegations.controller.ts</code>, <code>backend/src/templates.controller.ts</code>, <code>backend/src/scheduler.service.ts</code>.</p>
+  </div>
+
+  <h2 id="t4">T4 — Wire <code>/pm-tasks/schedule</code> into the real <code>PmSchedule</code> model</h2>
+  <div class="ticket">
+    <div class="ticket-header">
+      <div class="ticket-title">Confirmed real bug: recurring PM series silently stop generating after ~1 year</div>
+      <span class="priority">Priority: High — upgraded after cross-checking <code>backend_schedule_spec.md</code></span>
+    </div>
+    <p><b>Problem, confirmed by reading the actual current code</b> (not just the frontend contract):</p>
+    <ul>
+      <li><code>CmmsService.calculateDates()</code> generates at most 1 year of future tasks in one batch (<code>maxTasks = 365</code>, hard stop at <code>oneYearFromNow</code>).</li>
+      <li><code>SchedulerService.topUpSchedules()</code> (nightly cron) is supposed to keep refilling that rolling 1-year buffer forever — but it only works by reading <code>this.prisma.pmSchedule.findMany()</code>, i.e. it only tops up series that have a row in <code>cmms_pm_schedules</code>.</li>
+      <li><code>PmTasksController.createSchedule()</code> — the handler actually mounted at <code>POST /api/v1/pm-tasks/schedule</code>, which is the <b>only</b> path the frontend calls (<code>ApiService.createSchedule()</code>) — never inserts a <code>PmSchedule</code> row. It only creates <code>PmTask</code> rows with <code>[SeriesID: xxx]</code> baked into <code>description</code>, and never sets <code>scheduleId</code> (the FK column already exists on <code>PmTask</code> and is already wired through <code>CreatePmTaskDto</code> / <code>createTaskWithRetry</code> — just never populated by this handler).</li>
+    </ul>
+    <p><b>Net effect:</b> every recurring PM schedule a user creates today gets its first ~365 days of tasks, then <b>silently stops</b> — the nightly top-up job can't see it because there's no <code>PmSchedule</code> row to top up. This will surface in production as "PM tasks just stopped appearing" roughly a year after go-live, with no error anywhere.</p>
+
+
+    <p>There are two parallel code paths for the same concept:</p>
+    <table>
+      <tr><th>Path</th><th>Used by frontend?</th><th>Persists <code>PmSchedule</code> row?</th><th>Sets <code>PmTask.scheduleId</code>?</th><th>Series identity</th></tr>
+      <tr><td><code>POST /pm-tasks/schedule</code><br><code>PUT /pm-tasks/schedule/:seriesId</code></td><td><b style="color:var(--good)">Yes</b> — this is what <code>ApiService</code> calls</td><td>No</td><td>No</td><td>Text pattern <code>[SeriesID: xxx]</code> embedded in <code>description</code>, found via string <code>CONTAINS</code> search</td></tr>
+      <tr><td><code>POST /pm-schedules</code><br><code>PUT /pm-schedules/:id</code></td><td>No — dead code, unreachable</td><td>Yes</td><td>Yes</td><td>Real FK: <code>PmTask.scheduleId → PmSchedule.id</code></td></tr>
+    </table>
+
+    <div class="diagram">
+      <b style="color:var(--muted)">Sequence — current state (what frontend actually exercises)</b>
+      <div class="flow" style="margin-top:12px">
+        <div class="box">pm-create UI</div>
+        <div class="arrow">&#8594;</div>
+        <div class="box">POST /pm-tasks/schedule</div>
+        <div class="arrow">&#8594;</div>
+        <div class="box bad">N × PmTask rows<br>description = "...[SeriesID: SCH-123]"</div>
+      </div>
+      <div class="flow" style="margin-top:16px">
+        <div class="box">pm-assign edit series</div>
+        <div class="arrow">&#8594;</div>
+        <div class="box">PUT /pm-tasks/schedule/:seriesId</div>
+        <div class="arrow">&#8594;</div>
+        <div class="box bad">description LIKE '%[SeriesID: xxx]%'<br><span style="color:var(--bad)">no ORDER BY — first match is arbitrary</span></div>
+      </div>
+      <div class="caption">The <code>PmSchedulesController</code> resource (proper FK-based) is never called by the frontend today.</div>
+    </div>
+
+    <h3>Plan — make the path the frontend already calls do this correctly, no frontend changes required</h3>
+    <ul>
+      <li>Rewrite <code>PmTasksController.createSchedule()</code> (mounted at <code>POST /pm-tasks/schedule</code>) to reuse <code>PmSchedulesController</code>'s logic: create a real <code>PmSchedule</code> row first, then create tasks with <code>scheduleId</code> set to that row's id. Same response shape as today (frontend doesn't need changes — it doesn't read the schedule id back).</li>
+      <li>Rewrite <code>PmTasksController.updateSchedule()</code> (mounted at <code>PUT /pm-tasks/schedule/:seriesId</code>) to treat <code>:seriesId</code> as the <code>PmSchedule.id</code>, look it up directly, update the <code>PmSchedule</code> row, and bulk-update pending <code>PmTask</code> rows via <code>scheduleId</code> FK — dropping the string search entirely.</li>
+      <li>Delete the now-fully-duplicated <code>PmSchedulesController</code> (<code>pm-schedules.controller.ts</code>) since its logic is merged into the path frontend actually uses — avoids maintaining two copies. <i>(Flagged below — confirm before deleting.)</i></li>
+      <li>Existing rows already in the DB with legacy <code>[SeriesID: xxx]</code> text and no <code>scheduleId</code> will NOT be retroactively migrated by this ticket (would need a one-off data migration script — separate ticket if wanted).</li>
+    </ul>
+    <p><b>Files touched:</b> <code>backend/src/pm-tasks.controller.ts</code>, possibly delete <code>backend/src/pm-schedules.controller.ts</code>, <code>backend/src/app.module.ts</code> (remove controller registration).</p>
+    <p><b>Verify:</b> Create a recurring PM via pm-create → all generated tasks share one real <code>scheduleId</code> (check DB, not description text). Edit the series from pm-assign → all pending tasks under that <code>scheduleId</code> update correctly, done/approved tasks untouched.</p>
+  </div>
+
+  <h2 id="t5">T5 — Add <code>isDefault</code> to Template schema</h2>
+  <div class="ticket">
+    <div class="ticket-header">
+      <div class="ticket-title">Frontend's dedup logic checks a field that never exists on API-sourced templates</div>
+      <span class="priority">Priority: Low-Medium</span>
+    </div>
+    <p><b>Problem:</b> <code>Template</code> frontend interface has <code>isDefault?: boolean</code>; <code>cmms_templates</code> table has no such column, so it's always <code>undefined</code> on anything from the API. <code>pm.service.ts</code> currently mock-injects "default" templates client-side to compensate.</p>
+
+    <h3>Plan (backend half only — frontend mock removal is a separate, later change)</h3>
+    <ul>
+      <li>Add <code>isDefault Boolean @default(false) @map("is_default")</code> to <code>Template</code> model in <code>schema.prisma</code>, matching the column <code>backend_spec.md</code> already documents.</li>
+      <li>Generate + apply Prisma migration.</li>
+      <li>Seed the current hardcoded default templates (from <code>pm.service.ts</code>) into <code>cmms_templates</code> with <code>isDefault: true</code>, one row per department, via <code>backend/prisma/seed.ts</code>.</li>
+      <li><code>TemplatesController.create()</code>: regular users cannot set <code>isDefault: true</code> (ignore/force false unless <code>admin</code>).</li>
+    </ul>
+    <p><b>Not in scope for this ticket:</b> removing the client-side mock defaults from <code>pm.service.ts</code> — that's a frontend change and should happen in a follow-up once this data exists in the DB, to avoid a window where defaults disappear.</p>
+    <p><b>Files touched:</b> <code>backend/prisma/schema.prisma</code>, new migration, <code>backend/prisma/seed.ts</code>, <code>backend/src/templates.controller.ts</code>.</p>
+  </div>
+
+  <h2 id="reconcile">Reconciliation with <code>backend_schedule_spec.md</code></h2>
+  <div class="ticket">
+    <p>You pointed me at <code>backend/backend_schedule_spec.md</code> (written 2026-07-07 by the frontend team). I cross-checked every item in it against the code as it exists today. Good news: most of it is already done.</p>
+    <table>
+      <tr><th>Spec item</th><th>Spec's claim (2026-07-07)</th><th>Actual state today (verified by reading the code)</th></tr>
+      <tr><td>§0 — stale build, 404 on <code>POST /pm-tasks/schedule</code></td><td>🔴 Blocking bug</td><td>✅ Resolved — route exists and responds. Not a rebuild issue anymore.</td></tr>
+      <tr><td>§2.1 — <code>POST /api/v1/assets</code></td><td>❌ Missing</td><td>✅ Already implemented in <code>assets.controller.ts</code>, including ownership check, product-exists validation, and 409 on duplicate id — matches spec exactly.</td></tr>
+      <tr><td>§2.2 — <code>POST /api/v1/products</code></td><td>❌ Missing</td><td>✅ Implemented (admin/manager only, 409 on duplicate) — <b>but</b> still missing the ownership-grant step your own <code>CONTEXT.md</code> flags. That's my <a href="#t2">T2</a> above.</td></tr>
+      <tr><td>§2.3 — add <code>scheduleId</code> column to <code>cmms_pm_tasks</code></td><td>🟡 Tech debt, not started</td><td>✅ Column exists, is on the DTO, and is honored by <code>PmTasksController.create()</code>/<code>update()</code> and <code>CmmsService.createTaskWithRetry()</code>. <b>Not</b> honored by <code>createSchedule()</code>/<code>updateSchedule()</code> — see <a href="#t4">T4</a>.</td></tr>
+      <tr><td>§4 — Phase 2: full <code>cmms_pm_schedules</code> model + CRUD + nightly top-up cron</td><td>🟢 P3, future work</td><td>✅ Already fully built: <code>PmSchedule</code> Prisma model, <code>PmSchedulesController</code> (<code>POST</code>/<code>PUT</code>/<code>DELETE /pm-schedules</code>), and <code>SchedulerService.topUpSchedules()</code> nightly cron all exist and match the spec's design. <b>But</b> the frontend never calls <code>/pm-schedules</code> — it only calls <code>/pm-tasks/schedule</code>, which bypasses all of this. That disconnect is exactly what <a href="#t4">T4</a> fixes.</td></tr>
+      <tr><td>Audit table row: <code>PUT /api/v1/templates/:id</code></td><td>✅ "Exists"</td><td>❌ <b>Contradicted by the actual code</b> — <code>TemplatesController</code> has no <code>@Put()</code> handler at all (only <code>GET</code>, <code>POST</code>, two <code>DELETE</code>s). The spec doc appears to be wrong/aspirational on this one line. This is my <a href="#t1">T1</a> — still a real gap.</td></tr>
+    </table>
+    <p><b>Bottom line:</b> the spec doc is ~7 weeks stale. Three of its five action items are done. The one item it thought was "future, low priority" (§4 schedule model) is actually built but silently disconnected from the only endpoint the frontend calls — which is a more urgent bug than the spec realized, since it fails silently ~1 year after any recurring PM is created. I folded that into <a href="#t4">T4</a> and raised its priority accordingly.</p>
+  </div>
+
+  <h2 id="open">Open questions — need your decision before I write code</h2>
+
+  <div class="qbox" style="border-color:var(--good)">
+    <b>Q1. ✅ ANSWERED:</b> Backend-only — do not touch the frontend. Keeping <code>/pm-tasks/schedule</code> URLs unchanged, fixing the implementation behind them to create/use real <code>PmSchedule</code> rows, and deleting the dead parallel <code>pm-schedules.controller.ts</code>. No changes to <code>api.service.ts</code> or any frontend file.
+  </div>
+  <div class="qbox" style="border-color:var(--good)">
+    <b>Q2. ✅ ANSWERED:</b> Add a denormalized <code>department String?</code> column directly to <code>cmms_audit_logs</code>, populated at write time via <code>CmmsService.logAction()</code> (now takes a <code>department</code> param, passed by all 6 call sites — <code>delegations.controller.ts</code> ×2, <code>templates.controller.ts</code> ×3, <code>scheduler.service.ts</code> ×1). Rejected the join-through-<code>Product</code> approach: user-management/delegation audit rows have no <code>productId</code> at all, so a join would silently fail to derive department for exactly the rows you'd most want to filter.
+  </div>
+  <div class="qbox" style="border-color:var(--good)">
+    <b>Q3. ✅ ANSWERED:</b> Fix it. Confirmed the actual guard code is an exclusion check — <code>if (user.baseRole !== 'engineer' && user.baseRole !== 'manager') throw Forbidden</code> — which blocks <code>admin</code> too. That's an access-control bug, not intentional design (an admin locked out of the audit trail is a logging/monitoring gap, not a feature). Adding <code>admin</code> to the allow-list as part of <a href="#t3">T3</a>; <code>technician</code> stays blocked.
+  </div>
+  <div class="qbox" style="border-color:var(--good)">
+    <b>Q4. ✅ ANSWERED:</b> Leave as-is. Manager-can-edit / admin-only-delete is defensible least-privilege design (editing is reversible and keeps history, deleting is destructive and erases audit trail data) — no change needed.
+  </div>
+
+  <h2>Suggested order &amp; git workflow</h2>
+  <ul>
+    <li>One commit per ticket (T1 → T5) on <code>feature/update_feature_backend</code>, each followed by <code>npx tsc --noEmit</code> and a manual endpoint check.</li>
+    <li>T5 requires a Prisma migration — will run <code>npx prisma migrate dev</code> and check it in.</li>
+    <li>No merge to <code>feature/update_feature_frontend</code> or <code>main</code> until you've reviewed the diff.</li>
+  </ul>
+
+  <div class="approve">
+    <b>Waiting for your go-ahead.</b><br>
+    Please answer Q1–Q4 above, and tell me which tickets to include (all of T1–T5, or a subset) before I start implementing.
+  </div>
+
+</div>
+</body>
+</html>
