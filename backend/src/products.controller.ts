@@ -28,11 +28,22 @@ export class ProductsController {
       throw new ConflictException(`Product with ID ${body.id} already exists`);
     }
 
-    return this.prisma.product.create({
-      data: {
-        id: body.id,
-        name: body.name,
-      },
+    return this.prisma.$transaction(async (tx) => {
+      const product = await tx.product.create({
+        data: {
+          id: body.id,
+          name: body.name,
+        },
+      });
+
+      await tx.userOwnedProduct.create({
+        data: {
+          employeeId: user.employeeId,
+          productId: product.id,
+        },
+      });
+
+      return product;
     });
   }
 }
