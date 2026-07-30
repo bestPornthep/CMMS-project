@@ -3018,6 +3018,7 @@ model Template {
   name       String
   department String
   checklist  String   @db.NVarChar(Max)
+  isDefault  Boolean  @default(false) @map("is_default")
   createdBy  String?  @map("created_by")
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")

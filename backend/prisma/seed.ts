@@ -251,7 +251,33 @@ async function main() {
   }
   console.log('Assets seeded.');
 
-  // 6. Seed PM Tasks
+  // 6. Seed default Templates
+  const defaultTemplates = [
+    { id: 'def-fac-1', name: 'Standard HVAC Inspection', department: 'Facility', checklist: [{ text: 'Check filters', requiresPhoto: true }, { text: 'Measure airflow', requiresPhoto: false }] },
+    { id: 'def-fac-2', name: 'Monthly Boiler PM', department: 'Facility', checklist: [{ text: 'Check pressure valve', requiresPhoto: true }, { text: 'Inspect burner', requiresPhoto: false }] },
+    { id: 'def-mech-1', name: 'CNC Daily Calibration', department: 'Mechanic', checklist: [{ text: 'Check spindle alignment', requiresPhoto: true }, { text: 'Lubricate guideways', requiresPhoto: false }] },
+    { id: 'def-mech-2', name: 'Conveyor Belt Tension', department: 'Mechanic', checklist: [{ text: 'Check belt tension', requiresPhoto: true }, { text: 'Inspect rollers', requiresPhoto: false }] },
+    { id: 'def-manu-1', name: 'Assembly Line Start-up', department: 'Manufacturing', checklist: [{ text: 'Test emergency stops', requiresPhoto: true }, { text: 'Verify sensor alignment', requiresPhoto: false }] },
+    { id: 'def-manu-2', name: 'Weekly SMT Maintenance', department: 'Manufacturing', checklist: [{ text: 'Clean nozzles', requiresPhoto: true }, { text: 'Check feeder tension', requiresPhoto: false }] },
+    { id: 'def-main-1', name: 'General Motor Lubrication', department: 'Maintenance', checklist: [{ text: 'Apply grease to bearings', requiresPhoto: true }, { text: 'Check for abnormal noise', requiresPhoto: false }] },
+    { id: 'def-main-2', name: 'Hydraulic System Check', department: 'Maintenance', checklist: [{ text: 'Check fluid levels', requiresPhoto: true }, { text: 'Inspect hoses for leaks', requiresPhoto: false }] },
+    { id: 'def-test-1', name: 'Tester Calibration Matrix', department: 'Test', checklist: [{ text: 'Run self-test diagnostic', requiresPhoto: true }, { text: 'Verify calibration certs', requiresPhoto: false }] },
+    { id: 'def-test-2', name: 'Probe Pin Inspection', department: 'Test', checklist: [{ text: 'Check for bent pins', requiresPhoto: true }, { text: 'Clean fixture surface', requiresPhoto: false }] },
+  ];
+  for (const t of defaultTemplates) {
+    await prisma.template.create({
+      data: {
+        id: t.id,
+        name: t.name,
+        department: t.department,
+        checklist: JSON.stringify(t.checklist),
+        isDefault: true,
+      },
+    });
+  }
+  console.log('Default templates seeded.');
+
+  // 7. Seed PM Tasks
   const today = new Date();
   const d = (offset: number) => {
     const dt = new Date(today);

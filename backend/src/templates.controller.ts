@@ -60,6 +60,7 @@ export class TemplatesController {
         name: body.name,
         department: body.department,
         checklist: JSON.stringify(body.checklist),
+        isDefault: user.baseRole === 'admin' ? !!body.isDefault : false,
         createdBy: user.employeeId,
       },
     });
