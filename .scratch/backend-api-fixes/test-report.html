@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Test &amp; Review Report — Backend Support Plan (T1-T5)</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #161923; --border: #2a2f3d; --text: #e6e8ef;
+    --muted: #9aa2b1; --accent: #5b8cff; --good: #3ddc97; --bad: #ff6b6b; --warn: #ffb84d;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 40px; line-height: 1.55; }
+  .wrap { max-width: 980px; margin: 0 auto; }
+  h1 { font-size: 28px; margin-bottom: 4px; }
+  .subtitle { color: var(--muted); margin-bottom: 32px; }
+  h2 { border-bottom: 2px solid var(--border); padding-bottom: 8px; margin-top: 48px; color: var(--accent); }
+  h3 { margin-top: 24px; color: var(--text); }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin: 16px 0; }
+  .summary-grid { display: flex; gap: 16px; flex-wrap: wrap; margin: 16px 0; }
+  .stat { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; flex: 1; min-width: 160px; text-align: center; }
+  .stat .num { font-size: 28px; font-weight: 700; }
+  .stat .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; margin-top: 4px; }
+  .stat.pass .num { color: var(--good); }
+  .stat.fail .num { color: var(--bad); }
+  .stat.neutral .num { color: var(--accent); }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  th, td { border: 1px solid var(--border); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: #1d212c; color: var(--muted); }
+  code { background: #1d212c; padding: 2px 6px; border-radius: 4px; font-size: 13px; color: #f0ad4e; }
+  pre { background: #1d212c; padding: 14px; border-radius: 8px; overflow-x: auto; border: 1px solid var(--border); font-size: 13px; }
+  ul { padding-left: 22px; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 700; text-transform: uppercase; padding: 3px 10px; border-radius: 999px; margin-left: 8px; }
+  .tag.pass { background: rgba(61,220,151,.15); color: var(--good); border: 1px solid rgba(61,220,151,.4); }
+  .tag.fail { background: rgba(255,107,107,.15); color: var(--bad); border: 1px solid rgba(255,107,107,.4); }
+  .tag.info { background: rgba(91,140,255,.15); color: var(--accent); border: 1px solid rgba(91,140,255,.4); }
+  .tag.warn { background: rgba(255,184,77,.15); color: var(--warn); border: 1px solid rgba(255,184,77,.4); }
+  .commit-list li { margin: 4px 0; }
+  .note { color: var(--muted); font-size: 13px; }
+  .approve { background: rgba(61,220,151,.1); border: 1px solid var(--good); border-radius: 10px; padding: 20px; margin-top: 40px; text-align: center; }
+  .toc { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px 24px; }
+  .toc a { color: var(--accent); text-decoration: none; }
+  .toc li { margin: 4px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Test &amp; Self-Review Report</h1>
+  <div class="subtitle">Branch <code>feature/update_feature_backend</code> — verification results and code review for tickets T1&ndash;T5, reviewed against fixed point <code>feature/update_feature_frontend</code>.</div>
+
+  <div class="toc">
+    <ul>
+      <li><a href="#suite">Test Suite Results</a></li>
+      <li><a href="#smoke">Full API Smoke Test (every endpoint)</a></li>
+      <li><a href="#commits">Commits Included</a></li>
+      <li><a href="#standards">Code Review &mdash; Standards</a></li>
+      <li><a href="#spec">Code Review &mdash; Spec</a></li>
+      <li><a href="#verdict">Verdict</a></li>
+    </ul>
+  </div>
+
+  <h2 id="suite">Test Suite Results</h2>
+
+  <div class="summary-grid">
+    <div class="stat pass">
+      <div class="num">0</div>
+      <div class="label">TypeScript Errors</div>
+    </div>
+    <div class="stat pass">
+      <div class="num">1 / 1</div>
+      <div class="label">Unit Tests Passing</div>
+    </div>
+    <div class="stat pass">
+      <div class="num">6 / 7</div>
+      <div class="label">E2E Tests Passing</div>
+    </div>
+    <div class="stat neutral">
+      <div class="num">1</div>
+      <div class="label">Pre-existing Unrelated Failure</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>1. Type-check &mdash; <code>npx tsc --noEmit</code> <span class="tag pass">PASS</span></h3>
+    <p>Exit code <code>0</code>. No type errors across the backend.</p>
+  </div>
+
+  <div class="card">
+    <h3>2. Unit tests &mdash; <code>npm test</code> <span class="tag pass">PASS</span></h3>
+    <pre>Test Suites: 1 passed, 1 total
+Tests:       1 passed, 1 total
+Time:        4.751 s</pre>
+  </div>
+
+  <div class="card">
+    <h3>3. E2E tests &mdash; <code>npx jest --config test/jest-e2e.json</code> <span class="tag warn">1 UNRELATED FAILURE</span></h3>
+    <table>
+      <tr><th>Spec file</th><th>Result</th><th>Notes</th></tr>
+      <tr>
+        <td><code>pm-templates.e2e-spec.ts</code></td>
+        <td><span class="tag pass">6 / 6 PASS</span></td>
+        <td>Covers template CRUD incl. T5's <code>isDefault</code> gating. Imports <code>dotenv/config</code>.</td>
+      </tr>
+      <tr>
+        <td><code>api-smoke.e2e-spec.ts</code></td>
+        <td><span class="tag pass">32 / 32 PASS</span></td>
+        <td>New: full API smoke test, added this session. Exercises every controller endpoint at least once (see below).</td>
+      </tr>
+      <tr>
+        <td><code>app.e2e-spec.ts</code></td>
+        <td><span class="tag fail">1 / 1 FAIL</span></td>
+        <td>Default NestJS scaffold test. Fails with <code>DATABASE_URL is not defined</code> because it does not import <code>dotenv/config</code>. Confirmed pre-existing and unrelated to any change in this branch &mdash; reproduces identically on the base branch.</td>
+      </tr>
+    </table>
+    <pre>Test Suites: 1 failed, 2 passed, 3 total
+Tests:       1 failed, 38 passed, 39 total
+Time:        21.269 s</pre>
+  </div>
+
+  <h2 id="smoke">Full API Smoke Test (every endpoint)</h2>
+  <div class="card">
+    <p>Added <code>backend/test/api-smoke.e2e-spec.ts</code> (32 tests) exercising all 8 controllers &mdash; auth, users, products, assets, pm-tasks (incl. schedules), templates, delegations, audit-logs &mdash; against real seeded data on the <code>KETL_Tester</code> dev DB, with all test-created records cleaned up in <code>afterAll</code>.</p>
+    <table>
+      <tr><th>Controller</th><th>Endpoints covered</th></tr>
+      <tr><td><code>auth.controller.ts</code></td><td>login (valid/invalid), <code>me</code>, <code>refresh</code>, <code>logout</code></td></tr>
+      <tr><td><code>users.controller.ts</code></td><td><code>GET /users</code> (filters), <code>GET /users/:id</code> (incl. 404), <code>PATCH /users/:id</code> (admin-only)</td></tr>
+      <tr><td><code>products.controller.ts</code></td><td><code>GET /products</code>, <code>POST /products</code> (403 non-admin, 201 create + ownership grant, 409 duplicate)</td></tr>
+      <tr><td><code>assets.controller.ts</code></td><td><code>GET /assets</code> (filters), <code>POST /assets</code> (403 technician, 201 create)</td></tr>
+      <tr><td><code>pm-tasks.controller.ts</code></td><td>create, list, get one, update, <code>POST /schedule</code>, <code>PUT /schedule/:seriesId</code>, delete (403 non-admin, 204 admin)</td></tr>
+      <tr><td><code>templates.controller.ts</code></td><td><code>GET /templates</code> department scoping (full CRUD already covered by <code>pm-templates.e2e-spec.ts</code>)</td></tr>
+      <tr><td><code>delegations.controller.ts</code></td><td><code>GET</code> (403 technician), <code>POST</code> create, <code>GET</code> list, <code>PATCH :id/revoke</code></td></tr>
+      <tr><td><code>audit-logs.controller.ts</code></td><td><code>GET</code> (403 technician, 200 admin), department + type filters</td></tr>
+    </table>
+    <h3>🐛 Bug found &amp; fixed by this smoke test</h3>
+    <p><span class="tag fail">PRODUCTION BUG</span> <code>POST /api/v1/pm-tasks/schedule</code> was throwing <strong>500 (Prisma P2021 <code>TableDoesNotExist</code>)</strong> on every call. <code>schema.prisma</code>'s <code>PmSchedule</code> model (<code>@@map("cmms_pm_schedules")</code>) has existed since T4 (<code>32d24d8</code>), but the table itself was never created in the live DB &mdash; only caught now because no prior e2e test called this endpoint.</p>
+    <p><span class="tag pass">FIXED</span> Hand-wrote <code>backend/prisma/manual-sql/create-pm-schedules-table.sql</code> matching the model's exact column types, applied via <code>npx prisma db execute</code> (no diffing, per the established DB-safety procedure). Verified: <code>tsc --noEmit</code> clean, unit tests pass, both schedule tests (create + update) now pass. Committed as <code>8cf5410</code>.</p>
+  </div>
+
+  <h2 id="commits">Commits Included</h2>
+  <div class="card">
+    <ul class="commit-list">
+      <li><code>650518e</code> &mdash; T1: <code>PUT /templates/:id</code> endpoint</li>
+      <li><code>f8db943</code> &mdash; T2: <code>POST /products</code> wrapped in transaction, grants creator ownership</li>
+      <li><code>32d24d8</code> &mdash; T4: schedule consolidation, removed dead <code>pm-schedules.controller.ts</code></li>
+      <li><code>11c59ec</code> &mdash; T3: audit log <code>department</code> column + admin-lockout guard fix</li>
+      <li><code>c6dddd5</code> &mdash; Bonus fix: added missing <code>schedule_id</code> DB column (pre-existing T4 production gap, discovered while verifying T5)</li>
+      <li><code>958cb64</code> &mdash; T5: <code>isDefault</code> on <code>Template</code>, admin-only gating, seeded default templates</li>
+      <li><code>8cf5410</code> &mdash; Bonus fix: created missing <code>cmms_pm_schedules</code> table + added <code>api-smoke.e2e-spec.ts</code> (full API coverage), discovered while testing all endpoints</li>
+    </ul>
+  </div>
+
+  <h2 id="standards">Code Review &mdash; Standards</h2>
+  <div class="card">
+    <p>Checked against <code>CLAUDE.md</code>, <code>.github/copilot-instructions.md</code>, <code>backend.instructions.md</code>, and the Fowler smell baseline.</p>
+    <ul>
+      <li><span class="tag pass">OK</span> No hard violations of documented conventions. Guards, <code>@CurrentUser()</code>, JSON-string column handling, and manual-SQL migration procedure all followed correctly.</li>
+      <li><span class="tag pass">POSITIVE</span> <code>pm-tasks.controller.ts</code> extracts <code>applyScheduleUpdatesToTasks()</code>, removing duplication between the new-schedule and legacy-schedule update paths.</li>
+      <li><span class="tag warn">JUDGEMENT CALL</span> <code>CmmsService.logAction()</code> grew to 6 positional parameters (added <code>department</code>). Not a documented violation, but a Long Parameter List smell worth revisiting as an options object if it grows further.</li>
+      <li><span class="tag info">NOTE</span> <code>backend.instructions.md</code> refers to <code>logAudit()</code>; the actual method is <code>logAction()</code>. Pre-existing mismatch, not introduced by this diff &mdash; left untouched.</li>
+    </ul>
+  </div>
+
+  <h2 id="spec">Code Review &mdash; Spec</h2>
+  <div class="card">
+    <p>Checked against <code>.scratch/backend-api-fixes/plan.html</code> (T1&ndash;T5) and its four answered open questions.</p>
+    <ul>
+      <li><span class="tag pass">MATCH</span> T1&ndash;T5 all implemented exactly as specified, including Q1 (zero frontend files touched) and the T3 admin-lockout guard fix.</li>
+      <li><span class="tag pass">MATCH</span> T2 ownership grant correctly wrapped in <code>$transaction</code>.</li>
+      <li><span class="tag pass">MATCH</span> T4 preserves the legacy description-substring fallback for pre-existing series, per the plan's explicit non-goal.</li>
+      <li><span class="tag pass">MATCH</span> T5 gates <code>isDefault</code> to admin-only and seeds the 10 default templates.</li>
+      <li><span class="tag warn">DISCLOSED SCOPE ADDITION</span> <code>schedule_id</code> column fix, and later the <code>cmms_pm_schedules</code> table-creation fix, were not in any ticket &mdash; both fix genuine, already-broken production gaps left by T4, discovered while verifying T5's seed script and while smoke-testing all endpoints respectively. Each committed separately (<code>c6dddd5</code>, <code>8cf5410</code>) rather than folded into T4/T5.</li>
+    </ul>
+  </div>
+
+  <h2 id="verdict">Verdict</h2>
+  <div class="approve">
+    <strong>Standards: 0 blocking findings (1 judgement-call smell, non-blocking).</strong><br>
+    <strong>Spec: 0 missing/wrong requirements (2 disclosed, justified out-of-scope fixes).</strong><br>
+    <strong>Full API smoke test: 32/32 passing, covering all 8 controllers &mdash; 1 real production bug found and fixed.</strong><br>
+    <span class="note">Ready for user review (workflow step 7) before merge &amp; handoff (step 8).</span>
+  </div>
+
+</div>
+</body>
+</html>
