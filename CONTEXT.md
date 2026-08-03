@@ -27,6 +27,15 @@
 - API `.catch()` only catches specific HTTP status codes (e.g. 404). All others rethrow.
 - Comments that claim behavior must match the code, or be deleted.
 
+## Session hygiene rules (follow every session, no exceptions)
+
+- **Delete feature branches after merge** — both locally and from remote, every time without being asked.
+  ```
+  git branch -d feature/<name>
+  git push origin --delete feature/<name>
+  ```
+- **Clean `.scratch` after a feature ships** — delete the feature's subdirectory (spec.md, issues/, etc.). Only `.scratch/handoff.md` should remain.
+
 ## Known technical debt (do not silently fix — needs a spec first)
 
 - Default templates are mock-injected in `pm.service.ts`, not from backend.

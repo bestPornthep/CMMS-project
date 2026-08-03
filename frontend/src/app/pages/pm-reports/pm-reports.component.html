@@ -44,34 +44,34 @@
 
   <div class="page-header no-print">
     <div>
-      <h1 class="page-title">PM Evidence Report</h1>
-      <p class="page-sub">Pull approved PM records for audit evidence.</p>
+      <h1 class="page-title">{{ 'PM Evidence Report' | tr }}</h1>
+      <p class="page-sub">{{ 'Pull approved PM records for audit evidence.' | tr }}</p>
     </div>
     <div class="header-actions">
       <button class="btn btn-outline" (click)="printReport()">
-        <span class="material-symbols-outlined">table_view</span> Print Table
+        <span class="material-symbols-outlined">table_view</span> {{ 'Print Table' | tr }}
       </button>
       <button class="btn btn-primary" (click)="openExportModal()">
-        <span class="material-symbols-outlined">description</span> Export Machine PM Form
+        <span class="material-symbols-outlined">description</span> {{ 'Export Machine PM Form' | tr }}
       </button>
     </div>
   </div>
 
   <div class="filter-bar card no-print" data-enter>
     <div class="filter-group">
-      <label class="filter-label">Start Date</label>
+      <label class="filter-label">{{ 'Start Date' | tr }}</label>
       <input type="date" [ngModel]="startDate()" (ngModelChange)="startDate.set($event)" class="form-input filter-input">
     </div>
     <div class="filter-group">
-      <label class="filter-label">End Date</label>
+      <label class="filter-label">{{ 'End Date' | tr }}</label>
       <input type="date" [ngModel]="endDate()" (ngModelChange)="endDate.set($event)" class="form-input filter-input">
     </div>
     <div class="filter-group">
-      <label class="filter-label">Product (Location)</label>
+      <label class="filter-label">{{ 'Product (Location)' | tr }}</label>
       <div class="ms-wrapper">
         <div class="form-input ms-trigger" (click)="toggleProductDropdown()">
           <span class="ms-trigger-text">
-            {{ selectedProducts().length ? selectedProducts().length + ' selected' : 'All products...' }}
+            {{ selectedProducts().length ? selectedProducts().length + ' ' + ('selected' | tr) : ('All products...' | tr) }}
           </span>
           <span class="material-symbols-outlined">expand_more</span>
         </div>
@@ -80,7 +80,7 @@
             <div class="ms-checkbox" [class.checked]="selectedProducts().length === availableProducts().length && availableProducts().length > 0">
               <span class="material-symbols-outlined" *ngIf="selectedProducts().length === availableProducts().length && availableProducts().length > 0">check</span>
             </div>
-            <span>Select All</span>
+            <span>{{ 'Select All' | tr }}</span>
           </div>
           <div class="ms-list">
             <div class="ms-item" *ngFor="let p of availableProducts()" (click)="toggleSelectedProduct(p)">
@@ -94,13 +94,13 @@
       </div>
     </div>
     <div class="filter-group">
-      <label class="filter-label">Machine (Asset)</label>
+      <label class="filter-label">{{ 'Machine (Asset)' | tr }}</label>
       <div class="ms-wrapper"
            [style.opacity]="selectedProducts().length === 0 ? '0.5' : '1'"
            [style.pointer-events]="selectedProducts().length === 0 ? 'none' : 'auto'">
         <div class="form-input ms-trigger" (click)="toggleAssetDropdown()">
           <span class="ms-trigger-text">
-            {{ selectedProducts().length === 0 ? 'Select product first...' : (selectedAssets().length ? selectedAssets().length + ' selected' : 'All machines...') }}
+            {{ selectedProducts().length === 0 ? ('Select product first...' | tr) : (selectedAssets().length ? selectedAssets().length + ' ' + ('selected' | tr) : ('All machines...' | tr)) }}
           </span>
           <span class="material-symbols-outlined">expand_more</span>
         </div>
@@ -109,7 +109,7 @@
             <div class="ms-checkbox" [class.checked]="selectedAssets().length === availableAssets().length && availableAssets().length > 0">
               <span class="material-symbols-outlined" *ngIf="selectedAssets().length === availableAssets().length && availableAssets().length > 0">check</span>
             </div>
-            <span>Select All</span>
+            <span>{{ 'Select All' | tr }}</span>
           </div>
           <div class="ms-list">
             <div class="ms-item" *ngFor="let a of availableAssets()" (click)="toggleSelectedAsset(a)">
@@ -126,8 +126,8 @@
 
   <div class="card" data-enter style="overflow: hidden;" [class.no-print]="printMode() === 'form'">
     <div class="card-header no-print">
-      <div class="card-title">Completed PM Records</div>
-      <div class="card-sub">{{ filteredTasks().length }} record(s)</div>
+      <div class="card-title">{{ 'Completed PM Records' | tr }}</div>
+      <div class="card-sub">{{ filteredTasks().length }} {{ 'record(s)' | tr }}</div>
     </div>
     <div style="overflow-x: auto;">
       <table class="data-table">

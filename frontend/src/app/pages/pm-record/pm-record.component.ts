@@ -1,4 +1,3 @@
-import { TranslatePipe } from '../../shared/pipes/translate.pipe';
 import { Component, computed, inject, OnInit, signal, DestroyRef } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -8,6 +7,7 @@ import { ToastService } from '../../core/services/toast.service';
 import { PMTask } from '../../core/models/pm.model';
 import { ActivatedRoute, Router } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { TranslatePipe } from '../../shared/pipes/translate.pipe';
 
 @Component({
   selector: 'app-pm-record',

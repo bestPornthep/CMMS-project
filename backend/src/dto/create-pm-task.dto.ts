@@ -51,6 +51,10 @@ export class CreatePmTaskDto {
   status?: string;
 
   @IsOptional()
+  @IsString()
+  scheduleId?: string;
+
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => ChecklistItemDto)
@@ -73,8 +77,4 @@ export class CreatePmTaskDto {
   @IsOptional()
   @IsString()
   assignedTo?: string;
-
-  @IsOptional()
-  @IsString()
-  scheduleId?: string;
 }

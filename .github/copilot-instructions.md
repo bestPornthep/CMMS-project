@@ -34,16 +34,36 @@ Run these to verify work before marking a ticket done:
 | `backend/prisma/schema.prisma` | Database schema (MSSQL, `cmms_` table prefix) |
 | `backend/src/cmms.service.ts` | Shared helpers: `generateTaskId()`, `logAudit()` |
 
-## Feature Workflow (follow every time, no exceptions)
+## Feature Workflow — MANDATORY. Every step. Every time. No exceptions. No shortcuts.
 
-1. **Grill** — `/grill-with-docs` until requirements are clear. No code before user confirms.
-2. **Spec** — `/to-spec` → `.scratch/<slug>/spec.md`
-3. **Tickets** — `/to-tickets` → `.scratch/<slug>/issues/`. Quiz user on granularity.
-4. **Branch** — `git checkout -b feature/<slug>`. Never commit to `main` directly.
-5. **Build** — `/implement` per ticket, drives `/tdd`. Run `npx tsc --noEmit` after each ticket.
-6. **Self-review** — `/code-review` against `main`. Fix all findings. **No new bugs before user sees code.**
-7. **User review** — present, fix, iterate until satisfied.
-8. **Merge & handoff** — merge to `main`, **overwrite** `.scratch/handoff.md` with current state so the next session knows exactly where things stand.
+> **If you are about to skip any step because the change "seems small", stop. Small changes have caused regressions. Follow every step regardless of perceived size.**
+
+### Steps (must be completed in order — do not proceed to the next until the current one is done)
+
+1. **Grill** — Use `/grill-with-docs`. Ask questions one cluster at a time. Do NOT write any code until the user explicitly confirms requirements are clear and complete.
+
+2. **Spec** — Run `/to-spec`. Write spec to `.scratch/<slug>/spec.md`. Do NOT proceed until the file exists and the user has reviewed it.
+
+3. **Tickets** — Run `/to-tickets`. Write individual ticket files to `.scratch/<slug>/issues/`. Quiz user on granularity. Do NOT proceed until tickets are approved.
+
+4. **Branch** — Run `git checkout -b feature/<slug>`. **Never commit directly to `main` or any existing feature branch.** If a branch already exists for unrelated work, create a new one scoped to this feature.
+
+5. **Build** — Implement one ticket at a time. Run `npx tsc --noEmit` after each ticket. Run `npm start` before marking a ticket done (catches Angular template errors that `tsc` misses).
+
+6. **Self-review** — Run `/code-review` comparing feature branch against `main`. Fix every finding. **Do not show code to the user until this step is clean.**
+
+7. **User review** — Present changes. Fix all feedback. Iterate until the user explicitly says they are satisfied.
+
+8. **Merge & handoff** — Merge feature branch to `main`. Delete the feature branch (local + remote). Clean `.scratch/<slug>/`. **Overwrite** `.scratch/handoff.md` with current state.
+
+### Hard rules (violations are never acceptable)
+
+- **No code before step 1 is confirmed.** Not even a "quick fix."
+- **No skipping spec/tickets for "simple" changes.** Simplicity is judged after grilling, not before.
+- **No committing to `main` or an existing branch** — always a fresh `feature/<slug>` branch.
+- **No merging without self-review.** The user sees clean code or nothing.
+- **No ending a session without updating `handoff.md`.**
+- If you realise mid-implementation that you skipped a step, stop, acknowledge it to the user, and complete the skipped step before continuing.
 
 ## Language
 

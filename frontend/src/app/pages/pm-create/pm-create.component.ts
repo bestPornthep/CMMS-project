@@ -1,4 +1,3 @@
-import { TranslatePipe } from '../../shared/pipes/translate.pipe';
 import { Component, computed, inject, signal, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -7,6 +6,7 @@ import { PmService } from '../../core/services/pm.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
 import { PMTaskFrequency, PMTaskStatus, Template } from '../../core/models/pm.model';
+import { TranslatePipe } from '../../shared/pipes/translate.pipe';
 
 @Component({
   selector: 'app-pm-create',

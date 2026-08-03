@@ -4,11 +4,12 @@ import { FormsModule } from '@angular/forms';
 import { PmService } from '../../core/services/pm.service';
 import { AuthService } from '../../core/services/auth.service';
 import { PMTask } from '../../core/models/pm.model';
+import { TranslatePipe } from '../../shared/pipes/translate.pipe';
 
 @Component({
   selector: 'app-pm-reports',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, TranslatePipe],
   providers: [DatePipe],
   templateUrl: './pm-reports.component.html',
   styleUrl: './pm-reports.component.scss'

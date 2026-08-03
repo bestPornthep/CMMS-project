@@ -19,11 +19,11 @@
           <table class="data-table">
             <thead>
               <tr>
-                <th style="width:160px;">{{ 'Timestamp' | tr }}</th>
-                <th>{{ 'Action' | tr }}</th>
-                <th>{{ 'Actor' | tr }}</th>
-                <th>{{ 'Target' | tr }}</th>
-                <th>{{ 'Product' | tr }}</th>
+                <th style="width:160px;">Timestamp</th>
+                <th>Action</th>
+                <th>Actor</th>
+                <th>Target</th>
+                <th>Product</th>
               </tr>
             </thead>
             <tbody>
@@ -57,8 +57,8 @@
                 </td>
               </tr>
               <tr *ngIf="filteredLogs().length === 0">
-                 <td colspan="5" style="text-align: center; padding: 40px; color: var(--color-text-muted);">
-                    No {{ 'Audit Log' | tr }}s found matching your search.
+                 <td colspan="5" style="text-align: center; padding: 40px; color: var(--color-text-primary);">
+                    No audit logs found matching your search.
                  </td>
               </tr>
             </tbody>
