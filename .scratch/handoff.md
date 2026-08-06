@@ -1,62 +1,56 @@
-﻿# Handoff — Session 2026-07-27: Thai Translation Feature (Multi-page)
+﻿# Handoff — Session 2026-08-06 (cont'd): API Guide Verification — Report Ready, One Blocker Remains
 
 ## Branch
-`feature/update_feature_frontend` — not merged to main
+`feature/update_feature_frontend` — not merged, no code changes made this session or the prior one (read-only testing/diagnosis task, per explicit user instruction). Working tree unchanged from before (same pre-existing uncommitted items: `.scratch/handoff.md`, untracked `PM_example.pdf`, `docs/project-timeline.html`, `frontend/src/assets/`, `node_modules/`, root `package.json`).
 
 ## What was done this session
 
-### Thai translation rollout — page by page
+Continuation of the prior in-progress API verification session. Completed all remaining safe automation steps from that handoff's "next steps" list:
 
-All changes use `TranslatePipe` (`'tr'`), added to each component's `imports: []`. Central dictionary is `frontend/src/app/core/services/translation.service.ts`.
+1. **Cleaned up the leftover delegation** from the prior session (`POST /delegations` engineer -> `TECH-TST-2`/`CUST-001`, id `9598d415-f966-4012-9925-595be9f37acc`) — found via `GET /delegations` and revoked via `PATCH /delegations/:id/revoke`. Confirmed `status: "revoked"` afterward.
 
-1. **PM Calendar** (`pm-calendar.component.html`) — 8 items translated: page title, subtitle, Today button, Dept: label, Scheduled/Done/Overdue legends, Overdue PMs card title. Department dropdown values left as-is (data, not UI text).
+2. **Root-caused the `POST /pm-tasks` 400 mystery** (previously suspected to be a PowerShell `ConvertTo-Json` array-serialization quirk — that theory was **wrong**). Ran the exact failing request directly and captured the real error body via `$_.ErrorDetails.Message`:
+   `"Asset location (CUST-002) does not match product (CUST-001)"`
+   Root cause: the test script used `assetId="AC-P2-01"` with `productId="CUST-001"; department="Test"`, but per `backend/prisma/seed.ts`, asset `AC-P2-01` ("Air Compressor AC-2") actually belongs to `CUST-002`/`Mechanic`. This was a **bad test fixture, not a backend or serialization bug**. Corrected fixture: `assetId="CAL-P1-01"` (Calibration Bench #1, correctly seeded under `CUST-001`/`Test`).
 
-2. **PM Record** (`pm-record.component.html`, `.ts`) — 4 items translated: page title, subtitle (ternary based on `isApprover`), both tab labels (ternary). `TranslatePipe` re-added to imports after it was accidentally missing.
+3. **Fixed `.scratch/api-test/full-api-test.ps1`**:
+   - Corrected the PM task asset fixture to `CAL-P1-01`.
+   - Corrected expected status codes: `DELETE /pm-tasks/:id` and `DELETE /templates/:id` return **204** (No Content), not 200 — the original script's assertions were wrong, not the API.
+   - Fixed `POST /delegations` response-shape parsing: the endpoint returns a bare array of created delegation records, not `{ delegations: [...] }` — corrected to `$delResp[0].id`. This is why the revoke cleanup 404'd in the previous run.
+   - **Removed the live `POST /products` (engineer -> expect 403) test** and replaced it with a comment explaining why: there is no `DELETE /products` endpoint, so a 201 response (which is what actually happened previously) creates permanent, unremovable pollution. Per the anti-pattern already logged from the prior session, this must not be repeated automatically — see "Known issues" below.
 
-3. **PM Reports** (`pm-reports.component.html`, `.ts`) — 12 items translated: page title, subtitle, Print Table, Export Machine PM Form, Start Date, End Date, Product (Location) label → maps to `'ผลิตภัณฑ์'`, Machine (Asset) label → maps to `'เครื่องจักร'`, All products.../Select product first.../All machines... placeholders, both Select All headers, Completed PM Records card title, record(s) suffix.
+4. **Re-ran the corrected `full-api-test.ps1`**: **36/36 pass**, including the two intentionally-known-stale-deploy markers (`POST /pm-tasks/schedule` -> 404, `GET /audit-logs` as admin -> 403) which are annotated as expected-known-issues, not failures. Full PM task lifecycle (create -> get -> put -> delete-forbidden-as-engineer -> delete-cleanup-as-admin) and template/delegation lifecycles all self-clean correctly now. Verified via follow-up `GET /pm-tasks` and `GET /products` that no new test pollution remains **except** the pre-existing `APITEST-SKIP` product row (see below, unresolved).
 
-4. **Audit Log** (`pm-audit.component.html`, `.scss`) — fixes across sub-tasks:
-   - Empty-state row: was `No {{ 'Audit Log' | tr }}s found...` → plain `No audit logs found matching your search.` (no translation to avoid mixed-language concat)
-   - Column header text: was `var(--color-text-muted)` (grey) → `var(--color-text-primary)` (dark)
-   - Column header background: removed `background: var(--color-bg-card-alt)` (grey) from `.data-table th`
-   - Data cells: added `color: var(--color-text-primary)` to `.data-table td` (was inheriting grey)
-   - Column header labels (Timestamp, Action, Actor, Target, Product): **not translated** — removed `| tr` per user request
-
-5. **translation.service.ts** — added PM Calendar group, PM Reports group (~14 keys). Removed duplicate keys that caused TS1117: `'Record PM'`, `'Action Required'`, `'Approved Records'`, `'Overdue PMs'`, `'Select product first...'`.
+5. **Definitively confirmed the `POST /products` authorization gap — no longer a theory.** Re-sent the exact same `POST /products` call (engineer, id `APITEST-SKIP`) a second time. Because that id already exists from the prior session, this could not create any new pollution: per `backend/src/products.controller.ts`'s current source, the role guard (`admin`/`manager` only) runs *before* the duplicate-id check, so if the role guard were active it would throw `403` first. It instead returned **409 Conflict** (`"Product with ID 'APITEST-SKIP' already exists"`), which only happens if the request reached the duplicate-id check — meaning **the role guard did not run at all**. This conclusively confirms the shared server's deployed `products.controller.ts` predates the admin/manager-only restriction; it is a genuine stale-deploy gap (any engineer/technician can currently create products on the live shared server), not a one-off fluke.
 
 ## In-flight / next steps
 
-1. **Dashboard page** — not yet reviewed for translation. User may show a screenshot next session.
-2. **Merge `feature/update_feature_frontend` → `main`** — pending user approval of all translated pages.
-3. After merge: delete branch locally + remote, clean `.scratch/<slug>/`, overwrite this handoff.
+1. **BLOCKED on user/DB-access — `APITEST-SKIP` product cleanup.** The row (`cmms_products.id = 'APITEST-SKIP'`, plus a linked `cmms_user_owned_products` row for `ENG-TST-1`) is still present on the shared dev DB. There is no API path to delete it, and this agent has **no DB credentials** (`backend/.env` / `DATABASE_URL` do not exist locally — confirmed by grepping for any connection string in the repo). Someone with direct DB access must run:
+   ```sql
+   DELETE FROM cmms_user_owned_products WHERE product_id = 'APITEST-SKIP';
+   DELETE FROM cmms_products WHERE id = 'APITEST-SKIP';
+   ```
+2. `POST /products` role-enforcement gap is now **confirmed** (see above) — this is real, reproducible, and worth escalating to whoever manages the shared server deployment, not just a documentation/staleness footnote. Recommend flagging it as a priority redeploy item alongside the other two known stale-deploy issues.
+3. The final endpoint-by-endpoint report can be delivered as-is once the DB cleanup is scheduled — all other findings are already fully confirmed and stable:
+   - Frontend `hasPermission('pm.audit.view')` excludes admin (bug, diagnosed only, not fixed — needs Grill->Spec->Tickets cycle).
+   - `docs/api-guide-for-frontend.html` incorrectly claims `GET /templates` is admin/manager-only (guide bug, actual behavior is open to all authenticated roles, department-scoped) — ask user if they want the doc corrected.
+   - Shared server staleness (all three confirmed): `POST /pm-tasks/schedule` -> 404 (route missing), `GET /audit-logs` as admin -> 403 (old role-check still deployed), `POST /products` -> missing admin/manager-only guard entirely.
+4. No code fixes should be made without going through Grill -> Spec -> Tickets -> Branch per the mandatory project workflow — this and the prior session's job was strictly test + report.
 
 ## Known issues / deferred work
 
-- `PUT /templates/:id` backend endpoint missing
-- `POST /products` does not assign creator ownership rows
-- Default templates mock-injected in `pm.service.ts` — not from backend
-- `Asset` model has no `machineNo` field — `asset.id` used as placeholder in PM form export
-- Backend server (NestJS + MSSQL) needs to be started manually each session
-- `feature/pm-form-export` branch still exists locally — safe to delete (merged into `feature/update_feature_frontend`)
+- `cmms_products` / `cmms_user_owned_products` pollution (`APITEST-SKIP`) — unresolved, blocked on DB access (this agent has none; see SQL above).
+- Shared server (`10.144.15.76:3000`) redeploy still pending — **three confirmed** stale-behavior instances relative to current backend source: missing `/pm-tasks/schedule`, blocking admin on `/audit-logs`, and not enforcing admin/manager-only on `POST /products` (all three re-verified/confirmed this session, not just suspected).
+- `backend/.env` still missing locally (unchanged, not required for shared-server-only testing).
+- 4 pending manual SQL migration scripts in `backend/prisma/manual-sql/` — still unconfirmed against the real DB, untouched again this session.
 
 ## Anti-patterns to avoid
 
-### Never add a translation key without grepping for duplicates first
-`translation.service.ts` is a flat object — TypeScript throws TS1117 for duplicate keys. Always `grep_search` for the key string before adding.
+### Don't blame PowerShell serialization before checking the actual error body
+The prior session assumed `ConvertTo-Json`'s empty-array-to-`null` quirk caused a 400 on `POST /pm-tasks`, and left it as an open theory without confirming. The real cause was an unrelated bad test fixture (wrong `assetId` for the given `productId`/`department`). Always capture `$_.ErrorDetails.Message` (or read the response stream) and read the actual message before attributing a failure to a suspected serialization/environment quirk — in this run, `ConvertTo-Json` correctly serialized `@()` as `[]`, not `null`, so that specific PowerShell quirk wasn't even in play here on this PowerShell version.
 
-### `| tr` inside ternary requires parentheses
-Correct: `{{ cond ? ('key-a' | tr) : ('key-b' | tr) }}`  
-Wrong: `{{ cond ? 'key-a' | tr : 'key-b' | tr }}`
-
-### Never translate data values
-`log.action`, `log.actor.name`, department names, task IDs — these come from the database and must never get `| tr`.
-
-### Never use string concat with `| tr` for pluralisation
-`No {{ 'Audit Log' | tr }}s found` → produces mixed-language text. Write the full sentence as plain text or add a dedicated translation key for the whole phrase.
-
-### Angular template errors missed by tsc
-`tsc --noEmit` passes even when templates have binding errors. Always run `npm start` (catches template errors via esbuild).
+### When a test's cleanup step fails, verify the response shape before assuming the delete/revoke endpoint is broken
+The delegation revoke cleanup 404'd not because `PATCH /delegations/:id/revoke` was broken, but because the test script guessed the wrong JSON shape for `POST /delegations`'s response (assumed `{ delegations: [...] }`, actual is a bare array). Check the controller source (or log the raw response body) before writing assertions against a response shape you haven't confirmed.
 
 ## TypeScript / build status
-`npx tsc --noEmit` — 0 errors (verified this session)
-`npm start` — clean build; port 4300 in use error on secondary attempts = dev server already running normally
+Not re-checked this session (no code changes made to `frontend/` or `backend/` source — only `.scratch/api-test/*.ps1` test scripts were edited). Per last confirmed check: `frontend: npx tsc --noEmit` — 0 errors; `backend: npx tsc --noEmit` — 0 errors.
