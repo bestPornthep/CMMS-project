@@ -14,49 +14,49 @@
     </div>
 
     <nav class="sidebar-nav">
-      <div class="nav-label">{{ 'Overview' | tr }}</div>
+      <div class="nav-label">Overview</div>
 
       <a class="nav-item" routerLink="/dashboard" routerLinkActive="active" *ngIf="hasPermission('pm.dashboard.view')">
         <span class="material-symbols-outlined">dashboard</span>
-        <span class="nav-item-label">{{ 'Dashboard' | tr }}</span>
+        <span class="nav-item-label">Dashboard</span>
       </a>
 
       <div class="nav-divider"></div>
 
-      <div class="nav-label">{{ 'PM Work' | tr }}</div>
+      <div class="nav-label">PM Work</div>
 
       <a class="pm-subitem" routerLink="/pm-create" routerLinkActive="active" *ngIf="hasPermission('pm.create.view')">
         <span class="material-symbols-outlined">add_circle</span>
-        <span>{{ 'Create PM' | tr }}</span>
+        <span>Create PM</span>
       </a>
 
       <a class="pm-subitem" routerLink="/pm-assign" routerLinkActive="active" *ngIf="hasPermission('pm.assign.view')">
         <span class="material-symbols-outlined">person_add</span>
-        <span>{{ 'Assign PM' | tr }}</span>
+        <span>Assign PM</span>
       </a>
 
       <a class="pm-subitem" routerLink="/pm-record" routerLinkActive="active" *ngIf="hasPermission('pm.record.view')">
         <span class="material-symbols-outlined">edit_note</span>
-        <span>{{ 'Record PM' | tr }}</span>
+        <span>Record PM</span>
       </a>
 
       <a class="pm-subitem" routerLink="/pm-calendar" routerLinkActive="active" *ngIf="hasPermission('pm.calendar.view')">
         <span class="material-symbols-outlined">calendar_month</span>
-        <span>{{ 'PM Calendar' | tr }}</span>
+        <span>PM Calendar</span>
       </a>
 
       <a class="pm-subitem" routerLink="/pm-reports" routerLinkActive="active" *ngIf="hasPermission('pm.reports.view')">
         <span class="material-symbols-outlined">bar_chart</span>
-        <span>{{ 'PM Reports' | tr }}</span>
+        <span>PM Reports</span>
       </a>
 
       <div class="nav-divider"></div>
       
-      <div class="nav-label">{{ 'Administration' | tr }}</div>
+      <div class="nav-label">Administration</div>
       
       <a class="pm-subitem" routerLink="/pm-audit" routerLinkActive="active" *ngIf="hasPermission('pm.audit.view')">
         <span class="material-symbols-outlined">history</span>
-        <span>{{ 'Audit Log' | tr }}</span>
+        <span>Audit Log</span>
       </a>
     </nav>
 

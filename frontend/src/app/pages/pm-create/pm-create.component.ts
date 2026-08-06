@@ -1,4 +1,3 @@
-import { TranslatePipe } from '../../shared/pipes/translate.pipe';
 import { Component, computed, inject, signal, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -7,6 +6,7 @@ import { PmService } from '../../core/services/pm.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
 import { PMTaskFrequency, PMTaskStatus, Template } from '../../core/models/pm.model';
+import { TranslatePipe } from '../../shared/pipes/translate.pipe';
 
 @Component({
   selector: 'app-pm-create',
@@ -27,7 +27,7 @@ export class PmCreateComponent {
   customDurationUnit: string = 'month(s)';
   
   isRecurring: boolean = true;
-  isGenerating: boolean = false;
+  isGenerating = signal(false);
 
   productId: string = '';
   department: string = '';
@@ -371,7 +371,7 @@ export class PmCreateComponent {
       }
     }
 
-    this.isGenerating = true;
+    this.isGenerating.set(true);
 
     try {
       if (this.isRecurring) {
@@ -406,7 +406,7 @@ export class PmCreateComponent {
             partsRequired: [...this.parts()]
           });
         } catch (inner) {
-          this.isGenerating = false;
+          this.isGenerating.set(false);
           this.toast.error('Failed to create PM task. Check your access and try again.');
           return;
         }
@@ -416,7 +416,7 @@ export class PmCreateComponent {
     } catch (e) {
       this.toast.error('Failed to generate PM schedule. Please try again.');
     } finally {
-      this.isGenerating = false;
+      this.isGenerating.set(false);
     }
   }
 }

@@ -2,8 +2,7 @@
   <div class="page-header" data-enter>
     <div>
       <h1 class="page-title">{{ 'Record PM' | tr }}</h1>
-      <p class="page-sub">{{ isApprover ? 'Review and approve submitted preventive maintenance records' : 'Execute and
-        record completion of assigned preventive maintenance' }}</p>
+      <p class="page-sub">{{ isApprover ? ('Review and approve submitted preventive maintenance records' | tr) : ('Execute and record completion of assigned preventive maintenance' | tr) }}</p>
     </div>
     <div class="header-actions">
       <span class="badge badge-neutral">{{ activeTab === 'action' ? availableTasks().length : historyTasks().length }}
@@ -13,10 +12,10 @@
 
   <div class="tabs" data-enter>
     <div class="tab" [class.active]="activeTab === 'action'" (click)="setTab('action')">
-      {{ isApprover ? 'Action Required' : 'My PM Tasks' }}
+      {{ isApprover ? ('Action Required' | tr) : ('My PM Tasks' | tr) }}
     </div>
     <div class="tab" [class.active]="activeTab === 'history'" (click)="setTab('history')">
-      {{ isApprover ? 'Approved Records' : 'My PM History' }}
+      {{ isApprover ? ('Approved Records' | tr) : ('My PM History' | tr) }}
     </div>
   </div>
 
@@ -31,10 +30,10 @@
           <table class="data-table">
             <thead>
               <tr>
-                <th>{{ 'PM ID' | tr }}</th>
-                <th>{{ 'Asset' | tr }}</th>
-                <th>{{ 'Type' | tr }}</th>
-                <th style="text-align: center;">{{ 'Status' | tr }}</th>
+                <th>{{ 'PM ID' }}</th>
+                <th>{{ 'Asset' }}</th>
+                <th>{{ 'Type' }}</th>
+                <th style="text-align: center;">{{ 'Status' }}</th>
               </tr>
             </thead>
             <tbody>
@@ -137,7 +136,7 @@
                   </button>
                   <div *ngIf="item.photoUrl"
                     style="display:flex; align-items:center; gap:4px; color:var(--success-mid); font-size:12px; font-weight:600; background: var(--success-light); padding: 4px 8px; border-radius: 4px;">
-                    <span class="material-symbols-outlined" style="font-size:16px;">image</span> {{ 'Photo Uploaded' | tr }}
+                    <span class="material-symbols-outlined" style="font-size:16px;">image</span> {{ 'Photo Uploaded' }}
                   </div>
                 </div>
               </div>
@@ -158,7 +157,7 @@
 
           <!-- Notes -->
           <div class="form-group">
-            <label class="form-label">{{ 'Completion Notes' | tr }}</label>
+            <label class="form-label">{{ 'Completion Notes' }}</label>
             <textarea class="form-textarea" [(ngModel)]="completionNotes"
               [placeholder]="isApprover ? 'Approval notes or feedback...' : 'Any issues found or notes...'"></textarea>
           </div>
@@ -191,7 +190,7 @@
         style="position:sticky;top:16px; display:flex; align-items:center; justify-content:center; min-height: 300px;">
         <div class="empty-state">
           <span class="material-symbols-outlined" style="font-size:48px;">touch_app</span>
-          <p>{{ isApprover ? ('Select a task from the list to approve' | tr) : ('Select a task from the list to execute' | tr) }}</p>
+          <p>{{ isApprover ? ('Select a task from the list to approve') : ('Select a task from the list to execute') }}</p>
         </div>
       </div>
     </div>
@@ -204,7 +203,7 @@
         <div class="c-dropdown form-dropdown" [class.open]="filterDropdownOpen" style="width: 160px;">
           <div class="c-dropdown-trigger" (click)="filterDropdownOpen = !filterDropdownOpen">
             <span>{{
-              historyFilter() === 'All' ? ('All Records' | tr) :
+              historyFilter() === 'All' ? ('All Records') :
               (historyFilter() === 'Approved' || historyFilter() === 'Done') ? (isApprover ? 'Approved Only' : 'Done
               Only') :
               (historyFilter() === 'Pending' ? 'Pending Only' : 'Rejected Only')
@@ -233,15 +232,15 @@
         <table class="data-table">
           <thead>
             <tr>
-              <th>{{ 'PM ID' | tr }}</th>
-              <th>{{ 'Asset' | tr }}</th>
-              <th>{{ 'Type' | tr }}</th>
-              <th>{{ 'Assigned By' | tr }}</th>
-              <th *ngIf="isApprover && historyFilter() !== 'Rejected'">{{ 'Executed By' | tr }}</th>
+              <th>{{ 'PM ID' }}</th>
+              <th>{{ 'Asset' }}</th>
+              <th>{{ 'Type' }}</th>
+              <th>{{ 'Assigned By' }}</th>
+              <th *ngIf="isApprover && historyFilter() !== 'Rejected'">{{ 'Executed By' }}</th>
               <th *ngIf="historyFilter() !== 'Rejected'">{{ isApprover ? 'Approved By' : 'Submitted' }}</th>
-              <th *ngIf="historyFilter() === 'Rejected'">{{ 'Rejected By' | tr }}</th>
-              <th>{{ 'Time Spent' | tr }}</th>
-              <th style="text-align: center;">{{ 'Status' | tr }}</th>
+              <th *ngIf="historyFilter() === 'Rejected'">{{ 'Rejected By' }}</th>
+              <th>{{ 'Time Spent' }}</th>
+              <th style="text-align: center;">{{ 'Status' }}</th>
             </tr>
           </thead>
           <tbody>

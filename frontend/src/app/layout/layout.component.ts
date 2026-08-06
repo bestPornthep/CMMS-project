@@ -4,7 +4,6 @@ import { RouterModule, Router, NavigationEnd, ActivatedRoute } from '@angular/ro
 import { AuthService } from '../core/services/auth.service';
 import { PmService } from '../core/services/pm.service';
 import { TranslationService } from '../core/services/translation.service';
-import { TranslatePipe } from '../shared/pipes/translate.pipe';
 import { ToastService } from '../core/services/toast.service';
 import { ThemeService } from '../core/services/theme.service';
 import { LiquidGlassToggleComponent } from '../shared/components/liquid-glass-toggle/liquid-glass-toggle.component';
@@ -13,7 +12,7 @@ import { filter, map, mergeMap } from 'rxjs/operators';
 @Component({
   selector: 'app-layout',
   standalone: true,
-  imports: [CommonModule, RouterModule, TranslatePipe, LiquidGlassToggleComponent],
+  imports: [CommonModule, RouterModule, LiquidGlassToggleComponent],
   templateUrl: './layout.component.html',
   styleUrls: []
 })

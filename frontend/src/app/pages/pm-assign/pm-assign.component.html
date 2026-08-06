@@ -16,7 +16,7 @@
     
     <!-- Show filter only on assignment tabs -->
     <div *ngIf="activeTab === 'unassigned' || activeTab === 'assigned'" style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
-      <div style="font-size:13px; font-weight:600; color:var(--text-secondary); white-space:nowrap;">{{ 'Department Filter:' | tr }}</div>
+      <div style="font-size:13px; font-weight:600; color:var(--text-secondary); white-space:nowrap;">{{ 'Department Filter:' }}</div>
       <div class="c-dropdown" [class.open]="deptDropdownOpen" (click)="toggleDropdown('dept', $event)" style="flex-shrink:0;" *ngIf="canChangeDept">
         <div class="c-dropdown-trigger" style="width:180px;">
           <span>{{ deptFilter() }}</span>
@@ -43,7 +43,7 @@
       <div style="display:flex; align-items:center; gap:16px;">
         <div class="bulk-bar" style="display:flex; align-items:center; gap:12px; background:var(--blue-light); padding:8px 16px; border-radius:var(--radius-lg); border:1px solid rgba(26,86,219,0.2); flex-wrap:nowrap;">
           <span class="material-symbols-outlined" style="color:var(--blue); flex-shrink:0;">checklist</span>
-          <span style="font-weight:600; color:var(--blue-text); font-size:13px; white-space:nowrap; flex-shrink:0;">{{ selectedTasks().size }} selected</span>
+          <span style="font-weight:600; color:var(--blue-text); font-size:13px; white-space:nowrap; flex-shrink:0;">{{ selectedTasks().size }} {{ 'selected' | tr }}</span>
           <div class="c-dropdown" [class.open]="bulkDropdownOpen && getBulkTechnicians().length > 0" (click)="toggleDropdown('bulk', $event)" style="flex-shrink:0;" [style.opacity]="getBulkTechnicians().length === 0 ? '0.5' : '1'" [style.pointer-events]="getBulkTechnicians().length === 0 ? 'none' : 'auto'">
             <div class="c-dropdown-trigger" style="height:32px; width:180px; flex-shrink:0; display:flex; align-items:center;">
               <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:left; max-width:130px; display:inline-block;">
@@ -66,20 +66,20 @@
 
     <div class="card" data-enter>
       <div class="card-header">
-        <div class="card-title">{{ 'Unassigned PM Work Orders' | tr }}</div>
+        <div class="card-title">{{ 'Unassigned PM Work Orders' }}</div>
       </div>
       <div style="overflow:visible; border-radius:0 0 var(--radius-xl) var(--radius-xl);">
         <table class="data-table">
           <thead>
             <tr>
               <th style="width:40px;"><input type="checkbox" class="assign-checkbox" (change)="toggleAllSelection($event)" [checked]="selectedTasks().size > 0 && selectedTasks().size === pendingTasks().filter(t => canManageTask(t)).length && pendingTasks().filter(t => canManageTask(t)).length > 0"/></th>
-              <th>{{ 'PM ID' | tr }}</th>
-              <th>{{ 'Product & Dept' | tr }}</th>
-              <th>{{ 'Asset' | tr }}</th>
-              <th>{{ 'Type' | tr }}</th>
-              <th>{{ 'Created By' | tr }}</th>
-              <th>{{ 'Due Date' | tr }}</th>
-              <th>{{ 'Assign To' | tr }}</th>
+              <th>{{ 'PM ID' }}</th>
+              <th>{{ 'Product & Dept' }}</th>
+              <th>{{ 'Asset' }}</th>
+              <th>{{ 'Type' }}</th>
+              <th>{{ 'Created By' }}</th>
+              <th>{{ 'Due Date' }}</th>
+              <th>{{ 'Assign To' }}</th>
             </tr>
           </thead>
           <tbody>
@@ -137,20 +137,20 @@
 
     <div class="card" data-enter>
       <div class="card-header">
-        <div class="card-title">{{ 'Assigned PM Work Orders' | tr }}</div>
+        <div class="card-title">{{ 'Assigned PM Work Orders' }}</div>
       </div>
       <div style="overflow:visible; border-radius:0 0 var(--radius-xl) var(--radius-xl);">
         <table class="data-table">
           <thead>
             <tr>
-              <th>{{ 'PM ID' | tr }}</th>
-              <th>{{ 'Product & Dept' | tr }}</th>
-              <th>{{ 'Asset' | tr }}</th>
-              <th>{{ 'Type' | tr }}</th>
-              <th>{{ 'Created By' | tr }}</th>
-              <th>{{ 'Due Date' | tr }}</th>
-              <th>{{ 'Assigned To' | tr }}</th>
-              <th>{{ 'Time Stamp' | tr }}</th>
+              <th>{{ 'PM ID' }}</th>
+              <th>{{ 'Product & Dept' }}</th>
+              <th>{{ 'Asset' }}</th>
+              <th>{{ 'Type' }}</th>
+              <th>{{ 'Created By' }}</th>
+              <th>{{ 'Due Date' }}</th>
+              <th>{{ 'Assigned To' }}</th>
+              <th>{{ 'Time Stamp' }}</th>
             </tr>
           </thead>
           <tbody>
@@ -204,7 +204,7 @@
             <label class="form-label">{{ 'TARGET USER' | tr }}</label>
             <div class="c-dropdown form-dropdown" [class.open]="delegationUserDropdownOpen" (click)="toggleDropdown('delegationUser', $event)">
               <div class="c-dropdown-trigger" style="width:100%; height:36px; display:flex; align-items:center;">
-                <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:inline-block; max-width:90%; text-align:left;">{{ newDelegationUsers().length ? newDelegationUsers().length + ' selected' : ('Select users...' | tr) }}</span>
+                <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:inline-block; max-width:90%; text-align:left;">{{ newDelegationUsers().length ? newDelegationUsers().length + ' ' + ('selected' | tr) : ('Select users...' | tr) }}</span>
                 <span class="material-symbols-outlined" style="margin-left:auto; flex-shrink:0;">expand_more</span>
               </div>
               <div class="c-dropdown-menu" *ngIf="delegationUserDropdownOpen" (click)="$event.stopPropagation();" style="padding: 0; overflow: hidden;">
@@ -239,7 +239,7 @@
             <label class="form-label">{{ 'Product / Asset Scope' | tr }}</label>
             <div class="c-dropdown form-dropdown" [class.open]="delegationProductDropdownOpen" (click)="toggleDropdown('delegationProduct', $event)">
               <div class="c-dropdown-trigger" style="width:100%; height:36px; display:flex; align-items:center;">
-                <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:inline-block; max-width:90%; text-align:left;">{{ newDelegationProducts().length ? newDelegationProducts().length + ' selected' : ('Select products...' | tr) }}</span>
+                <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:inline-block; max-width:90%; text-align:left;">{{ newDelegationProducts().length ? newDelegationProducts().length + ' ' + ('selected' | tr) : ('Select products...' | tr) }}</span>
                 <span class="material-symbols-outlined" style="margin-left:auto; flex-shrink:0;">expand_more</span>
               </div>
               <div class="c-dropdown-menu" *ngIf="delegationProductDropdownOpen" (click)="$event.stopPropagation();" style="padding: 0; overflow: hidden;">
@@ -289,10 +289,10 @@
           <table class="data-table">
             <thead>
               <tr>
-                <th>{{ 'User' | tr }}</th>
-                <th>{{ 'Product' | tr }}</th>
-                <th>{{ 'Valid Until' | tr }}</th>
-                <th>{{ 'Action' | tr }}</th>
+                <th>{{ 'User' }}</th>
+                <th>{{ 'Product' }}</th>
+                <th>{{ 'Valid Until' }}</th>
+                <th>{{ 'Action' }}</th>
               </tr>
             </thead>
             <tbody>
@@ -305,7 +305,7 @@
             </td>
                 <td style="color:var(--text-secondary);font-size:12px;">{{ del.validUntil | date:'MMM d, yyyy' }}</td>
                 <td>
-                  <button class="btn btn-ghost" style="color:var(--error-mid); padding:4px 8px; font-size:11px;" (click)="revokeDelegation(del.id)">{{ 'Revoke' | tr }}</button>
+                  <button class="btn btn-ghost" style="color:var(--error-mid); padding:4px 8px; font-size:11px;" (click)="revokeDelegation(del.id)">{{ 'Revoke' }}</button>
                 </td>
               </tr>
               <tr *ngIf="delegations().length === 0">
@@ -328,13 +328,13 @@
   <div class="template-modal" [class.open]="showBulkModal()">
     <div class="modal-header">
       <div>
-        <h2 class="modal-title">{{ 'Confirm Assignment' | tr }}</h2>
+        <h2 class="modal-title">{{ 'Confirm Assignment' }}</h2>
         <p class="modal-sub">You are assigning {{ selectedTasks().size }} tasks to <strong style="color:var(--text-primary);">{{ bulkAssignee()?.name }}</strong>.</p>
       </div>
     </div>
     <div style="display:flex;gap:8px; margin-top:24px;">
-      <button class="btn btn-primary" style="flex:1; justify-content:center;" (click)="confirmBulkAssign()">{{ 'Confirm' | tr }}</button>
-      <button class="btn btn-ghost" style="flex:1; justify-content:center;" (click)="showBulkModal.set(false)">{{ 'Cancel' | tr }}</button>
+      <button class="btn btn-primary" style="flex:1; justify-content:center;" (click)="confirmBulkAssign()">{{ 'Confirm' }}</button>
+      <button class="btn btn-ghost" style="flex:1; justify-content:center;" (click)="showBulkModal.set(false)">{{ 'Cancel' }}</button>
     </div>
   </div>
 

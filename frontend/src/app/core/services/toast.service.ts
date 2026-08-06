@@ -1,4 +1,5 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
+import { TranslationService } from './translation.service';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 
@@ -14,10 +15,12 @@ export class ToastService {
   readonly toasts = this._toasts.asReadonly();
 
   private nextId = 0;
+  private translationService = inject(TranslationService);
 
   show(message: string, type: ToastType = 'info', durationMs = 4000): void {
     const id = this.nextId++;
-    this._toasts.update(t => [...t, { id, message, type }]);
+    const translated = this.translationService.translate(message);
+    this._toasts.update(t => [...t, { id, message: translated, type }]);
     setTimeout(() => this.dismiss(id), durationMs);
   }
 

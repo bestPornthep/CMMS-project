@@ -23,7 +23,7 @@
                   <span class="material-symbols-outlined">expand_more</span>
                 </div>
                 <div class="c-dropdown-menu">
-                  <div class="c-dropdown-item" (click)="selectProduct('', $event)">Select product...</div>
+                  <div class="c-dropdown-item" (click)="selectProduct('', $event)">{{ 'Select product...' | tr }}</div>
                   <div class="c-dropdown-item" *ngFor="let p of getFilteredProducts()" (click)="selectProduct(p, $event)">{{ p }}</div>
                 </div>
               </div>
@@ -33,11 +33,11 @@
             <!-- Dropdown for Mgr/Admin -->
             <div class="c-dropdown form-dropdown" [class.open]="openDropdown === 'department'" (click)="toggleCustomDropdown('department', $event)" *ngIf="canChangeDept">
               <div class="c-dropdown-trigger">
-                <span>{{ department || 'Select department...' }}</span>
+                <span>{{ (department | tr) || ('Select department...' | tr) }}</span>
                 <span class="material-symbols-outlined">expand_more</span>
               </div>
               <div class="c-dropdown-menu">
-                <div class="c-dropdown-item" (click)="selectDept('', $event)">Select department...</div>
+                <div class="c-dropdown-item" (click)="selectDept('', $event)">{{ 'Select department...' | tr }}</div>
                 <div class="c-dropdown-item" *ngFor="let d of departments" (click)="selectDept(d, $event)">{{ d }}</div>
               </div>
             </div>
@@ -53,13 +53,13 @@
                   <input type="text"
                     style="border:none; width:100%; box-shadow:none; background:transparent; outline:none; font-family:inherit; font-size:inherit; color:var(--color-text-primary); padding:0;"
                     [(ngModel)]="assetId" name="assetId" 
-                    [placeholder]="productId ? 'Select or type asset...' : 'Select product first...'"
+                    [placeholder]="productId ? ('Select or type asset...' | tr) : ('Select product first...' | tr)"
                     [disabled]="!productId"
                     (click)="openDropdown = 'asset'; $event.stopPropagation()" />
                   <span class="material-symbols-outlined">expand_more</span>
                 </div>
                 <div class="c-dropdown-menu" *ngIf="productId">
-                  <div class="c-dropdown-item" (click)="selectAsset('', $event)">Select asset...</div>
+                  <div class="c-dropdown-item" (click)="selectAsset('', $event)">{{ 'Select asset...' | tr }}</div>
                   <div class="c-dropdown-item" *ngFor="let a of getFilteredAssets()" (click)="selectAsset(a.id, $event)">{{ a.id }} — {{ a.name }}</div>
                 </div>
               </div>
@@ -81,8 +81,8 @@
               >
                 <span class="material-symbols-outlined" style="font-size:20px;">repeat</span>
                 <div>
-                  <div>Recurring</div>
-                  <div style="font-size:11px; font-weight:400; opacity:0.75;">Generates full-year series</div>
+                  <div>{{ 'Recurring' | tr }}</div>
+                  <div style="font-size:11px; font-weight:400; opacity:0.75;">{{ 'Generates full-year series' | tr }}</div>
                 </div>
                 <span class="material-symbols-outlined" style="margin-left:auto; font-size:18px;" *ngIf="isRecurring">check_circle</span>
               </div>
@@ -100,8 +100,8 @@
               >
                 <span class="material-symbols-outlined" style="font-size:20px;">task_alt</span>
                 <div>
-                  <div>One-Time</div>
-                  <div style="font-size:11px; font-weight:400; opacity:0.75;">Single occurrence only</div>
+                  <div>{{ 'One-Time' | tr }}</div>
+                  <div style="font-size:11px; font-weight:400; opacity:0.75;">{{ 'Single occurrence only' | tr }}</div>
                 </div>
                 <span class="material-symbols-outlined" style="margin-left:auto; font-size:18px;" *ngIf="!isRecurring">check_circle</span>
               </div>
@@ -112,36 +112,36 @@
             <label class="form-label">{{ 'PM TYPE' | tr }}</label>
             <div class="c-dropdown form-dropdown" [class.open]="openDropdown === 'type'" (click)="toggleCustomDropdown('type', $event)">
               <div class="c-dropdown-trigger">
-                <span>{{ pmType || 'Select type...' }}</span>
+                <span>{{ (pmType | tr) || ('Select type...' | tr) }}</span>
                 <span class="material-symbols-outlined">expand_more</span>
               </div>
               <div class="c-dropdown-menu">
-                <div class="c-dropdown-item" (click)="selectType('', $event)">Select type...</div>
-                <div class="c-dropdown-item" (click)="selectType('Daily', $event)">Daily</div>
-                <div class="c-dropdown-item" (click)="selectType('Weekly', $event)">Weekly</div>
-                <div class="c-dropdown-item" (click)="selectType('Monthly', $event)">Monthly</div>
-                <div class="c-dropdown-item" (click)="selectType('Quarterly', $event)">Quarterly</div>
-                <div class="c-dropdown-item" (click)="selectType('Yearly', $event)">Yearly</div>
-                <div class="c-dropdown-item" (click)="selectType('Custom', $event)">Custom</div>
+                <div class="c-dropdown-item" (click)="selectType('', $event)">{{ 'Select type...' | tr }}</div>
+                <div class="c-dropdown-item" (click)="selectType('Daily', $event)">{{ 'Daily' | tr }}</div>
+                <div class="c-dropdown-item" (click)="selectType('Weekly', $event)">{{ 'Weekly' | tr }}</div>
+                <div class="c-dropdown-item" (click)="selectType('Monthly', $event)">{{ 'Monthly' | tr }}</div>
+                <div class="c-dropdown-item" (click)="selectType('Quarterly', $event)">{{ 'Quarterly' | tr }}</div>
+                <div class="c-dropdown-item" (click)="selectType('Yearly', $event)">{{ 'Yearly' | tr }}</div>
+                <div class="c-dropdown-item" (click)="selectType('Custom', $event)">{{ 'Custom' | tr }}</div>
               </div>
             </div>
           </div>
           
           <div class="form-group" *ngIf="pmType === 'Custom'">
-            <label class="form-label">Custom Duration</label>
+            <label class="form-label">{{ 'Custom Duration' | tr }}</label>
             <div style="display:flex; gap:12px; align-items:center;">
               <input type="number" class="form-input" [(ngModel)]="customDurationValue" min="1" style="width: 80px;" />
               
               <div class="c-dropdown form-dropdown" style="width: 120px;" [class.open]="openDropdown === 'customUnit'" (click)="toggleCustomDropdown('customUnit', $event)">
                 <div class="c-dropdown-trigger">
-                  <span>{{ customDurationUnit }}</span>
+                  <span>{{ customDurationUnit | tr }}</span>
                   <span class="material-symbols-outlined">expand_more</span>
                 </div>
                 <div class="c-dropdown-menu">
-                  <div class="c-dropdown-item" (click)="customDurationUnit = 'hour(s)'; openDropdown = null; $event.stopPropagation()">hour(s)</div>
-                  <div class="c-dropdown-item" (click)="customDurationUnit = 'day(s)'; openDropdown = null; $event.stopPropagation()">day(s)</div>
-                  <div class="c-dropdown-item" (click)="customDurationUnit = 'month(s)'; openDropdown = null; $event.stopPropagation()">month(s)</div>
-                  <div class="c-dropdown-item" (click)="customDurationUnit = 'Year(s)'; openDropdown = null; $event.stopPropagation()">Year(s)</div>
+                  <div class="c-dropdown-item" (click)="customDurationUnit = 'hour(s)'; openDropdown = null; $event.stopPropagation()">{{ 'hour(s)' | tr }}</div>
+                  <div class="c-dropdown-item" (click)="customDurationUnit = 'day(s)'; openDropdown = null; $event.stopPropagation()">{{ 'day(s)' | tr }}</div>
+                  <div class="c-dropdown-item" (click)="customDurationUnit = 'month(s)'; openDropdown = null; $event.stopPropagation()">{{ 'month(s)' | tr }}</div>
+                  <div class="c-dropdown-item" (click)="customDurationUnit = 'Year(s)'; openDropdown = null; $event.stopPropagation()">{{ 'Year(s)' | tr }}</div>
                 </div>
               </div>
             </div>
@@ -149,7 +149,7 @@
 
           <div class="form-group">
             <label class="form-label">{{ 'Description' | tr | uppercase }}</label>
-            <textarea class="form-textarea" [(ngModel)]="description" placeholder="Describe the maintenance task…"></textarea>
+            <textarea class="form-textarea" [(ngModel)]="description" [placeholder]="'Describe the maintenance task…' | tr"></textarea>
           </div>
           <div class="form-group">
             <label class="form-label">{{ 'Estimated Time (hours)' | tr | uppercase }}</label>
@@ -160,27 +160,27 @@
 
       <div class="card" data-enter>
         <div class="card-header">
-          <div class="card-title">Checklist</div>
+          <div class="card-title">{{ 'Checklist' | tr }}</div>
         </div>
         <div style="padding:14px 20px; background:var(--color-blue-light); border-bottom:1px solid var(--color-border-soft); display:flex; gap:14px; align-items:center;">
           <div style="width:36px; height:36px; border-radius:50%; background:var(--color-bg-card); display:flex; align-items:center; justify-content:center; color:var(--color-blue); flex-shrink:0; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
             <span class="material-symbols-outlined" style="font-size:20px;">view_list</span>
           </div>
           <div style="flex:1;">
-             <div style="font-size:12.5px; font-weight:700; color:var(--color-blue-text); letter-spacing:-0.2px;">Department Templates</div>
-             <div style="font-size:11.5px; color:var(--color-text-secondary); margin-top:2px;">Load predefined tasks or save your current list.</div>
+             <div style="font-size:12.5px; font-weight:700; color:var(--color-blue-text); letter-spacing:-0.2px;">{{ 'Department Templates' | tr }}</div>
+             <div style="font-size:11.5px; color:var(--color-text-secondary); margin-top:2px;">{{ 'Load predefined tasks or save your current list.' | tr }}</div>
           </div>
           <div style="display:flex; gap:8px;">
             <div class="c-dropdown" [class.open]="dropdownOpen" (click)="toggleDropdown($event)">
               <div class="c-dropdown-trigger">
-                <span>Select template…</span>
+                <span>{{ 'Select template…' | tr }}</span>
                 <span class="material-symbols-outlined">expand_more</span>
               </div>
               <div class="c-dropdown-menu" *ngIf="dropdownOpen" style="max-height: 300px; overflow-y: auto;">
-                <div class="c-dropdown-item empty" *ngIf="templates().length === 0">No templates</div>
+                <div class="c-dropdown-item empty" *ngIf="templates().length === 0">{{ 'No templates' | tr }}</div>
                 
                 <ng-container *ngIf="defaultTemplates().length > 0">
-                  <div style="padding: 8px 12px 4px; font-size: 11px; font-weight: 700; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.5px;">System Defaults</div>
+                  <div style="padding: 8px 12px 4px; font-size: 11px; font-weight: 700; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.5px;">{{ 'System Defaults' | tr }}</div>
                   <div class="c-dropdown-item" *ngFor="let t of defaultTemplates()" (click)="loadTemplate(t); $event.stopPropagation()" style="display:flex; justify-content:space-between; align-items:center;">
                     <span>{{ t.name }}</span>
                     <span class="material-symbols-outlined" style="font-size: 14px; color: var(--color-text-muted);" title="Default Template">lock</span>
@@ -188,7 +188,7 @@
                 </ng-container>
 
                 <ng-container *ngIf="personalTemplates().length > 0">
-                  <div style="padding: 8px 12px 4px; font-size: 11px; font-weight: 700; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.5px;">My Templates</div>
+                  <div style="padding: 8px 12px 4px; font-size: 11px; font-weight: 700; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.5px;">{{ 'My Templates' | tr }}</div>
                   <div class="c-dropdown-item" *ngFor="let t of personalTemplates()" (click)="loadTemplate(t); $event.stopPropagation()">{{ t.name }}</div>
                 </ng-container>
               </div>
@@ -197,7 +197,7 @@
               <span class="material-symbols-outlined" style="font-size:16px;">edit</span>
             </button>
             <button class="btn" (click)="showSaveTemplateModal = true" style="background:var(--color-bg-card-alt); color:var(--color-blue-text); border:1px solid rgba(26,86,219,0.2); padding:6px 12px; font-size:12.5px; box-shadow:0 1px 2px rgba(12,21,35,0.04); height:32px;">
-              <span class="material-symbols-outlined" style="font-size:16px;">bookmark_add</span>Save as New
+              <span class="material-symbols-outlined" style="font-size:16px;">bookmark_add</span>{{ 'Save as New' | tr }}
             </button>
           </div>
         </div>
@@ -215,13 +215,13 @@
           </div>
           <div class="empty-state" *ngIf="checklist().length === 0" style="padding:20px;">
             <span class="material-symbols-outlined">checklist</span>
-            <p>No checklist items — type below to add</p>
+            <p>{{ 'No checklist items — type below to add' | tr }}</p>
           </div>
 
           <div class="checklist-item" style="margin-top: 8px;">
-            <input type="text" name="newChecklistItem" placeholder="Type new item..." [(ngModel)]="newChecklistItem" (keyup.enter)="addChecklistItem()" style="background: var(--color-bg-card-alt); color: var(--color-text-primary); box-shadow: none; border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); padding: 8px 12px; outline: none; flex: 1;" />
+            <input type="text" name="newChecklistItem" [placeholder]="'Type new item...' | tr" [(ngModel)]="newChecklistItem" (keyup.enter)="addChecklistItem()" style="background: var(--color-bg-card-alt); color: var(--color-text-primary); box-shadow: none; border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); padding: 8px 12px; outline: none; flex: 1;" />
             <button (click)="addChecklistItem()" style="padding: 6px 12px; border:none; background:var(--color-blue-light); color:var(--color-blue-text); border-radius:var(--radius-md); display:flex; align-items:center; gap:4px; font-size:12.5px; font-weight:700; cursor:pointer; flex-shrink:0; transition: all 0.2s; box-shadow:0 1px 2px rgba(26,86,219,0.06);" onmouseover="this.style.background='var(--color-blue)'; this.style.color='white'" onmouseout="this.style.background='var(--color-blue-light)'; this.style.color='var(--color-blue-text)'">
-              Add<span class="material-symbols-outlined" style="font-size:16px;">add</span>
+              {{ 'Add' | tr }}<span class="material-symbols-outlined" style="font-size:16px;">add</span>
             </button>
           </div>
         </div>
@@ -242,7 +242,7 @@
                       <div class="ms-checkbox" [class.checked]="parts().length === availableParts.length && availableParts.length > 0">
                          <span class="material-symbols-outlined" *ngIf="parts().length === availableParts.length && availableParts.length > 0" style="font-size: 14px; font-weight: bold; color: white;">check</span>
                       </div>
-                      <span style="font-weight: 600; font-size: 13.5px; color: var(--color-text-primary);">Select All</span>
+                      <span style="font-weight: 600; font-size: 13.5px; color: var(--color-text-primary);">{{ 'Select All' | tr }}</span>
                     </div>
                   </div>
                 <div style="padding: 6px 0; max-height: 200px; overflow-y: auto;">
@@ -277,15 +277,15 @@
         <div class="preview-row"><span class="preview-label">{{ 'Product' | tr | uppercase }}</span><span class="preview-val" [style.color]="productId ? 'var(--color-text-primary)' : 'var(--color-text-muted)'">{{ productId || '—' }}</span></div>
         <div class="preview-row"><span class="preview-label">{{ 'DEPT' | tr }}</span><span class="preview-val" [style.color]="department ? 'var(--color-text-primary)' : 'var(--color-text-muted)'">{{ department || '—' }}</span></div>
         <div class="preview-row"><span class="preview-label">{{ 'Asset' | tr }}</span><span class="preview-val" [style.color]="assetId ? 'var(--color-text-primary)' : 'var(--color-text-muted)'">{{ assetId || '—' }}</span></div>
-        <div class="preview-row"><span class="preview-label">{{ 'Type' | tr }}</span><span class="preview-val">{{ pmType === 'Custom' ? customDurationValue + ' ' + customDurationUnit : (pmType || '—') }}</span></div>
-        <div class="preview-row"><span class="preview-label">{{ 'Tasks' | tr | uppercase }}</span><span class="preview-val">{{ checklist().length }} items</span></div>
-        <div class="preview-row"><span class="preview-label">{{ 'EST. TIME' | tr }}</span><span class="preview-val">{{ estimatedHours }} hrs</span></div>
-        <div class="preview-row"><span class="preview-label">{{ 'Parts' | tr | uppercase }}</span><span class="preview-val">{{ parts().length }} required</span></div>
+        <div class="preview-row"><span class="preview-label">{{ 'Type' | tr }}</span><span class="preview-val">{{ pmType === 'Custom' ? customDurationValue + ' ' + (customDurationUnit | tr) : ((pmType | tr) || '—') }}</span></div>
+        <div class="preview-row"><span class="preview-label">{{ 'Tasks' | tr | uppercase }}</span><span class="preview-val">{{ checklist().length }} {{ 'items' | tr }}</span></div>
+        <div class="preview-row"><span class="preview-label">{{ 'EST. TIME' | tr }}</span><span class="preview-val">{{ estimatedHours }} {{ 'hrs' | tr }}</span></div>
+        <div class="preview-row"><span class="preview-label">{{ 'Parts' | tr | uppercase }}</span><span class="preview-val">{{ parts().length }} {{ 'required' | tr }}</span></div>
         <div style="margin-top:20px;">
-          <button class="btn btn-primary" (click)="submitForm()" style="width:100%; position: relative;" [disabled]="isGenerating">
-            <span class="material-symbols-outlined" *ngIf="!isGenerating">add_circle</span>
-            <span *ngIf="!isGenerating">{{ isRecurring ? ('Create Schedule' | tr) : ('Create PM' | tr) }}</span>
-            <span *ngIf="isGenerating" style="display: flex; align-items: center; gap: 8px;">
+          <button class="btn btn-primary" (click)="submitForm()" style="width:100%; position: relative;" [disabled]="isGenerating()">
+            <span class="material-symbols-outlined" *ngIf="!isGenerating()">add_circle</span>
+            <span *ngIf="!isGenerating()">{{ isRecurring ? ('Create Schedule' | tr) : ('Create PM' | tr) }}</span>
+            <span *ngIf="isGenerating()" style="display: flex; align-items: center; gap: 8px;">
               <span class="material-symbols-outlined" style="animation: spin 1s linear infinite;">autorenew</span>
               {{ 'Generating Tasks...' | tr }}
             </span>
@@ -313,7 +313,7 @@
     </div>
     <div style="display:flex;gap:8px;">
       <button class="btn btn-primary" (click)="saveTemplate()">{{ 'Save Template' | tr }}</button>
-      <button class="btn btn-ghost" (click)="showSaveTemplateModal = false">Cancel</button>
+      <button class="btn btn-ghost" (click)="showSaveTemplateModal = false">{{ 'Cancel' | tr }}</button>
     </div>
   </div>
 
@@ -328,14 +328,14 @@
       <div class="empty-state" *ngIf="templates().length === 0" style="padding:20px 0;">{{ 'No templates saved.' | tr }}</div>
       <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--color-border-soft);" *ngFor="let t of templates()">
         <div>
-          <div style="font-weight:600; font-size:13px;">{{ t.name }} <span style="font-size:10px; color:var(--color-text-muted); background:var(--bg-muted); padding:2px 4px; border-radius:4px; margin-left:4px;" *ngIf="t.department === 'All' || t.isDefault">{{ t.isDefault ? 'System' : 'Global' }}</span></div>
+          <div style="font-weight:600; font-size:13px;">{{ t.name }} <span style="font-size:10px; color:var(--color-text-muted); background:var(--bg-muted); padding:2px 4px; border-radius:4px; margin-left:4px;" *ngIf="t.department === 'All' || t.isDefault">{{ (t.isDefault ? 'System' : 'Global') | tr }}</span></div>
           <div style="font-size:11px; color:var(--color-text-muted);">{{ t.checklist.length }} items</div>
         </div>
         <button class="btn btn-ghost" (click)="deleteTemplate(t)" *ngIf="!t.isDefault && (canChangeDept || t.department !== 'All')" style="color:var(--color-error-mid); padding:4px 8px;">{{ 'Delete' | tr }}</button>
       </div>
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
-      <button class="btn btn-ghost" (click)="showManageTemplateModal = false">Close</button>
+      <button class="btn btn-ghost" (click)="showManageTemplateModal = false">{{ 'Close' | tr }}</button>
     </div>
   </div>
 </div>

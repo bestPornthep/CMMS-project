@@ -176,12 +176,12 @@ describe('PmCreateComponent - Checklist', () => {
 
   it('should clear asset when switching department if asset does not match', () => {
     component.assetId = 'THC-P1-01'; // Test dept
-    component.selectDept('Facility');
+    component.selectDept('Facility', new Event('change'));
     expect(component.assetId).toBe('');
   });
 
   it('should auto-fill product and department when selecting an asset', () => {
-    component.selectAsset('THC-P1-01');
+    component.selectAsset('THC-P1-01', new Event('change'));
     expect(component.productId).toBe('CUST-001');
     expect(component.department).toBe('Test');
   });

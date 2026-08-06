@@ -3,8 +3,8 @@
 
   <div class="page-header" data-enter>
     <div>
-      <h1 class="page-title">PM Calendar</h1>
-      <p class="page-sub">Monthly view of all scheduled preventive maintenance · <span data-last-updated></span></p>
+      <h1 class="page-title">{{ 'PM Calendar' | tr }}</h1>
+      <p class="page-sub">{{ 'Monthly view of all scheduled preventive maintenance ·' | tr }} <span data-last-updated></span></p>
     </div>
   </div>
 
@@ -18,12 +18,12 @@
         <button class="topbar-btn" (click)="nextMonth()"><span
             class="material-symbols-outlined">chevron_right</span></button>
         <button class="btn btn-ghost" (click)="goToToday()" style="margin-left:4px;">
-          <span class="material-symbols-outlined">today</span>Today
+          <span class="material-symbols-outlined">today</span>{{ 'Today' | tr }}
         </button>
         <div style="margin-left:auto;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
           <!-- Department Filter (Custom Dropdown) -->
           <div style="display:flex;align-items:center;gap:8px;">
-            <span style="font-size:12px;color:var(--color-text-muted);font-weight:600;">Dept:</span>
+            <span style="font-size:12px;color:var(--color-text-muted);font-weight:600;">{{ 'Dept:' | tr }}</span>
             <div class="custom-dropdown" [class.open]="dropdownOpen">
               <button class="dropdown-trigger" [class.disabled]="!canChangeDept" (click)="toggleDropdown($event)"
                 type="button" aria-haspopup="listbox" [attr.aria-expanded]="dropdownOpen">
@@ -73,14 +73,14 @@
                 style="accent-color:var(--color-info);cursor:pointer;">
               <span
                 style="width:8px;height:8px;border-radius:50%;background:var(--color-info);display:inline-block;"></span>
-              Scheduled
+              {{ 'Scheduled' | tr }}
             </label>
             <label
               style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--color-text-muted);cursor:pointer;">
               <input type="checkbox" [(ngModel)]="filterDone" style="accent-color:var(--color-success);cursor:pointer;">
               <span
                 style="width:8px;height:8px;border-radius:50%;background:var(--color-success);display:inline-block;"></span>
-              Done
+              {{ 'Done' | tr }}
             </label>
             <label
               style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--color-text-muted);cursor:pointer;">
@@ -88,7 +88,7 @@
                 style="accent-color:var(--color-error-mid);cursor:pointer;">
               <span
                 style="width:8px;height:8px;border-radius:50%;background:var(--color-error-mid);display:inline-block;"></span>
-              Overdue
+              {{ 'Overdue' | tr }}
             </label>
           </div>
         </div>
@@ -125,7 +125,7 @@
     <div class="side-card" data-enter>
       <div class="card" style="border-left:3px solid var(--color-error-mid);">
         <div class="card-header">
-          <div class="card-title" style="color:var(--error);">⚠ Overdue PMs</div>
+          <div class="card-title" style="color:var(--error);">⚠ {{ 'Overdue PMs' | tr }}</div>
         </div>
         <div class="card-body" style="padding-top:8px;padding-bottom:8px;">
           <div *ngFor="let t of overdueTasks()" class="overdue-item" (click)="goToRecord(t.id, true)"
