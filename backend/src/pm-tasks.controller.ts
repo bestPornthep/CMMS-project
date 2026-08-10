@@ -33,7 +33,18 @@ export class PmTasksController {
       const delegated = user.delegatedProducts?.map((dp: any) => dp.productId) || [];
       const accessibleProducts = Array.from(new Set([...owned, ...delegated]));
 
-      if (!accessibleProducts.includes('*')) {
+      if (user.baseRole === 'technician') {
+        // Technicians never own products — access is governed solely by
+        // assignment or delegation, not by ownedProducts/accessibleProducts.
+        // (Applying the product-ownership filter here would AND an empty/
+        // partial productId list with this OR clause, silently hiding every
+        // task assigned to the technician outside that product set.)
+        where.OR = [
+          { assignedTo: user.employeeId },
+          { productId: { in: delegated } },
+        ];
+        if (productId) where.productId = productId;
+      } else if (!accessibleProducts.includes('*')) {
         if (productId) {
           if (!accessibleProducts.includes(productId)) {
             throw new ForbiddenException(`Product access denied for ${productId}`);
@@ -42,13 +53,6 @@ export class PmTasksController {
         } else {
           where.productId = { in: accessibleProducts };
         }
-      }
-
-      if (user.baseRole === 'technician') {
-        where.OR = [
-          { assignedTo: user.employeeId },
-          { productId: { in: delegated } },
-        ];
       }
     } else {
       if (productId) where.productId = productId;
@@ -76,12 +80,12 @@ export class PmTasksController {
       const delegated = user.delegatedProducts?.map((dp: any) => dp.productId) || [];
       const accessibleProducts = Array.from(new Set([...owned, ...delegated]));
 
-      if (!accessibleProducts.includes('*') && !accessibleProducts.includes(t.productId)) {
+      if (user.baseRole === 'technician') {
+        if (t.assignedTo !== user.employeeId && !delegated.includes(t.productId)) {
+          throw new ForbiddenException(`Task ${id} is not assigned to you`);
+        }
+      } else if (!accessibleProducts.includes('*') && !accessibleProducts.includes(t.productId)) {
         throw new ForbiddenException(`Access denied for product ${t.productId}`);
-      }
-
-      if (user.baseRole === 'technician' && t.assignedTo !== user.employeeId && !delegated.includes(t.productId)) {
-        throw new ForbiddenException(`Task ${id} is not assigned to you`);
       }
     }
 

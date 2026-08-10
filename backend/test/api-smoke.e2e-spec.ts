@@ -274,6 +274,47 @@ describe('Full API Smoke Test (e2e)', () => {
       expect(res.body.status).toBe('In Progress');
     });
 
+    // Regression coverage for the technician-visibility bug: a technician
+    // with no owned/delegated products must still see (and only see) tasks
+    // assigned directly to them, via both GET /pm-tasks and GET /pm-tasks/:id.
+    describe('Technician visibility (regression)', () => {
+      it('assigns the task to TECH-TST-1', async () => {
+        const res = await request(app.getHttpServer())
+          .put(`/api/v1/pm-tasks/${createdTaskId}`)
+          .set('Authorization', `Bearer ${engineerToken}`)
+          .send({ assignedTo: 'TECH-TST-1' })
+          .expect(200);
+        expect(res.body.assignedTo).toBe('TECH-TST-1');
+      });
+
+      it('GET /api/v1/pm-tasks includes a task assigned to the requesting technician', async () => {
+        const res = await request(app.getHttpServer())
+          .get('/api/v1/pm-tasks')
+          .set('Authorization', `Bearer ${technicianToken}`)
+          .expect(200);
+        expect(res.body.some((t: any) => t.id === createdTaskId)).toBe(true);
+      });
+
+      it('GET /api/v1/pm-tasks/:id allows the assigned technician to fetch their own task', async () => {
+        const res = await request(app.getHttpServer())
+          .get(`/api/v1/pm-tasks/${createdTaskId}`)
+          .set('Authorization', `Bearer ${technicianToken}`)
+          .expect(200);
+        expect(res.body.id).toBe(createdTaskId);
+      });
+
+      it('GET /api/v1/pm-tasks/:id forbids a technician the task is not assigned to', async () => {
+        const otherLogin = await request(app.getHttpServer())
+          .post('/api/v1/auth/login')
+          .send({ employeeId: 'TECH-TST-2', password: 'tech123' })
+          .expect(200);
+        await request(app.getHttpServer())
+          .get(`/api/v1/pm-tasks/${createdTaskId}`)
+          .set('Authorization', `Bearer ${(otherLogin.body as LoginResponse).token}`)
+          .expect(403);
+      });
+    });
+
     it('POST /api/v1/pm-tasks/schedule creates a PmSchedule row plus its task(s) (T4)', async () => {
       const res = await request(app.getHttpServer())
         .post('/api/v1/pm-tasks/schedule')
