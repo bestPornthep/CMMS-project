@@ -31,10 +31,6 @@ export class PmCalendarComponent implements OnDestroy {
   dropdownOpen = false;
   highlightedTaskId = signal<string | null>(null);
 
-  editingTask = signal<PMTask | null>(null);
-  editDescription: string = '';
-  editEntireSeries: boolean = true;
-  
   // Filters
   selectedDept = signal('All');
   filterScheduled = signal(true);
@@ -136,17 +132,10 @@ export class PmCalendarComponent implements OnDestroy {
         if (fromSidebar) {
           this.highlightTask(taskId);
         } else {
-          // Open edit modal for Pending/Scheduled tasks
-          this.editingTask.set(task);
-          // Only show 'edit entire series' option if it is part of a series
-          const seriesMatch = task.description?.match(/\[SeriesID:\s*([^\]]+)\]/);
-          this.editEntireSeries = !!seriesMatch;
-          
-          let displayDesc = task.description || '';
-          if (seriesMatch) {
-            displayDesc = displayDesc.replace(/\[SeriesID:\s*[^\]]+\]\n?/, '');
-          }
-          this.editDescription = displayDesc;
+          // Redirect to Assign PM and highlight the task there, so the user can see
+          // at a glance whether it's already assigned (Assigned PMs tab) or still
+          // needs a technician (Unassigned PMs tab).
+          this.router.navigate(['/pm-assign'], { queryParams: { task: taskId } });
         }
       }
       return;
@@ -154,29 +143,6 @@ export class PmCalendarComponent implements OnDestroy {
 
     // Technicians always go to pm-record to execute
     this.router.navigate(['/pm-record'], { queryParams: { task: taskId } });
-  }
-
-  closeEditModal() {
-    this.editingTask.set(null);
-  }
-
-  async saveEditTask() {
-    const task = this.editingTask();
-    if (!task) return;
-
-    const seriesMatch = task.description?.match(/\[SeriesID:\s*([^\]]+)\]/);
-    const seriesId = seriesMatch ? seriesMatch[1] : null;
-
-    if (this.editEntireSeries && seriesId) {
-      await this.pmService.updatePmSchedule(seriesId, {
-        description: this.editDescription
-      });
-    } else {
-      const fullDesc = seriesId ? `[SeriesID: ${seriesId}]\n${this.editDescription}` : this.editDescription;
-      this.pmService.updateTask({ ...task, description: fullDesc });
-    }
-
-    this.closeEditModal();
   }
 
   ngOnDestroy() {

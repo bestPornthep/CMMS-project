@@ -1,111 +1,59 @@
-# Handoff — Session 2026-07-27: Workload Fix + Assign PM Bugfixes
+# Handoff — Session 2026-08-12: Assign PM series-representative fix + calendar/search redirect UX
 
 ## Branch
-`feature/pm-form-export` (local) / `origin/feature/update_feature_frontend` (remote)
-`feature/workload-fix` — **merged into `feature/update_feature_frontend`** this session
+`fix/pm-assign-series-representative` — **not merged**. Created from `origin/update_feature_fullstack` (NOT from `feature/update_feature_frontend` — that branch is stale; the user confirmed `update_feature_fullstack` on GitHub is the real source of truth and where this should eventually be pushed once approved). All commits below are still uncommitted working-tree changes on this branch.
 
 ## What was done this session
 
-### Workload calculation fix (`pm-assign.component.ts`)
-- Extracted `MAX_PM_HOURS_PER_MONTH = 70` named constant (replaces magic number)
-- Added public `getWindowDays(frequency)` helper — frequency-adaptive window: Daily→1d, Weekly→7d, Monthly/Quarterly/Yearly/custom-long→30d, custom day(s)→min(N,30)
-- `getTechWorkload(techId, windowDays)` — window now comes from the **task being assigned**, not existing tasks. Called from template with `getWindowDays(task.frequency)`
-- Fixed NaN%: Prisma `Decimal` fields serialize as strings over JSON; wrapped with `Number()` in reduce
-- Null guard added: `if (!frequency) return 30`
-- Bulk assign dropdown keeps default 30-day window (no specific task context)
+### 1. Root-cause + fix: newly-assigned task in a recurring series "disappears" (the reported bug)
+File: `frontend/src/app/pages/pm-assign/pm-assign.component.ts` — `assignedTasks` computed.
+- Root cause: recurring series only show **one representative row** in the "Assigned PMs" tab (grouped by the `[SeriesID: xxx]` marker in `description`). The old logic picked the representative by **earliest due date**. If an older occurrence in the same series was already assigned/in-progress, a brand-new assignment on a *later* occurrence would get hidden behind it — looking like the assign action silently failed.
+- Fix: representative is now the task with the **most recent `assignedAt`** in the group (falls back to 0/first if none). Display sort (by `nextDueDate` ascending) is unchanged — only which task represents the group changed.
+- Verified live end-to-end against the real backend (`10.144.15.76:3000`): created a Weekly recurring series, assigned the earliest occurrence, confirmed workload % increased (0%→4%) and the assignment immediately appeared in "Assigned PMs" (previously it would not have).
+- Also ran the full lifecycle once for sanity: Create (recurring) → Assign → Record (technician executes, checklist, submit) → Approve (engineer) → confirmed `Done` status, `approvedBy/approvedAt` on backend.
 
-### Assign page UX fixes (`pm-assign.component.ts`, `.html`)
-- `assignTask` made `async` — now awaits backend, shows success/error toast, clears selected tech on success
-- Series no-op: if no pending task in series, shows warning toast instead of false success
-- `confirmBulkAssign`: 3-state toast (full success / partial / all failed)
-- `toggleTechDropdown()` added — only one tech dropdown open at a time (was ทับกัน)
+### 2. New UX: clicking a non-Done PM task now redirects + highlights instead of silently doing nothing / always opening a modal
+Discovered while e2e-testing: PM Calendar had `editingTask`/`editDescription`/`editEntireSeries`/`closeEditModal()`/`saveEditTask()` fully implemented in `pm-calendar.component.ts` but **never wired into any template** (confirmed via full git history search — never existed). Clicking a Scheduled/In-Progress chip on the calendar silently did nothing.
 
-### Tech task visibility fix (`pm-record.component.ts`, `.html`)
-- Removed 14-day date filter from `availableTasks` — techs now **see** all assigned tasks
-- Added `isTooEarly(task)`: returns true if `nextDueDate > today + 14 days`
-- Submit button disabled + notice shown when `isTooEarly` — techs can plan but not execute early
-- Removed dead `const now` / `const lookahead` variables
+Per user direction, replaced that dead-code path with: clicking a non-Done chip (calendar) or searching a non-Done task (global search bar) now **navigates to `/pm-assign?task=<id>` and highlights the row** in whichever tab currently shows it (Unassigned if `Pending`, Assigned otherwise) — so the user immediately sees whether the task is assigned or not. Done tasks still open the existing read-only `viewedTaskGlobal` modal in both places; Pending Approval still routes to `/pm-record`.
 
-## Current state
-- `feature/update_feature_frontend` on GitHub is up to date with all fixes
-- `feature/pm-form-export` local branch = same as remote (merged)
-- Backend was intermittently down this session (MSSQL connection drops) — tasks not visible to techs when backend is down
+Files changed:
+- `frontend/src/app/pages/pm-calendar/pm-calendar.component.ts` — removed the dead `editingTask`/`editDescription`/`editEntireSeries`/`closeEditModal`/`saveEditTask` (confirmed fully unreferenced before deleting); `goToRecord()`'s "Scheduled and Overdue, not from sidebar" branch now does `this.router.navigate(['/pm-assign'], { queryParams: { task: taskId } })` instead.
+- `frontend/src/app/layout/layout.component.ts` — `onSearch()` now branches by `task.status` the same way (`Done` → modal, technician or `Pending Approval` → `/pm-record`, else → `/pm-assign` with highlight) instead of unconditionally opening the modal.
+- `frontend/src/app/pages/pm-assign/pm-assign.component.ts` — new `highlightFromParam(taskId)` (called from constructor via `route.snapshot.queryParams['task']` and from a `route.queryParams` subscription for same-page re-triggers). New `highlightedTaskId` signal, `implements OnDestroy` with the same `isDestroyed` guard pattern already used in `pm-calendar.component.ts`.
+- `frontend/src/app/pages/pm-assign/pm-assign.component.html` — added `[id]="'task-row-' + task.id"` and `[class.highlight-row]` to both the Unassigned and Assigned table rows.
+- `frontend/src/app/pages/pm-assign/pm-assign.component.scss` — added `.highlight-row` pulse animation (`pmAssignPulseHighlight` keyframes), mirrors the calendar's existing `.cal-chip.highlight-animation` pattern but at row level.
 
-## Known issues / deferred work
-- `PUT /templates/:id` backend endpoint missing
-- `POST /products` does not assign creator ownership rows
-- Default templates mock-injected in `pm.service.ts` — not from backend
-- `[SeriesID: xxx]` in task descriptions is legacy; `pm-schedules` migration incomplete
-- `Asset` model has no `machineNo` field — `asset.id` used as placeholder in PM form export
-- Backend server (NestJS + MSSQL) needs to be started manually each session
-
-## Anti-patterns to avoid
-
-### Angular template cannot access `private` class members
-Any property/method referenced in an Angular template must be public. Use `readonly` for constants.
-
-### Orphaned code from incomplete refactoring
-A `return role === ...` fragment + missing `}` caused the entire bottom half of a class to be parsed as method-local. When extracting a getter, verify the origin site is completely clean. Run `npm start`, not just `tsc --noEmit`.
-
-### tsc --noEmit does NOT catch Angular template binding errors
-Always run `npm start` after finishing implementation.
-
-### Prisma Decimal serializes as string over JSON
-`estimatedHours` is `Decimal` in schema → comes back as `"5.00"` string. Always wrap in `Number()` before arithmetic. Check any other `Decimal` fields used in math.
-
-## Build status
-`npx tsc --noEmit` — 0 errors (last verified this session)
-- `isApprover` referenced in template and `getDisplayChecklist()` but never defined as a class property
-
-Fix: added missing `}`, removed orphaned return, added `get isApprover(): boolean` getter.
-
-### 4. Feature � PM Form Export (Kimball FM-MF-02 check sheet)
-Full implementation in `frontend/src/app/pages/pm-reports/`. Spec: `.scratch/pm-form-export/spec.md`.
-
-**Data layer** (`pm-reports.component.ts`)
-- `exportFormData` computed produces 2 pages per asset: Jan�Jun (page 1), Jul�Dec (page 2)
-- Each page: assetId, assetName, year, halfLabel, months[], checklistRows[], wwByMonth, dateByMonth
-- Checklist rows = union of all task.checklist[] items for that asset in the selected year
-- ? when item.done === true, blank otherwise; WW = week-of-month; Date = `DD Mon`
-
-**HTML template** (`pm-reports.component.html`)
-- 9-column table with `<colgroup>` for fixed widths
-- Header: Kimball logo | Title | Year
-- Rows: Machine Name, Machine No., WW, Date, checklist items, Signature (blank), Approved (blank)
-- Remark / Spare parts / Legend � blank
-- Footer: `Ref.Doc.P-EN-7.5-01 | QSD: 10000040841 | DC: 374750 | FM-MF-02 | Effective Date: 27/Sep/2021 Rev.L`
-
-**Print CSS** (`pm-reports.component.scss`)
-- kpm-* classes, `@page { size: A4 landscape; margin: 8mm; }`, `page-break-after: always` per page
+### 3. `/scrutinize` review of the above (item 2) — 3 findings, all fixed
+- **Race condition (major)**: overlapping `highlightFromParam` calls (e.g. two rapid searches while staying on `/pm-assign`) had no identity check — an earlier call's 2500ms cleanup timer could fire and clear a *later* call's highlight + query param before its own 2.5s elapsed. Fixed with a `highlightRequestSeq` counter captured per-call; timers no-op if the sequence has moved on. **Verified live**: searched task A, then task B ~600ms later, confirmed B was still highlighted ~1.2s after being set (well past when A's original timer would have fired unguarded).
+- **Department filter silently hides target row (moderate)**: for admin/manager (who can change the Department Filter dropdown), if it's set to a different department than the target task's, the row lookup silently failed. Fixed: if the row isn't found and `canChangeDept` is true, reset `deptFilter` to the task's department and retry once (signals recompute synchronously, so this works within the same call). Verified correct by code inspection + `tsc` (didn't have a manager credential on hand to click-test live).
+- **Silent no-op nit**: if a task genuinely can't be shown (e.g. permission mismatch between the calendar/search's own gate and `canManageTask`), added a toast fallback (`Work order <id> could not be shown on this page.`) instead of nothing happening.
 
 ## In-flight / next steps
 
-1. **User review** � open PM Reports  Export Machine PM Form  pick a machine with Done tasks  Generate PDF  verify visually against FM-MF-02 template
-2. **Merge** � once approved, merge to main and update this handoff
-3. **Asset model extension** (future) � add `machineNo` field to `Asset` model + `cmms_assets` table; update form to read from it. Currently uses `asset.id` as placeholder.
+1. **User has not yet approved pushing.** All changes are uncommitted on `fix/pm-assign-series-representative`. Do NOT push to `update_feature_fullstack` until the user explicitly says so.
+2. Once approved: commit with a descriptive message, then push/merge into `update_feature_fullstack` (the confirmed real branch — not `feature/update_feature_frontend`, which is stale).
+3. Note `origin/update_feature_fullstack` already has 2 commits we branched from that aren't in the old `agents/backend-assign-pm-feature-fix` history: `e66aeab` (fix: technicians see zero assigned PM tasks — backend `pm-tasks.controller.ts`, NOT YET DEPLOYED to the live 10.144.15.76 server per that commit's own message) and `9f1fe67` (Docker deploy setup). Don't lose these when merging.
 
-## Known issues / deferred work
+## Known issues / deferred work (discovered, NOT fixed — out of scope this session)
 
-- `PUT /templates/:id` backend endpoint missing � required by frontend
-- `POST /products` does not assign creator ownership rows
-- Default templates mock-injected in `pm.service.ts` � not from backend
-- `[SeriesID: xxx]` in task descriptions is legacy; `pm-schedules` migration incomplete
-- `Asset` model has no `machineNo` field � `asset.id` used as placeholder in PM form export
+- **"Done" tasks are invisible on fresh page load in several places** unless `loadHistoricalTasks()` has already been called. `pm.service.ts`'s `loadData()` deliberately excludes `Done` tasks on initial load (`getTasks(..., 'Done')` as excludeStatus). Only `pm-record.component.ts` and `pm-reports.component.ts` call `loadHistoricalTasks()` to backfill them. **PM Calendar never calls it** — so on a hard page load/reload landing directly on `/pm-calendar`, Done tasks won't show even with the "Done" filter checkbox checked, until the user visits Record PM or PM Reports at least once in that session. Confirmed via live testing (approved a task, hard-navigated to `/pm-calendar`, Done chip missing until visiting `/pm-record` first).
+- **Calendar shows Done tasks by `completedAt`, not `nextDueDate`** (`pm-calendar.component.ts` `buildDay()`, explicit existing comment). This is intentional (shows when work actually happened), not a bug, but worth knowing if a Done task's chip "moves" to a different day than expected.
+- Engineers cannot search for `Pending` (unassigned) tasks via the global search bar — `layout.component.ts` `onSearch()`'s `isApprovalStatus` check for engineer/manager only allows `Pending Approval | Done | In Progress`, excluding `Pending` (and `Overdue`, for that matter). Pre-existing, unrelated to this session's changes, not touched.
+- Backend: `origin/update_feature_fullstack`'s `e66aeab` fix for technician task visibility is NOT deployed to the live shared server per that commit's own message — worth checking before assuming technician-visibility issues are resolved in production.
 
 ## Anti-patterns to avoid (NEW this session)
 
-### Angular template cannot access `private` class members
-`private readonly MONTH_NAMES` � tsc --noEmit passes, but `npm start` fails with TS2341.
-Rule: Any property referenced in an Angular template must be public. Use `readonly` for constants.
+### Dead code that "looks wired" but isn't — always grep the template, not just the component
+`pm-calendar.component.ts` had fully-implemented `editingTask`/`saveEditTask`/etc. (with sensible logic, comments, the works) that had **zero template references**, confirmed only by `git log -p` across the whole file history. A component method existing and being *called* from another method (`goToRecord()` called `this.editingTask.set(task)`) is not proof the resulting state is ever rendered — always check the `.html` for the signal/property before assuming a feature works.
 
-### Orphaned code from incomplete refactoring causes silent structural breakage
-A `return role === ...` fragment left inside a method + a missing `}` caused the entire bottom half of the class to be parsed as method-local � class properties became invisible to the template.
-Rule: When extracting a getter, verify the origin site is completely clean. Run `npm start`, not just `tsc --noEmit`.
+### Bare `setTimeout` chains for UI-highlight-then-clear patterns need a request-identity guard
+Both `pm-calendar.component.ts`'s pre-existing `highlightTask()` and my new `pm-assign.component.ts` `highlightFromParam()` schedule a "clear after N ms" timer with only an `isDestroyed` (component-teardown) guard — no guard against a **second call superseding the first while both are still in-flight**. Any component with a "set state → show for exactly one caller → reset" async will race if the user can trigger it twice in quick succession. Use an incrementing request id captured in the closure (see `highlightRequestSeq` in `pm-assign.component.ts`) rather than just `isDestroyed`.
 
-### tsc --noEmit does NOT catch Angular template binding errors
-Always run `npm start` after finishing implementation to catch Angular compiler errors that tsc misses.
+### Angular computed signals recompute synchronously — safe to call `.set()` then immediately re-read a dependent computed in the same function
+Used this in `highlightFromParam`: `this.deptFilter.set(task.department)` followed immediately by re-calling `this.pendingTasks()` in the same synchronous block correctly reflects the new value. No `tick()`/`setTimeout` needed. Confirmed via live testing.
 
 ## TypeScript / build status
 
-`npx tsc --noEmit` � 0 errors
-`npm start` � builds clean
+`npx tsc --noEmit` — 0 errors (last run this session, after all fixes including the scrutinize round)
+`npm start` (`ng serve --port 4300`) — builds and hot-reloads clean; final rebuild produced `pm-assign-component` chunk at 183.69 kB with no errors

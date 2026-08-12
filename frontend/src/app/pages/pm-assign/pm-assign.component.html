@@ -83,7 +83,9 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let task of pendingTasks()" [class.selected-row]="selectedTasks().has(task.id)">
+            <tr *ngFor="let task of pendingTasks()" [id]="'task-row-' + task.id"
+              [class.selected-row]="selectedTasks().has(task.id)"
+              [class.highlight-row]="highlightedTaskId() === task.id">
               <td><input type="checkbox" class="assign-checkbox" [checked]="selectedTasks().has(task.id)" (change)="toggleSelection(task.id)"/></td>
               <td><span class="mono" style="color:var(--blue);font-weight:600; cursor:pointer;" (click)="viewTaskDetails(task)">{{ task.id }}</span></td>
               <td>
@@ -154,7 +156,8 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let task of assignedTasks()">
+            <tr *ngFor="let task of assignedTasks()" [id]="'task-row-' + task.id"
+              [class.highlight-row]="highlightedTaskId() === task.id">
               <td><span class="mono" style="color:var(--blue);font-weight:600; cursor:pointer;" (click)="viewTaskDetails(task)">{{ task.id }}</span></td>
               <td>
                 <div style="font-weight:600;color:var(--text-primary);">{{ task.productId }}</div>

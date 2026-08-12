@@ -221,7 +221,18 @@ export class LayoutComponent {
       }
 
       if (isAllowed && task) {
-        this.pmService.viewedTaskGlobal.set(task);
+        if (task.status === 'Done') {
+          // Done tasks are read-only — show details in the global modal.
+          this.pmService.viewedTaskGlobal.set(task);
+        } else if (user!.baseRole === 'technician' || task.status === 'Pending Approval') {
+          // Technicians execute/view their own work in Record PM; Pending Approval
+          // always routes there regardless of role since that's where approval happens.
+          this.router.navigate(['/pm-record'], { queryParams: { task: task.id } });
+        } else {
+          // Pending / In Progress / Overdue — send to Assign PM and highlight the
+          // row there so the user can see at a glance whether it's assigned or not.
+          this.router.navigate(['/pm-assign'], { queryParams: { task: task.id } });
+        }
       } else {
         this.toast.warning(notFoundMsg);
       }
