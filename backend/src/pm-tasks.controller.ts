@@ -241,6 +241,25 @@ export class PmTasksController {
       data,
     });
 
+    // Assigning a recurring occurrence assigns the whole series: persist to
+    // the parent schedule so future generated occurrences inherit it, and
+    // backfill not-yet-started siblings already sitting in the buffer.
+    if (body.assignedTo && existing.scheduleId) {
+      await this.prisma.pmSchedule.update({
+        where: { id: existing.scheduleId },
+        data: { assignedTo: body.assignedTo },
+      });
+
+      await this.prisma.pmTask.updateMany({
+        where: {
+          scheduleId: existing.scheduleId,
+          id: { not: id },
+          status: { in: ['Pending', 'Overdue'] },
+        },
+        data: { assignedTo: body.assignedTo },
+      });
+    }
+
     return this.cleanPmTask(updated);
   }
 

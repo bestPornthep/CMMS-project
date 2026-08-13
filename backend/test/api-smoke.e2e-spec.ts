@@ -31,6 +31,7 @@ describe('Full API Smoke Test (e2e)', () => {
   const testProductId = `E2E-SMOKE-PROD-${Date.now()}`;
   let createdTaskId = '';
   let createdSeriesId = '';
+  let createdScheduleTaskId = '';
   let createdDelegationId = '';
 
   beforeAll(async () => {
@@ -331,7 +332,72 @@ describe('Full API Smoke Test (e2e)', () => {
       expect(Array.isArray(res.body)).toBe(true);
       expect(res.body.length).toBe(1);
       createdSeriesId = res.body[0].scheduleId;
+      createdScheduleTaskId = res.body[0].id;
       expect(createdSeriesId).toMatch(/^SCH-/);
+    });
+
+    // Regression coverage for the recurring-assignment change request:
+    // assigning one occurrence of a series must persist to PmSchedule and
+    // backfill not-yet-started siblings, without touching siblings that are
+    // already active under a (hypothetically) different technician.
+    describe('Recurring assignment persistence (change request)', () => {
+      let pendingSiblingId = '';
+      let inProgressSiblingId = '';
+
+      beforeAll(async () => {
+        const pendingSibling = await prisma.pmTask.create({
+          data: {
+            id: `E2E-SMOKE-SIB-PEND-${Date.now()}`,
+            title: 'E2E Smoke Sibling (Pending)',
+            scheduleId: createdSeriesId,
+            frequency: '6 month(s)',
+            assetId: 'THC-P1-01',
+            productId: 'CUST-001',
+            department: 'Test',
+            nextDueDate: new Date(Date.now() + 30 * 86400000),
+            estimatedHours: 1,
+            status: 'Pending',
+          },
+        });
+        pendingSiblingId = pendingSibling.id;
+
+        const inProgressSibling = await prisma.pmTask.create({
+          data: {
+            id: `E2E-SMOKE-SIB-INPR-${Date.now()}`,
+            title: 'E2E Smoke Sibling (In Progress)',
+            scheduleId: createdSeriesId,
+            frequency: '6 month(s)',
+            assetId: 'THC-P1-01',
+            productId: 'CUST-001',
+            department: 'Test',
+            nextDueDate: new Date(Date.now() + 30 * 86400000),
+            estimatedHours: 1,
+            status: 'In Progress',
+            assignedTo: 'TECH-TST-2',
+          },
+        });
+        inProgressSiblingId = inProgressSibling.id;
+      });
+
+      it('PUT /api/v1/pm-tasks/:id assigning one occurrence sets PmSchedule.assignedTo and backfills Pending siblings', async () => {
+        const res = await request(app.getHttpServer())
+          .put(`/api/v1/pm-tasks/${createdScheduleTaskId}`)
+          .set('Authorization', `Bearer ${engineerToken}`)
+          .send({ assignedTo: 'TECH-TST-1' })
+          .expect(200);
+        expect(res.body.assignedTo).toBe('TECH-TST-1');
+
+        const schedule = await prisma.pmSchedule.findUnique({ where: { id: createdSeriesId } });
+        expect(schedule?.assignedTo).toBe('TECH-TST-1');
+
+        const pendingSibling = await prisma.pmTask.findUnique({ where: { id: pendingSiblingId } });
+        expect(pendingSibling?.assignedTo).toBe('TECH-TST-1');
+      });
+
+      it('does not backfill a sibling that is already In Progress under a different technician', async () => {
+        const inProgressSibling = await prisma.pmTask.findUnique({ where: { id: inProgressSiblingId } });
+        expect(inProgressSibling?.assignedTo).toBe('TECH-TST-2');
+      });
     });
 
     it('PUT /api/v1/pm-tasks/schedule/:seriesId updates the whole series (T4)', async () => {
