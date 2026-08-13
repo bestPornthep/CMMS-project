@@ -127,21 +127,24 @@ export class PmCalendarComponent implements OnDestroy {
       } else if (task.status === 'Done') {
         // Only Done task gets the modal
         this.pmService.viewedTaskGlobal.set(task);
+      } else if (fromSidebar) {
+        // Scheduled and Overdue, clicked from the sidebar — stay on the calendar and
+        // just scroll/highlight the matching day cell, no modal, no navigation.
+        this.highlightTask(taskId);
       } else {
-        // Scheduled and Overdue
-        if (fromSidebar) {
-          this.highlightTask(taskId);
-        } else {
-          // Redirect to Assign PM and highlight the task there, so the user can see
-          // at a glance whether it's already assigned (Assigned PMs tab) or still
-          // needs a technician (Unassigned PMs tab).
-          this.router.navigate(['/pm-assign'], { queryParams: { task: taskId } });
-        }
+        // Scheduled and Overdue, clicked in the grid — show details/assign in the modal
+        // instead of leaving the page.
+        this.pmService.viewedTaskGlobal.set(task);
       }
       return;
     }
 
-    // Technicians always go to pm-record to execute
+    // Technicians: Done tasks are read-only history, shown in the same shared modal as
+    // every other role. Anything still in flight is executed in Record PM.
+    if (task.status === 'Done') {
+      this.pmService.viewedTaskGlobal.set(task);
+      return;
+    }
     this.router.navigate(['/pm-record'], { queryParams: { task: taskId } });
   }
 

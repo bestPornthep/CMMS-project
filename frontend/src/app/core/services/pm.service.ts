@@ -1,5 +1,5 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
-import { Asset, PMTask, Template } from '../models/pm.model';
+import { Asset, PMTask, Template, User } from '../models/pm.model';
 import { ApiService } from './api.service';
 import { AuthService } from './auth.service';
 
@@ -136,6 +136,97 @@ export class PmService {
     const tasks = await this.api.getTasks();
     this.pmTasksSignal.set(tasks);
     return updated;
+  }
+
+  // Shared with pm-assign page and the global PM Details modal — single source of truth
+  // for who is allowed to assign/reassign a given task.
+  canManageTask(task: PMTask): boolean {
+    const user = this.authService.currentUser();
+    if (!user) return false;
+    if (user.baseRole === 'admin' || user.baseRole === 'manager') return true;
+
+    if (user.baseRole === 'engineer') {
+      if (task.productId && user.ownedProducts && !(user.ownedProducts.includes('*') || user.ownedProducts.includes(task.productId))) {
+        return false;
+      }
+      if (task.createdBy && task.createdBy !== user.employeeId) {
+        const creator = this.authService.getUser(task.createdBy);
+        if (creator && creator.baseRole === 'engineer') {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    if (user.baseRole === 'technician') {
+      const allowedProducts = this.authService.getAccessibleProducts('pm.assign.submit');
+      if (allowedProducts.length === 0) return false;
+      return user.department === task.department && allowedProducts.includes(task.productId || '');
+    }
+
+    return false;
+  }
+
+  // Reassign is only offered for tasks still actively in flight — never for a task
+  // already submitted for approval or already Done (approved history is immutable).
+  canReassignTask(task: PMTask): boolean {
+    return (task.status === 'In Progress' || task.status === 'Overdue') && this.canManageTask(task);
+  }
+
+  getAssignableTechnicians(task: PMTask): User[] {
+    return this.authService.getAllUsers().filter(u => {
+      if (!u.employeeId || u.baseRole !== 'technician') return false;
+      // Always restrict by task department to protect against human error
+      return u.department === task.department;
+    });
+  }
+
+  // Reassign only offers technicians other than whoever is currently assigned —
+  // picking the same person isn't a reassign.
+  getReassignableTechnicians(task: PMTask): User[] {
+    return this.getAssignableTechnicians(task).filter(u => u.employeeId !== task.assignedTo);
+  }
+
+  // Assigns a Pending task to a technician. For a recurring series, the earliest still-Pending
+  // occurrence is assigned (the clicked row may only be the series' display representative).
+  async assignTaskToTechnician(task: PMTask, techId: string): Promise<void> {
+    if (!this.canManageTask(task)) {
+      throw new Error('You cannot manage or reassign work owned by another Engineer or outside your responsibility.');
+    }
+
+    const asset = this.assetsSignal().find(a => a.id === task.assetId);
+    if (!asset || asset.location !== task.productId) {
+      throw new Error('Cannot assign task due to Product-Asset mismatch in the task record.');
+    }
+
+    const user = this.authService.currentUser();
+    const seriesMatch = task.description?.match(/\[SeriesID:\s*([^\]]+)\]/);
+    if (seriesMatch) {
+      const seriesId = seriesMatch[1];
+      const nextTask = this.pmTasksSignal()
+        .filter(t => t.status === 'Pending' && t.description?.includes(`[SeriesID: ${seriesId}]`))
+        .sort((a, b) => new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime())[0];
+
+      if (!nextTask) {
+        throw new Error('No pending task found in this series to assign.');
+      }
+
+      await this.updateTask({
+        ...nextTask,
+        status: 'In Progress',
+        assignedTo: techId,
+        assignedAt: new Date(),
+        assignedBy: user?.employeeId
+      });
+    } else {
+      await this.updateTask({
+        ...task,
+        status: 'In Progress',
+        assignedTo: techId,
+        assignedAt: new Date(),
+        assignedBy: user?.employeeId
+      });
+    }
   }
 
   async updatePmSchedule(seriesId: string, updates: Partial<import('../models/pm.model').PMSchedule>): Promise<void> {

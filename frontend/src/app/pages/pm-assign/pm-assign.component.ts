@@ -153,24 +153,17 @@ export class PmAssignComponent implements OnDestroy {
     return tech?.name || employeeId;
   }
 
+  // Delegates to PmService — single source of truth shared with the global PM Details modal.
   getTaskTechnicians(task: PMTask) {
-    return this.authService.getAllUsers().filter(u => {
-      if (!u.employeeId || u.baseRole !== 'technician') return false;
-      // Always restrict by task department to protect against human error
-      return u.department === task.department;
-    });
+    return this.pmService.getAssignableTechnicians(task);
   }
 
-  // Reassign only offers technicians other than whoever is currently assigned —
-  // picking the same person isn't a reassign.
   getReassignTechnicians(task: PMTask) {
-    return this.getTaskTechnicians(task).filter(u => u.employeeId !== task.assignedTo);
+    return this.pmService.getReassignableTechnicians(task);
   }
 
-  // Reassign is only offered for tasks still actively in flight — never for a task
-  // already submitted for approval or already Done (approved history is immutable).
   canReassign(task: PMTask): boolean {
-    return (task.status === 'In Progress' || task.status === 'Overdue') && this.canManageTask(task);
+    return this.pmService.canReassignTask(task);
   }
 
   getBulkTechnicians() {
@@ -384,31 +377,7 @@ export class PmAssignComponent implements OnDestroy {
   showBulkModal = signal<boolean>(false);
 
   canManageTask(task: PMTask): boolean {
-    const user = this.currentUser;
-    if (!user) return false;
-    if (user.baseRole === 'admin' || user.baseRole === 'manager') return true;
-    
-    if (user.baseRole === 'engineer') {
-      // C4 fix: productId may be undefined — guard before includes()
-      if (task.productId && user.ownedProducts && !(user.ownedProducts.includes('*') || user.ownedProducts.includes(task.productId))) {
-         return false;
-      }
-      if (task.createdBy && task.createdBy !== user.employeeId) {
-         const creator = this.authService.getUser(task.createdBy);
-         if (creator && creator.baseRole === 'engineer') {
-            return false;
-         }
-      }
-      return true;
-    }
-    
-    if (user.baseRole === 'technician') {
-      const allowedProducts = this.authService.getAccessibleProducts('pm.assign.submit');
-      if (allowedProducts.length === 0) return false;
-      return user.department === task.department && allowedProducts.includes(task.productId || '');
-    }
-    
-    return false;
+    return this.pmService.canManageTask(task);
   }
 
   toggleSelection(taskId: string) {
@@ -543,37 +512,9 @@ export class PmAssignComponent implements OnDestroy {
     }
 
     try {
-      const seriesMatch = task.description?.match(/\[SeriesID:\s*([^\]]+)\]/);
-      if (seriesMatch) {
-        const seriesId = seriesMatch[1];
-        const nextTask = this.pmService.pmTasks()
-          .filter(t => t.status === 'Pending' && t.description?.includes(`[SeriesID: ${seriesId}]`))
-          .sort((a, b) => new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime())[0];
-
-        if (nextTask) {
-          await this.pmService.updateTask({
-            ...nextTask,
-            status: 'In Progress',
-            assignedTo: tech,
-            assignedAt: new Date(),
-            assignedBy: this.currentUser?.employeeId
-          });
-          this.toast.success('Task assigned successfully.');
-          this.selectedTech[task.id] = '';
-        } else {
-          this.toast.warning('No pending task found in this series to assign.');
-        }
-      } else {
-        await this.pmService.updateTask({
-          ...task,
-          status: 'In Progress',
-          assignedTo: tech,
-          assignedAt: new Date(),
-          assignedBy: this.currentUser?.employeeId
-        });
-        this.toast.success('Task assigned successfully.');
-        this.selectedTech[task.id] = '';
-      }
+      await this.pmService.assignTaskToTechnician(task, tech);
+      this.toast.success('Task assigned successfully.');
+      this.selectedTech[task.id] = '';
     } catch (err: any) {
       this.toast.error(err?.message || 'Failed to assign task. Please check the server connection.');
     }

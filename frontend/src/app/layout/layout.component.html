@@ -178,6 +178,60 @@
             viewedTask.actualHours }} hrs</div>
         </div>
 
+        <div style="display:flex; flex-wrap: wrap; gap: 20px; font-size:13px; color:var(--color-text-secondary);">
+          <div><strong style="color:var(--color-text-primary);">{{ 'Created By' | tr }}:</strong> {{ getTechName(viewedTask.createdBy) }}</div>
+          <div *ngIf="viewedTask.createdAt"><strong style="color:var(--color-text-primary);">{{ 'Created At' | tr }}:</strong> {{ viewedTask.createdAt | date:'MMM d, y, h:mm a' }}</div>
+          <div><strong style="color:var(--color-text-primary);">{{ 'Assigned To' | tr }}:</strong> {{ getAssigneeName(viewedTask.assignedTo) }}
+            <span class="badge badge-info" *ngIf="viewedTask.reassignCount" style="margin-left:4px;">{{ 'Reassign' | tr }} #{{ viewedTask.reassignCount }}</span>
+          </div>
+          <div *ngIf="viewedTask.assignedAt"><strong style="color:var(--color-text-primary);">{{ 'Assigned At' | tr }}:</strong> {{ viewedTask.assignedAt | date:'MMM d, y, h:mm a' }}</div>
+        </div>
+
+        <!-- Assign (Pending tasks only, and only if the current user can manage this task) -->
+        <div *ngIf="viewedTask.status === 'Pending' && canManageTask(viewedTask)">
+          <div style="font-size:12px;font-weight:700;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;">{{ 'Assign' | tr }}</div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <div class="c-dropdown" [class.open]="assignDropdownOpen" (click)="toggleAssignDropdown($event)">
+              <div class="c-dropdown-trigger">
+                <span>{{ selectedAssignTech() ? getTechName(selectedAssignTech()) : ('Select Tech...' | tr) }}</span>
+                <span class="material-symbols-outlined">expand_more</span>
+              </div>
+              <div class="c-dropdown-menu" *ngIf="assignDropdownOpen" (click)="$event.stopPropagation()">
+                <div class="c-dropdown-item" *ngFor="let tech of getAssignableTechnicians(viewedTask)" (click)="selectedAssignTech.set(tech.employeeId!); assignDropdownOpen = false;">{{ tech.name }}</div>
+              </div>
+            </div>
+            <button class="btn btn-primary" style="padding:7px 16px; font-size:12.5px; white-space:nowrap;" (click)="assignFromModal(viewedTask)">{{ 'Assign' | tr }}</button>
+          </div>
+        </div>
+
+        <!-- Reassign (In Progress/Overdue tasks only, and only if the current user can manage this task) -->
+        <div *ngIf="(viewedTask.status === 'In Progress' || viewedTask.status === 'Overdue') && canReassignTask(viewedTask)">
+          <div style="font-size:12px;font-weight:700;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;">{{ 'Reassign' | tr }}</div>
+          <div *ngIf="!reassignConfirmPending()" style="display:flex; gap:8px; align-items:center;">
+            <div class="c-dropdown" [class.open]="reassignDropdownOpen" (click)="toggleReassignDropdown($event)">
+              <div class="c-dropdown-trigger">
+                <span>{{ selectedReassignTech() ? getTechName(selectedReassignTech()) : ('Select Tech...' | tr) }}</span>
+                <span class="material-symbols-outlined">expand_more</span>
+              </div>
+              <div class="c-dropdown-menu" *ngIf="reassignDropdownOpen" (click)="$event.stopPropagation()">
+                <div class="c-dropdown-item" *ngFor="let tech of getReassignableTechnicians(viewedTask)" (click)="selectedReassignTech.set(tech.employeeId!); reassignDropdownOpen = false;">{{ tech.name }}</div>
+              </div>
+            </div>
+            <button class="btn btn-ghost" style="padding:7px 16px; font-size:12.5px; white-space:nowrap;" (click)="requestReassign()">{{ 'Reassign' | tr }}</button>
+          </div>
+          <div *ngIf="reassignConfirmPending()" style="background:var(--color-bg-card-alt); border:1px solid var(--color-border-soft); border-radius:var(--radius-md); padding:12px;">
+            <p style="margin:0 0 10px 0; font-size:13px; color:var(--color-text-secondary);">
+              {{ 'You are reassigning' | tr }} <strong style="color:var(--color-text-primary);">{{ viewedTask.id }}</strong>
+              {{ 'from' | tr }} <strong style="color:var(--color-text-primary);">{{ getAssigneeName(viewedTask.assignedTo) }}</strong>
+              {{ 'to' | tr }} <strong style="color:var(--color-text-primary);">{{ getTechName(selectedReassignTech()) }}</strong>.
+            </p>
+            <div style="display:flex; gap:8px;">
+              <button class="btn btn-primary" style="flex:1; justify-content:center; font-size:12.5px;" (click)="confirmReassignFromModal(viewedTask)">{{ 'Confirm' | tr }}</button>
+              <button class="btn btn-ghost" style="flex:1; justify-content:center; font-size:12.5px;" (click)="cancelReassignFromModal()">{{ 'Cancel' | tr }}</button>
+            </div>
+          </div>
+        </div>
+
         <div *ngIf="viewedTask.description"
           style="margin-top: 16px; padding: 12px; background: var(--bg-card); border-radius: 8px; font-size: 14px; color: var(--text-secondary); line-height: 1.5; white-space: pre-wrap;">
           {{ getCleanDescription(viewedTask.description) }}
