@@ -161,6 +161,18 @@ export class PmAssignComponent implements OnDestroy {
     });
   }
 
+  // Reassign only offers technicians other than whoever is currently assigned —
+  // picking the same person isn't a reassign.
+  getReassignTechnicians(task: PMTask) {
+    return this.getTaskTechnicians(task).filter(u => u.employeeId !== task.assignedTo);
+  }
+
+  // Reassign is only offered for tasks still actively in flight — never for a task
+  // already submitted for approval or already Done (approved history is immutable).
+  canReassign(task: PMTask): boolean {
+    return (task.status === 'In Progress' || task.status === 'Overdue') && this.canManageTask(task);
+  }
+
   getBulkTechnicians() {
     const selectedIds = Array.from(this.selectedTasks());
     const tasks = this.pendingTasks().filter(t => selectedIds.includes(t.id));
@@ -237,6 +249,11 @@ export class PmAssignComponent implements OnDestroy {
   techDropdownOpen: Record<string, boolean> = {};
   activeTab: string = 'unassigned';
   highlightedTaskId = signal<string | null>(null);
+
+  // Reassign: which tech is picked per task row, and which task the confirm modal is open for
+  reassignSelectedTech: Record<string, string> = {};
+  reassignDropdownOpen: Record<string, boolean> = {};
+  taskPendingReassign = signal<PMTask | null>(null);
 
   ngOnDestroy() {
     this.isDestroyed = true;
@@ -344,11 +361,19 @@ export class PmAssignComponent implements OnDestroy {
     if (!wasOpen) this.techDropdownOpen[taskId] = true;
   }
 
+  toggleReassignDropdown(taskId: string, event: Event) {
+    event.stopPropagation();
+    const wasOpen = !!this.reassignDropdownOpen[taskId];
+    this.reassignDropdownOpen = {};
+    if (!wasOpen) this.reassignDropdownOpen[taskId] = true;
+  }
+
   @HostListener('document:click')
   onDocumentClick() {
     this.bulkDropdownOpen = false;
     this.deptDropdownOpen = false;
     this.techDropdownOpen = {};
+    this.reassignDropdownOpen = {};
     this.delegationUserDropdownOpen = false;
     this.delegationProductDropdownOpen = false;
   }
@@ -551,6 +576,46 @@ export class PmAssignComponent implements OnDestroy {
       }
     } catch (err: any) {
       this.toast.error(err?.message || 'Failed to assign task. Please check the server connection.');
+    }
+  }
+
+  // --- Reassign (Assigned tab: swap the technician on an already-assigned, in-flight task) ---
+
+  openReassignModal(task: PMTask) {
+    if (!this.canReassign(task)) {
+      this.toast.error('You cannot manage or reassign work owned by another Engineer or outside your responsibility.');
+      return;
+    }
+    const tech = this.reassignSelectedTech[task.id];
+    if (!tech) {
+      this.toast.warning('Please select a technician first.');
+      return;
+    }
+    if (tech === task.assignedTo) {
+      this.toast.warning('Task is already assigned to this technician.');
+      return;
+    }
+    this.taskPendingReassign.set(task);
+  }
+
+  cancelReassign() {
+    this.taskPendingReassign.set(null);
+  }
+
+  async confirmReassign() {
+    const task = this.taskPendingReassign();
+    if (!task) return;
+    const tech = this.reassignSelectedTech[task.id];
+    if (!tech) return;
+
+    try {
+      await this.pmService.reassignTask(task, tech);
+      this.toast.success('Task reassigned successfully.');
+      this.reassignSelectedTech[task.id] = '';
+    } catch (err: any) {
+      this.toast.error(err?.message || 'Failed to reassign task. Please check the server connection.');
+    } finally {
+      this.taskPendingReassign.set(null);
     }
   }
 

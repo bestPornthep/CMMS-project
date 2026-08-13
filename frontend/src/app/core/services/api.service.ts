@@ -40,6 +40,10 @@ export class ApiService {
     return firstValueFrom(this.http.put<PMTask>(`${this.baseUrl}/pm-tasks/${task.id}`, task));
   }
 
+  reassignTask(taskId: string, assignedTo: string): Promise<PMTask> {
+    return firstValueFrom(this.http.put<PMTask>(`${this.baseUrl}/pm-tasks/${taskId}/reassign`, { assignedTo }));
+  }
+
   deleteTask(id: string): Promise<void> {
     return firstValueFrom(this.http.delete<void>(`${this.baseUrl}/pm-tasks/${id}`));
   }

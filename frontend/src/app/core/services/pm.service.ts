@@ -120,6 +120,24 @@ export class PmService {
     return updated;
   }
 
+  async reassignTask(task: PMTask, newAssignedTo: string): Promise<PMTask> {
+    const user = this.authService.currentUser();
+    if (!user) throw new Error('Unauthorized.');
+    if (user.baseRole === 'engineer' || user.baseRole === 'technician') {
+      const allowed = this.authService.getAccessibleProducts('pm.assign.submit');
+      if (!allowed.includes(task.productId || '')) {
+        throw new Error('Unauthorized to reassign this task.');
+      }
+    }
+
+    const updated = await this.api.reassignTask(task.id, newAssignedTo);
+    // Reassign can cascade to sibling tasks in the same series (assignedTo, nextDueDate) on
+    // the backend, so refetch everything rather than patching just this one task in place.
+    const tasks = await this.api.getTasks();
+    this.pmTasksSignal.set(tasks);
+    return updated;
+  }
+
   async updatePmSchedule(seriesId: string, updates: Partial<import('../models/pm.model').PMSchedule>): Promise<void> {
     const user = this.authService.currentUser();
     if (!user) throw new Error('Unauthorized.');

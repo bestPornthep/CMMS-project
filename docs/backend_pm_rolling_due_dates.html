@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AssetIntel CMMS — Rolling Due Dates on Approval: Backend Requirements</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #161923; --border: #2a2f3d; --text: #e6e8ef;
+    --muted: #9aa2b1; --accent: #5b8cff; --good: #3ddc97; --bad: #ff6b6b; --warn: #ffb84d;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 40px; line-height: 1.6; }
+  .wrap { max-width: 1000px; margin: 0 auto; }
+  h1 { font-size: 28px; margin-bottom: 4px; }
+  .subtitle { color: var(--muted); margin-bottom: 32px; }
+  h2 { border-bottom: 2px solid var(--border); padding-bottom: 8px; margin-top: 48px; color: var(--accent); }
+  h3 { margin-top: 24px; color: var(--text); }
+  h4 { margin-top: 18px; color: var(--muted); font-size: 14px; text-transform: uppercase; letter-spacing: .03em; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin: 16px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  th, td { border: 1px solid var(--border); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: #1d212c; color: var(--muted); }
+  code { background: #1d212c; padding: 2px 6px; border-radius: 4px; font-size: 13px; color: #f0ad4e; }
+  pre { background: #1d212c; padding: 14px; border-radius: 8px; overflow-x: auto; border: 1px solid var(--border); font-size: 13px; }
+  pre code { background: none; padding: 0; color: #d7dce6; }
+  ul { padding-left: 22px; }
+  .note { color: var(--muted); font-size: 13px; }
+  .warn-box { background: rgba(255,184,77,.1); border: 1px solid var(--warn); border-radius: 10px; padding: 16px 20px; margin: 16px 0; }
+  .good-box { background: rgba(61,220,151,.1); border: 1px solid var(--good); border-radius: 10px; padding: 16px 20px; margin: 16px 0; }
+  .toc { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px 24px; }
+  .toc a { color: var(--accent); text-decoration: none; }
+  .toc li { margin: 4px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Rolling Due Dates on Approval — Backend Requirements</h1>
+  <div class="subtitle">Independent feature — <strong>not related to Reassign</strong> (see separate <code>backend_pm_reassign_api.html</code>). Triggered by the existing Approve action, every time, forever.</div>
+
+  <div class="toc">
+    <ul>
+      <li><a href="#rule">1. Business Rule</a></li>
+      <li><a href="#where">2. Where this hooks in</a></li>
+      <li><a href="#algo">3. Algorithm</a></li>
+      <li><a href="#helper">4. Shared date-math helper</a></li>
+      <li><a href="#notes">5. Implementation Notes / Edge Cases</a></li>
+    </ul>
+  </div>
+
+  <h2 id="rule">1. Business Rule</h2>
+  <div class="card">
+    <p>Every time a task in a recurring series is <strong>approved</strong> (<code>Pending Approval</code> → <code>Done</code>, <code>approvedAt</code> set), recalculate the due dates of every remaining <code>Pending</code> occurrence in that same series, anchored off the actual approval date instead of the original fixed calendar dates generated at series-creation time.</p>
+    <p><code>nextDueDate</code> is an <em>expected</em> date, not a hard deadline — the same recalculation applies whether the task was approved before or after its original due date. No special-casing for "early" vs "late."</p>
+    <p class="note">Rejecting a task does <strong>not</strong> trigger this — no <code>approvedAt</code> is set on reject, so nothing recalculates.</p>
+  </div>
+
+  <h2 id="where">2. Where this hooks in</h2>
+  <div class="card">
+    <p>File: <code>backend/src/pm-tasks.controller.ts</code>, <code>update()</code> — the existing generic <code>PUT /api/v1/pm-tasks/:id</code> handler already used for Approve (an <code>isApprover</code> setting <code>status: 'Done'</code>, <code>approvedBy</code>, <code>approvedAt</code>). Add this as a side effect <strong>after</strong> that update succeeds, only when:</p>
+    <pre><code>const isApproving = body.status === 'Done' && body.approvedAt !== undefined && existing.status !== 'Done';</code></pre>
+    <p class="note">Do not add a new endpoint for this — unlike Reassign, this isn't a distinct user-triggered action, it's a side effect of the Approve flow that already exists.</p>
+  </div>
+
+  <h2 id="algo">3. Algorithm</h2>
+  <div class="card">
+    <pre><code>if (isApproving) {
+  const seriesWhere = existing.scheduleId
+    ? { scheduleId: existing.scheduleId, status: 'Pending' }
+    : extractSeriesIdFromDescription(existing.description)
+      ? { description: { contains: `[SeriesID: ${seriesId}]` }, status: 'Pending' }
+      : null;
+
+  if (seriesWhere) {
+    const pendingSiblings = await prisma.pmTask.findMany({
+      where: seriesWhere,
+      orderBy: { nextDueDate: 'asc' },
+    });
+
+    const newDates = calculateDatesFromAnchor(existing.frequency, updated.approvedAt, pendingSiblings.length);
+    // newDates[0] = approvedAt + 1x frequency, newDates[1] = approvedAt + 2x frequency, ...
+
+    await prisma.$transaction(
+      pendingSiblings.map((sibling, i) =>
+        prisma.pmTask.update({ where: { id: sibling.id }, data: { nextDueDate: newDates[i] } })
+      )
+    );
+  }
+}</code></pre>
+    <p>Ordering: siblings sorted by their <em>current</em> <code>nextDueDate</code> ascending (1st-in-line, 2nd-in-line, ...) — that relative order is preserved, only the absolute dates change.</p>
+  </div>
+
+  <h2 id="helper">4. Shared date-math helper</h2>
+  <div class="card">
+    <p><code>CmmsService.calculateDates()</code> (<code>backend/src/cmms.service.ts</code>) already contains the per-frequency date-increment logic (<code>addFunc</code> for Daily/Weekly/Monthly/Quarterly/Yearly/custom <code>"N unit(s)"</code>). Extract that increment logic into a small reusable helper so both the original bulk-generation path and this new recalculation path share the exact same frequency parsing — don't duplicate it:</p>
+    <pre><code>private getFrequencyIncrementFn(frequency: string): (d: Date) => void { /* existing addFunc logic, extracted */ }
+
+calculateDatesFromAnchor(frequency: string, anchor: Date, count: number): Date[] {
+  const addFunc = this.getFrequencyIncrementFn(frequency);
+  const dates: Date[] = [];
+  let current = new Date(anchor);
+  for (let i = 0; i < count; i++) {
+    addFunc(current);
+    dates.push(new Date(current));
+  }
+  return dates;
+}</code></pre>
+  </div>
+
+  <h2 id="notes">5. Implementation Notes / Edge Cases</h2>
+  <div class="card">
+    <ul>
+      <li><strong>Already-<code>Done</code> occurrences are never touched</strong> — only <code>status='Pending'</code> siblings get new dates, consistent with every other rule in this feature set (approved history is immutable).</li>
+      <li><strong>Repeats on every approval, indefinitely</strong> — each new approval re-recalculates all currently-Pending siblings again from the latest <code>approvedAt</code>, overwriting whatever dates resulted from the previous recalculation. This is intentional — the schedule continuously re-anchors to actual approval timing.</li>
+      <li><strong><code>topUpSchedules()</code> needs no change</strong> — it already anchors new future-generated dates off "the latest Pending task's <code>nextDueDate</code>" (<code>scheduler.service.ts</code>), which will already reflect this recalculation.</li>
+      <li><strong>Legacy series without a <code>PmSchedule</code> row</strong> — same fallback pattern as Reassign: match by <code>scheduleId</code> when present, else by the <code>[SeriesID: xxx]</code> description marker.</li>
+      <li><strong>Standalone (non-series) task</strong> — <code>seriesWhere</code> is <code>null</code>, nothing to recalculate, approve behaves exactly as it does today.</li>
+      <li><strong>Interaction with Reassign:</strong> these two features are independent and can both touch the same series' <code>Pending</code> siblings, just via different triggers (Approve vs the dedicated Reassign endpoint) — no shared code path, no ordering dependency between them.</li>
+    </ul>
+  </div>
+
+</div>
+</body>
+</html>

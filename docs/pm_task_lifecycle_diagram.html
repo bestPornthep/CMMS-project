@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AssetIntel CMMS — PM Task Lifecycle: Full Workflow &amp; Algorithm Reference</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #161923; --border: #2a2f3d; --text: #e6e8ef;
+    --muted: #9aa2b1; --accent: #5b8cff; --good: #3ddc97; --bad: #ff6b6b; --warn: #ffb84d;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 40px; line-height: 1.6; }
+  .wrap { max-width: 1100px; margin: 0 auto; }
+  h1 { font-size: 28px; margin-bottom: 4px; }
+  .subtitle { color: var(--muted); margin-bottom: 32px; }
+  h2 { border-bottom: 2px solid var(--border); padding-bottom: 8px; margin-top: 48px; color: var(--accent); }
+  h3 { margin-top: 24px; color: var(--text); }
+  h4 { margin-top: 18px; color: var(--muted); font-size: 14px; text-transform: uppercase; letter-spacing: .03em; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin: 16px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  th, td { border: 1px solid var(--border); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: #1d212c; color: var(--muted); }
+  code { background: #1d212c; padding: 2px 6px; border-radius: 4px; font-size: 13px; color: #f0ad4e; }
+  pre { background: #1d212c; padding: 14px; border-radius: 8px; overflow-x: auto; border: 1px solid var(--border); font-size: 13px; }
+  pre code { background: none; padding: 0; color: #d7dce6; }
+  ul { padding-left: 22px; }
+  .note { color: var(--muted); font-size: 13px; }
+  .warn-box { background: rgba(255,184,77,.1); border: 1px solid var(--warn); border-radius: 10px; padding: 16px 20px; margin: 16px 0; }
+  .good-box { background: rgba(61,220,151,.1); border: 1px solid var(--good); border-radius: 10px; padding: 16px 20px; margin: 16px 0; }
+  .bad-box { background: rgba(255,107,107,.1); border: 1px solid var(--bad); border-radius: 10px; padding: 16px 20px; margin: 16px 0; }
+  .toc { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px 24px; }
+  .toc a { color: var(--accent); text-decoration: none; }
+  .toc li { margin: 4px 0; }
+  .mermaid { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin: 16px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>PM Task Lifecycle — Full Workflow &amp; Algorithm Reference</h1>
+  <div class="subtitle">Everything below is traced directly from the current codebase (not aspirational) — line references point at <code>backend/src/pm-tasks.controller.ts</code>, <code>backend/src/cmms.service.ts</code>, <code>backend/src/scheduler.service.ts</code>, <code>frontend/src/app/pages/pm-assign|pm-record|pm-calendar</code>, and <code>frontend/src/app/core/services/pm.service.ts</code>. For reviewing "is this good or not" before the Reassign feature is built on top of it.</div>
+
+  <div class="toc">
+    <ul>
+      <li><a href="#status">1. Status lifecycle diagram</a></li>
+      <li><a href="#create">2. Create — single task vs recurring series</a></li>
+      <li><a href="#createflow">2a. Create flow diagram</a></li>
+      <li><a href="#unassigned">3. Unassigned tab — series representative logic</a></li>
+      <li><a href="#assign">4. Assign action</a></li>
+      <li><a href="#assigned">5. Assigned tab — series representative logic (different rule!)</a></li>
+      <li><a href="#record">6. Technician records work</a></li>
+      <li><a href="#approve">7. Approve / Reject</a></li>
+      <li><a href="#perm">8. Backend permission matrix (<code>PUT /api/v1/pm-tasks/:id</code>)</a></li>
+      <li><a href="#scheduler">9. Scheduler jobs</a></li>
+      <li><a href="#visibility">10. Visibility quirks (Done tasks, Calendar bucketing)</a></li>
+      <li><a href="#gaps">11. Gaps found during this review</a></li>
+    </ul>
+  </div>
+
+  <h2 id="status">1. Status lifecycle diagram</h2>
+  <div class="mermaid">
+stateDiagram-v2
+  [*] --> Pending : create task<br/>(single or one row per<br/>recurring-series date)
+  Pending --> InProgress : Assign<br/>(assignTask / confirmBulkAssign)<br/>sets assignedTo/assignedAt/assignedBy
+  Pending --> Overdue : scheduler.markOverdueTasks()<br/>hourly cron, nextDueDate &lt; now
+  Overdue --> InProgress : Assign<br/>(same action as above)
+  InProgress --> PendingApproval : Technician submitRecord()<br/>sets completedBy/completedAt/actualHours
+  PendingApproval --> Done : Approver submitRecord() = Approve<br/>sets approvedBy/approvedAt
+  PendingApproval --> InProgress : Approver rejectRecord() = Reject<br/>sets rejectedBy/rejectedAt,<br/>resets checklist done/photos, same assignedTo
+  Done --> [*] : locked — backend blocks<br/>any status change from Done
+  </div>
+  <p class="note">Note: <code>Overdue</code> is only ever reached from <code>Pending</code> (never from <code>In Progress</code>) — see §9. A task that is already assigned and running late stays <code>In Progress</code>; there's no "overdue while in progress" state today.</p>
+
+  <h2 id="create">2. Create — single task vs recurring series</h2>
+  <div class="card">
+    <h4>Frontend guard (<code>pm-create.component.ts</code>)</h4>
+    <ul>
+      <li>Blocks submit unless <code>productId</code>, <code>department</code>, <code>assetId</code>, <code>pmType</code> are all set (custom frequency also needs <code>customDurationValue &gt; 0</code>).</li>
+      <li>Empty checklist only warns — doesn't block.</li>
+      <li>Hard error if the selected asset's <code>location</code>/<code>department</code> don't match the chosen product/department.</li>
+      <li>Product/asset picker is scoped by <code>pm.create.submit</code> accessible products (<code>getAccessibleProducts</code>).</li>
+    </ul>
+    <h4>Backend (<code>pm-tasks.controller.ts</code>)</h4>
+    <ul>
+      <li><code>create()</code> — admin/manager/engineer always allowed; otherwise requires a delegation with <code>pm.create.submit</code> for that product. Re-validates asset existence + location/department match server-side (400 if mismatched) — not just trusting the frontend.</li>
+      <li><code>createSchedule()</code> (<code>POST schedule</code>) — same permission rule, then:
+        <ol>
+          <li>Generates <code>seriesId = SCH-&lt;timestamp&gt;-&lt;rand&gt;</code>.</li>
+          <li><code>calculateDates(frequency)</code> → up to 365 future dates, capped at 1 year ahead.</li>
+          <li>Creates one persistent <code>PmSchedule</code> row (the series "definition") <em>and</em> one <code>PmTask</code> row per date, each tagged <code>description: "[SeriesID: &lt;id&gt;]\n..."</code> and <code>scheduleId: seriesId</code>.</li>
+        </ol>
+      </li>
+    </ul>
+    <div class="good-box">
+      <strong>Why both a <code>PmSchedule</code> row and a text marker?</strong> The <code>PmSchedule</code> row lets the nightly <code>topUpSchedules()</code> cron keep generating future tasks indefinitely. The <code>[SeriesID: xxx]</code> text marker in <code>description</code> is legacy, kept because the frontend (<code>pm-assign</code>, <code>pm-calendar</code>, global search) still parses it to group series in the UI. Both must stay in sync — a code comment in <code>pm-tasks.controller.ts</code> right above <code>createSchedule()</code> explains a prior bug where only the marker existed and the cron couldn't see frontend-created series at all.
+    </div>
+    <h4>Task ID generation (<code>cmms.service.ts</code> <code>createTaskWithRetry()</code>)</h4>
+    <pre><code>const deptPrefix = department.substring(0, 3).toUpperCase();
+const taskId = `PM-${deptPrefix}-${(maxNum + 1).toString().padStart(4, '0')}`;</code></pre>
+    <p>Runs in a <code>Serializable</code> transaction, scans existing IDs with that prefix, takes max numeric suffix + 1. Retries up to 5× on unique-constraint (<code>P2002</code>) or serialization-failure (<code>P2034</code>) errors — handles concurrent creates racing for the same next number.</p>
+  </div>
+
+  <h2 id="createflow">2a. Create flow diagram</h2>
+  <div class="mermaid">
+flowchart TD
+    A[Engineer/Admin/Manager/Delegated user fills Create form] --> B{Recurring?}
+    B -- No --> C[addPmTask - single row]
+    C --> D[POST /pm-tasks]
+    D --> E[createTaskWithRetry generates PM-DEPT-NNNN id]
+    E --> F[status = Pending, single PmTask row]
+    B -- Yes --> G[addPmSchedule]
+    G --> H[POST /pm-tasks/schedule]
+    H --> I[Create PmSchedule row - seriesId]
+    I --> J[calculateDates up to 365 dates / 1yr ahead]
+    J --> K[Loop: createTaskWithRetry per date]
+    K --> L["Each PmTask: status=Pending, description tagged [SeriesID: x], scheduleId=seriesId"]
+    L --> M[Nightly topUpSchedules cron keeps extending the series]
+  </div>
+
+  <h2 id="unassigned">3. Unassigned tab — series representative logic</h2>
+  <div class="card">
+    <p><code>pendingTasks</code> computed in <code>pm-assign.component.ts</code>: filters <code>status === 'Pending'</code> + <code>canManageTask()</code> + department filter, <strong>sorts ascending by <code>nextDueDate</code> first</strong>, then dedupes by <code>[SeriesID: x]</code> — first one seen (i.e. the soonest-due occurrence) wins as the representative row.</p>
+    <p class="note">Rule: <strong>Unassigned tab representative = earliest due date.</strong> Makes sense here — it's literally "the next occurrence you need to assign."</p>
+  </div>
+
+  <h2 id="assign">4. Assign action</h2>
+  <div class="card">
+    <p><code>assignTask()</code> / <code>confirmBulkAssign()</code> in <code>pm-assign.component.ts</code>:</p>
+    <ul>
+      <li>Re-checks <code>canManageTask()</code> and a Product-Asset mismatch guard (asset's <code>location</code> must equal task's <code>productId</code>) before allowing the click to do anything.</li>
+      <li><strong>Series-aware:</strong> even if the clicked/selected row isn't the earliest-due occurrence, the code looks up the actual earliest-due <em>Pending</em> task sharing the same seriesId and assigns <em>that one</em> — you can never accidentally assign a later occurrence out of order.</li>
+      <li>Sets in one update: <code>status: 'In Progress'</code>, <code>assignedTo</code>, <code>assignedAt: new Date()</code>, <code>assignedBy: currentUser</code>.</li>
+    </ul>
+    <p class="note"><code>canManageTask()</code>: admin/manager always; engineer needs product ownership (and is blocked from another engineer's owned/created task); technician needs <code>pm.assign.submit</code> delegation + same department.</p>
+  </div>
+
+  <h2 id="assigned">5. Assigned tab — series representative logic (different rule!)</h2>
+  <div class="card">
+    <p><code>assignedTasks</code> computed: filters <code>status !== 'Pending'</code> + <code>canManageTask()</code>, groups by seriesId, but the representative is the task with the <strong>most recent <code>assignedAt</code></strong> — not earliest due date.</p>
+    <div class="good-box">
+      <strong>Why the two tabs use different rules (verified intentional, fixed last session):</strong> if Unassigned-style "earliest due" were used here too, a brand-new assignment on a later occurrence could be hidden behind an older, still-outstanding occurrence in the same series (e.g. one still <code>In Progress</code>/<code>Pending Approval</code>) — looking like the assign silently failed. Display sort (by <code>nextDueDate</code> ascending) is unchanged; only which row represents the group differs from the Unassigned tab.
+    </div>
+  </div>
+
+  <h2 id="record">6. Technician records work</h2>
+  <div class="card">
+    <p><code>pm-record.component.ts</code> — technician sees tasks with <code>status ∈ {Pending, In Progress, Overdue}</code> and <code>assignedTo === self</code> (deduped by series, same earliest-due-representative pattern as pm-assign's Unassigned tab).</p>
+    <p><code>submitRecord()</code> (non-approver branch) validates before allowing submit:</p>
+    <ul>
+      <li>Every checklist item must be checked (<code>allChecked</code>).</li>
+      <li>Any item with <code>requiresPhoto: true</code> must have a <code>photoUrl</code>.</li>
+      <li><code>actualHours</code> must be <code>&gt; 0</code>, finite, and <code>&lt;= 999</code>.</li>
+    </ul>
+    <p>On success: <strong><code>In Progress</code> → <code>Pending Approval</code></strong>, sets <code>completedAt</code>, <code>completedBy</code>, <code>actualHours</code>; appends a <code>[Tech|&lt;timestamp&gt;]: ...</code> block to <code>recordNotes</code> (replacing any prior Tech block, but keeping Approver/Rejected history blocks).</p>
+  </div>
+
+  <h2 id="approve">7. Approve / Reject</h2>
+  <div class="card">
+    <p>Same component, same <code>selectedTask</code>/<code>submitRecord()</code> flow — <strong>no separate approve/reject component exists</strong>; it branches on <code>isApprover</code> (<code>engineer | manager | admin</code>).</p>
+    <table>
+      <tr><th>Action</th><th>Status change</th><th>Fields set</th><th><code>assignedTo</code></th></tr>
+      <tr><td><strong>Approve</strong> (<code>submitRecord()</code>, approver branch)</td><td><code>Pending Approval</code> → <code>Done</code></td><td><code>approvedBy</code>, <code>approvedAt</code>. <code>completedBy</code>/<code>completedAt</code> are <em>not</em> re-set — they're already the technician's from §6.</td><td>Unchanged</td></tr>
+      <tr><td><strong>Reject</strong> (<code>rejectRecord()</code>)</td><td><code>Pending Approval</code> → back to <code>In Progress</code> (not <code>Pending</code>)</td><td><code>rejectedBy</code>, <code>rejectedAt</code>; checklist items reset to <code>done:false</code> + photos cleared; requires non-empty rejection notes; snapshot of the rejected checklist is embedded in <code>recordNotes</code> (<code>~~&lt;json&gt;</code>) so the technician's resubmission view can show what was previously submitted.</td><td><strong>Unchanged</strong> — same technician stays assigned and resubmits.</td></tr>
+    </table>
+  </div>
+
+  <h2 id="perm">8. Backend permission matrix (<code>PUT /api/v1/pm-tasks/:id</code>)</h2>
+  <div class="card">
+    <table>
+      <tr><th>Role</th><th>Can Record (technician-side fields)</th><th>Can Assign</th><th>Can Approve/Reject</th></tr>
+      <tr><td>admin / manager</td><td>✅ always</td><td>✅ always</td><td>✅ always</td></tr>
+      <tr><td>engineer</td><td>✅ if owns product</td><td>✅ if owns product</td><td>✅ always (any engineer is an approver)</td></tr>
+      <tr><td>technician (delegated <code>pm.record.submit</code>)</td><td>✅</td><td>❌ (unless separately delegated <code>pm.assign.submit</code>)</td><td>❌ never</td></tr>
+      <tr><td>technician (assigned to self)</td><td>✅ own task only</td><td>❌</td><td>❌ never</td></tr>
+    </table>
+    <p><strong>Status-transition guard</strong> (only applies when non-approvers act):</p>
+    <pre><code>TECHNICIAN_ALLOWED = {
+  'Pending':          ['In Progress'],
+  'In Progress':      ['Pending Approval'],
+  'Pending Approval': [],   // technicians can't approve/revert
+}</code></pre>
+    <p>Approvers bypass this map entirely but are blocked from any change once <code>existing.status === 'Done'</code> — <em>only when the request body includes <code>status</code></em> (see gap in §11). <code>approvedBy/approvedAt/rejectedBy/rejectedAt</code> are silently dropped from the write unless the requester <code>isApprover</code>, even if a non-approver's body includes them.</p>
+  </div>
+
+  <h2 id="scheduler">9. Scheduler jobs</h2>
+  <div class="card">
+    <table>
+      <tr><th>Job</th><th>Cadence</th><th>What it does</th></tr>
+      <tr><td><code>markOverdueTasks()</code></td><td>Hourly</td><td><code>UPDATE ... WHERE status='Pending' AND nextDueDate &lt; now SET status='Overdue'</code>. Only unassigned (<code>Pending</code>) tasks are affected — a running <code>In Progress</code> task never becomes <code>Overdue</code>.</td></tr>
+      <tr><td><code>topUpSchedules()</code></td><td>Nightly (midnight)</td><td>For every <code>PmSchedule</code> row (no active/inactive flag — all rows are eligible), finds the latest <code>Pending</code> task for that schedule, generates further dates via <code>calculateDates(frequency, startDate)</code>, skips any exact-duplicate date, creates new <code>PmTask</code> rows — maintains a rolling ~1-year buffer per series indefinitely.</td></tr>
+    </table>
+  </div>
+
+  <h2 id="visibility">10. Visibility quirks (Done tasks, Calendar bucketing)</h2>
+  <div class="card">
+    <ul>
+      <li><code>pm.service.ts</code> <code>loadData()</code> excludes <code>Done</code> tasks on initial app load (<code>excludeStatus='Done'</code>). Only <code>loadHistoricalTasks()</code> backfills them, and it's called only from <code>pm-record.component.ts</code> and <code>pm-reports.component.ts</code> — <strong><code>pm-calendar.component.ts</code> never calls it</strong>, so a fresh page load landing directly on <code>/pm-calendar</code> won't show Done tasks until the user has visited Record PM or PM Reports at least once that session.</li>
+      <li><code>pm-calendar.component.ts</code> <code>buildDay()</code> buckets a <code>Done</code> task by <code>completedAt</code> (when the work actually happened), not <code>nextDueDate</code> — intentional, but a Done task's chip can appear to "move" to a different day than its original due date.</li>
+    </ul>
+  </div>
+
+  <h2 id="gaps">11. Gaps found during this review</h2>
+  <div class="warn-box">
+    <strong>Done-task guard only fires when the request includes <code>status</code>.</strong> A <code>PUT</code> to an already-<code>Done</code> task that omits <code>status</code> but changes other fields (e.g. <code>assignedTo</code>, <code>recordNotes</code>) is not currently blocked by any guard. This is exactly the gap the Reassign feature's backend design closes (see <code>docs/backend_pm_reassign_api.html</code> §2 Rule A) — flagging it here again so it's visible in the full lifecycle context, not just the reassign-specific doc.
+  </div>
+  <div class="warn-box">
+    <strong><code>Overdue</code> has no entry in <code>TECHNICIAN_ALLOWED</code>.</strong> A technician's own request to move an <code>Overdue</code> task to <code>In Progress</code> would be rejected by that map (falls back to an empty allowed-list). In practice this likely isn't hit because assignment is normally done by an engineer/manager/admin (all <code>isApprover</code>, exempt from the map) — but no end-to-end trace confirms a technician can self-transition an Overdue task today. Not fixing as part of this review; noting for awareness.
+  </div>
+
+</div>
+<script>mermaid.initialize({ startOnLoad: true, theme: 'dark' });</script>
+</body>
+</html>

@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AssetIntel CMMS — PM Task Reassignment (Series Cascade): Backend Requirements</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #161923; --border: #2a2f3d; --text: #e6e8ef;
+    --muted: #9aa2b1; --accent: #5b8cff; --good: #3ddc97; --bad: #ff6b6b; --warn: #ffb84d;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 40px; line-height: 1.6; }
+  .wrap { max-width: 1000px; margin: 0 auto; }
+  h1 { font-size: 28px; margin-bottom: 4px; }
+  .subtitle { color: var(--muted); margin-bottom: 32px; }
+  h2 { border-bottom: 2px solid var(--border); padding-bottom: 8px; margin-top: 48px; color: var(--accent); }
+  h3 { margin-top: 24px; color: var(--text); }
+  h4 { margin-top: 18px; color: var(--muted); font-size: 14px; text-transform: uppercase; letter-spacing: .03em; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin: 16px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  th, td { border: 1px solid var(--border); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: #1d212c; color: var(--muted); }
+  code { background: #1d212c; padding: 2px 6px; border-radius: 4px; font-size: 13px; color: #f0ad4e; }
+  pre { background: #1d212c; padding: 14px; border-radius: 8px; overflow-x: auto; border: 1px solid var(--border); font-size: 13px; }
+  pre code { background: none; padding: 0; color: #d7dce6; }
+  ul { padding-left: 22px; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 700; text-transform: uppercase; padding: 3px 10px; border-radius: 999px; margin-left: 6px; }
+  .tag.get { background: rgba(91,140,255,.15); color: var(--accent); border: 1px solid rgba(91,140,255,.4); }
+  .tag.put { background: rgba(255,184,77,.15); color: var(--warn); border: 1px solid rgba(255,184,77,.4); }
+  .note { color: var(--muted); font-size: 13px; }
+  .warn-box { background: rgba(255,184,77,.1); border: 1px solid var(--warn); border-radius: 10px; padding: 16px 20px; margin: 16px 0; }
+  .good-box { background: rgba(61,220,151,.1); border: 1px solid var(--good); border-radius: 10px; padding: 16px 20px; margin: 16px 0; }
+  .toc { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px 24px; }
+  .toc a { color: var(--accent); text-decoration: none; }
+  .toc li { margin: 4px 0; }
+  .endpoint-title { font-family: monospace; font-size: 15px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>PM Task Reassignment (Series Cascade) — Backend Requirements</h1>
+  <div class="subtitle">v2 — supersedes the earlier single-task-only version. New in this version: reassigning one occurrence now cascades to every still-<code>Pending</code> future occurrence in the same recurring series, plus the series' default assignee, in one atomic operation.</div>
+
+  <div class="toc">
+    <ul>
+      <li><a href="#rule">1. Business Rule — which statuses allow reassign</a></li>
+      <li><a href="#cascade">2. Cascade Behavior (new)</a></li>
+      <li><a href="#endpoint">3. New Endpoint: <code>PUT /api/v1/pm-tasks/:id/reassign</code></a></li>
+      <li><a href="#schema">4. Schema Change (new column)</a></li>
+      <li><a href="#notes">5. Implementation Notes / Edge Cases</a></li>
+    </ul>
+  </div>
+
+  <h2 id="rule">1. Business Rule</h2>
+  <div class="card">
+    <table>
+      <tr><th>Current <code>status</code> of the clicked occurrence</th><th>Reassign allowed?</th><th>Why</th></tr>
+      <tr><td><code>Pending</code></td><td>N/A</td><td>Not yet started — this is the existing "Assign" flow, not reassign.</td></tr>
+      <tr><td><code>In Progress</code></td><td>✅ Yes</td><td>Normal case — swap the technician mid-task, and roll the change forward through the series.</td></tr>
+      <tr><td><code>Overdue</code></td><td>✅ Yes</td><td>Always unassigned when reached (see <code>scheduler.service.ts</code> <code>markOverdueTasks()</code>) — behaves like a first assign for this one row, but still cascades to future Pending siblings.</td></tr>
+      <tr><td><code>Pending Approval</code></td><td>❌ No</td><td>Work already submitted for approval — don't change the credited technician.</td></tr>
+      <tr><td><code>Done</code></td><td>❌ No — hard blocked</td><td>Already approved, must stay immutable.</td></tr>
+    </table>
+  </div>
+
+  <h2 id="cascade">2. Cascade Behavior (new)</h2>
+  <div class="card">
+    <p>Reassigning one occurrence in a recurring series now updates <strong>three things in one atomic transaction</strong>:</p>
+    <table>
+      <tr><th>#</th><th>What updates</th><th>Fields written</th></tr>
+      <tr><td>1</td><td>The clicked occurrence itself (the primary target of the request)</td><td><code>assignedTo</code>, <code>assignedAt = now</code>, <code>assignedBy</code>, <code>reassignCount += 1</code></td></tr>
+      <tr><td>2</td><td>Every <strong>other</strong> occurrence in the same series that is still <code>status = 'Pending'</code> (i.e. every future month/week/day already pre-generated by <code>createSchedule()</code>/<code>topUpSchedules()</code> that hasn't been touched yet)</td><td><code>assignedTo</code>, <code>assignedBy</code>, <code>reassignCount += 1</code>. <strong>Not</strong> <code>assignedAt</code> — these rows aren't actually starting work, they're just being re-labeled with the new default technician; see §5.</td></tr>
+      <tr><td>3</td><td>The <code>PmSchedule</code> row for this series (if one exists — see legacy note in §5)</td><td><code>assignedTo</code> — so the nightly <code>topUpSchedules()</code> cron generates <em>future</em> new rows (beyond whatever is already pre-generated) with the new technician too, not the old one.</td></tr>
+    </table>
+    <div class="good-box">
+      <strong>What is never touched:</strong> any occurrence in the series that is already <code>Done</code> (approved history) or currently <code>In Progress</code>/<code>Pending Approval</code> <em>other than</em> the one explicitly clicked (this shouldn't normally exist per the "assign one occurrence at a time" flow, but if it ever does, it's left alone — only the explicitly-targeted occurrence and untouched <code>Pending</code> siblings are affected).
+    </div>
+  </div>
+
+  <h2 id="endpoint">3. New Endpoint: <span class="endpoint-title">PUT /api/v1/pm-tasks/:id/reassign</span> <span class="tag put">PUT</span></h2>
+  <div class="card">
+    <p>File: <code>backend/src/pm-tasks.controller.ts</code>. This is a <strong>new, dedicated endpoint</strong> rather than folding cascade logic into the existing generic <code>update()</code> handler — the cascade is a genuine multi-row transaction with side effects (schedule update, audit log) that should only ever fire for this one specific action, never accidentally from an unrelated generic field edit.</p>
+
+    <h4>Request body</h4>
+    <pre><code>{ "assignedTo": "TECH-042" }</code></pre>
+
+    <h4>Handler logic</h4>
+    <pre><code>const existing = await prisma.pmTask.findUnique({ where: { id } });
+if (!existing) throw new NotFoundException();
+
+// same canAssign check the generic update() handler already uses
+if (!canAssign) throw new ForbiddenException();
+
+if (existing.status === 'Done') {
+  throw new ForbiddenException('Cannot modify a completed task');
+}
+if (!['In Progress', 'Overdue'].includes(existing.status)) {
+  throw new ForbiddenException(`Cannot reassign a task in '${existing.status}' status`);
+}
+if (body.assignedTo === existing.assignedTo) {
+  throw new BadRequestException('Task is already assigned to this technician');
+}
+
+const oldTechId = existing.assignedTo;
+
+const seriesWhere = existing.scheduleId
+  ? { scheduleId: existing.scheduleId, status: 'Pending', id: { not: existing.id } }
+  : extractSeriesIdFromDescription(existing.description)
+    ? { description: { contains: `[SeriesID: ${seriesId}]` }, status: 'Pending', id: { not: existing.id } }
+    : null; // standalone task, no series to cascade to
+
+const [updatedPrimary, cascadeResult] = await prisma.$transaction(async (tx) => {
+  const primary = await tx.pmTask.update({
+    where: { id: existing.id },
+    data: { assignedTo: body.assignedTo, assignedAt: new Date(), assignedBy: user.employeeId, reassignCount: { increment: 1 } },
+  });
+
+  const cascade = seriesWhere
+    ? await tx.pmTask.updateMany({
+        where: seriesWhere,
+        data: { assignedTo: body.assignedTo, assignedBy: user.employeeId, reassignCount: { increment: 1 } },
+      })
+    : { count: 0 };
+
+  if (existing.scheduleId) {
+    await tx.pmSchedule.update({ where: { id: existing.scheduleId }, data: { assignedTo: body.assignedTo } }).catch(() => {});
+  }
+
+  return [primary, cascade];
+});
+
+await cmms.logAction(
+  `Reassigned ${existing.id}${cascadeResult.count > 0 ? ` + ${cascadeResult.count} future occurrence(s)` : ''} from ${oldTechName(oldTechId)} to ${newTechName(body.assignedTo)}`,
+  { id: user.employeeId, name: user.name },
+  { id: existing.id, name: existing.title, isUser: false },
+  existing.productId, 'data', existing.department,
+);
+
+return cleanPmTask(updatedPrimary);</code></pre>
+    <p class="note">Pseudocode above — adapt to the existing code style/helpers already in <code>pm-tasks.controller.ts</code> (e.g. reuse the same <code>isOwner</code>/<code>hasDelegatedAssign</code>/<code>canAssign</code> computation already at the top of <code>update()</code>).</p>
+  </div>
+
+  <h2 id="schema">4. Schema Change (new column)</h2>
+  <div class="card">
+    <p>Add to <code>PmTask</code> in <code>backend/prisma/schema.prisma</code>:</p>
+    <pre><code>reassignCount  Int  @default(0) @map("reassign_count")</code></pre>
+    <p>Migration: <code>ALTER TABLE cmms_pm_tasks ADD reassign_count INT NOT NULL DEFAULT 0;</code> — additive, backward compatible, no data migration needed (all existing rows default to 0).</p>
+    <p>This is what drives the frontend's <strong>"Reassign #N"</strong> badge in the Assigned PMs tab's new Action column — already wired on the frontend to read <code>task.reassignCount</code>, currently always showing <code>—</code> until this column exists and this endpoint starts incrementing it.</p>
+  </div>
+
+  <h2 id="notes">5. Implementation Notes / Edge Cases</h2>
+  <div class="card">
+    <ul>
+      <li><strong>Why cascaded siblings don't get <code>assignedAt</code> updated:</strong> they aren't actually starting work yet — they're future <code>Pending</code> rows just being re-labeled with the new default technician. Only the primary occurrence (the one actually moving/staying <code>In Progress</code>) gets a fresh <code>assignedAt</code>. If this feels wrong once you build it and see real data, flag it — happy to revisit.</li>
+      <li><strong>Legacy series without a <code>PmSchedule</code> row:</strong> some older series (created before the <code>createSchedule()</code> fix) have no <code>scheduleId</code>/<code>PmSchedule</code> row, only the <code>[SeriesID: xxx]</code> text marker. Cascade must fall back to matching <code>description contains</code> that marker + <code>status='Pending'</code>, same pattern already used in the existing <code>updateSchedule()</code> legacy fallback path. Step 3 (updating <code>PmSchedule.assignedTo</code>) is simply skipped for these — there's no row to update.</li>
+      <li><strong>Standalone (non-series) task:</strong> if <code>existing.scheduleId</code> is null and no <code>[SeriesID:]</code> marker is present, cascade is a no-op (only the single primary task updates) — <code>seriesWhere</code> is <code>null</code>, skip the <code>updateMany</code> entirely.</li>
+      <li><strong>One audit log entry per reassignment action</strong>, not one per cascaded row — summarized with the affected count, to avoid flooding the PM Audit page.</li>
+      <li><strong>No changes needed</strong> to the generic <code>PUT /api/v1/pm-tasks/:id</code> handler for this feature <em>except</em> the still-outstanding "Done tasks are immutable even without <code>status</code> in the body" gap noted in the PM lifecycle review — that's a separate, already-flagged fix, unrelated to this new endpoint.</li>
+    </ul>
+  </div>
+
+</div>
+</body>
+</html>

@@ -55,6 +55,7 @@ export interface PMTask {
   assignedTo?: string;
   assignedAt?: Date;
   assignedBy?: string;
+  reassignCount?: number; // how many times this task has been reassigned to a different technician
   completedBy?: string;
   completedAt?: Date;
   recordNotes?: string;

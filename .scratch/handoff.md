@@ -1,59 +1,59 @@
-# Handoff — Session 2026-08-12: Assign PM series-representative fix + calendar/search redirect UX
+# Handoff — Session 2026-08-13: PM Reassign + Rolling Due Dates — design done, frontend-only build started
 
 ## Branch
-`fix/pm-assign-series-representative` — **not merged**. Created from `origin/update_feature_fullstack` (NOT from `feature/update_feature_frontend` — that branch is stale; the user confirmed `update_feature_fullstack` on GitHub is the real source of truth and where this should eventually be pushed once approved). All commits below are still uncommitted working-tree changes on this branch.
+`update_feature_fullstack` — **not committed, not pushed**. Working directly on this branch (up to date with `origin/update_feature_fullstack` at commit `0ec4262`), no dedicated feature branch created yet this session.
+
+**⚠️ Before committing anything:** this branch currently has *staged* deletions (not from this session, present since before this session started) of `CLAUDE.md`, `CONTEXT.md`, `backend_schedule_spec.md`, `backend_spec.md`, `docs/adr/0001-eager-delegation-lookup.md`, `docs/api-guide-for-frontend.html`, `docs/backend_assets_products_api.md`, `docs/backend_template_api.md`. Flagged to the user twice this session with no response/resolution yet. **Do not include these in a commit via `git add -A`** — stage only the files listed below explicitly, unless the user has since confirmed the deletions are intentional.
 
 ## What was done this session
 
-### 1. Root-cause + fix: newly-assigned task in a recurring series "disappears" (the reported bug)
-File: `frontend/src/app/pages/pm-assign/pm-assign.component.ts` — `assignedTasks` computed.
-- Root cause: recurring series only show **one representative row** in the "Assigned PMs" tab (grouped by the `[SeriesID: xxx]` marker in `description`). The old logic picked the representative by **earliest due date**. If an older occurrence in the same series was already assigned/in-progress, a brand-new assignment on a *later* occurrence would get hidden behind it — looking like the assign action silently failed.
-- Fix: representative is now the task with the **most recent `assignedAt`** in the group (falls back to 0/first if none). Display sort (by `nextDueDate` ascending) is unchanged — only which task represents the group changed.
-- Verified live end-to-end against the real backend (`10.144.15.76:3000`): created a Weekly recurring series, assigned the earliest occurrence, confirmed workload % increased (0%→4%) and the assignment immediately appeared in "Assigned PMs" (previously it would not have).
-- Also ran the full lifecycle once for sanity: Create (recurring) → Assign → Record (technician executes, checklist, submit) → Approve (engineer) → confirmed `Done` status, `approvedBy/approvedAt` on backend.
+### 1. Small frontend tweaks (Assigned PMs tab, `pm-assign.component.html`)
+- Removed the "Due Date" column from display only — `nextDueDate` is still fetched/sent as before, just not rendered in this table.
+- Added a new "Action" column showing `Reassign #N` (or `—`) driven by a new `reassignCount?: number` field added to `PMTask` (`frontend/src/app/core/models/pm.model.ts`).
 
-### 2. New UX: clicking a non-Done PM task now redirects + highlights instead of silently doing nothing / always opening a modal
-Discovered while e2e-testing: PM Calendar had `editingTask`/`editDescription`/`editEntireSeries`/`closeEditModal()`/`saveEditTask()` fully implemented in `pm-calendar.component.ts` but **never wired into any template** (confirmed via full git history search — never existed). Clicking a Scheduled/In-Progress chip on the calendar silently did nothing.
+### 2. Two features designed and documented, NOT yet backend-implemented
+- **PM Task Reassignment (series cascade)** — [docs/backend_pm_reassign_api.html](../docs/backend_pm_reassign_api.html) (v2, supersedes an earlier single-task-only version the user undid). New dedicated endpoint `PUT /api/v1/pm-tasks/:id/reassign`: reassigning one occurrence (only allowed from `In Progress`/`Overdue`, never `Pending Approval`/`Done`) cascades `assignedTo` to every other still-`Pending` sibling in the series in one transaction, plus updates `PmSchedule.assignedTo` so future cron-generated rows follow too. Requires a new `reassignCount Int @default(0)` column/migration on `PmTask` — that's what the new Action column reads.
+- **Rolling Due Dates on Approval** — [docs/backend_pm_rolling_due_dates.html](../docs/backend_pm_rolling_due_dates.html). Fully independent from reassign (confirmed explicitly by the user — do not conflate). Every time any task in a series is approved, recalculate `nextDueDate` for all remaining `Pending` siblings as `approvedAt + N×frequency`. Hooks into the *existing* generic `PUT /api/v1/pm-tasks/:id` approve path as a side effect — no new endpoint. Repeats on every approval, forever. Rejecting never triggers it.
+- Both docs are meant to be handed to whoever builds the backend piece (dedicated `.html` requirement docs, matching this repo's existing pattern for backend-team handoff docs).
 
-Per user direction, replaced that dead-code path with: clicking a non-Done chip (calendar) or searching a non-Done task (global search bar) now **navigates to `/pm-assign?task=<id>` and highlights the row** in whichever tab currently shows it (Unassigned if `Pending`, Assigned otherwise) — so the user immediately sees whether the task is assigned or not. Done tasks still open the existing read-only `viewedTaskGlobal` modal in both places; Pending Approval still routes to `/pm-record`.
+### 3. Frontend-only build of Reassign UI (backend does not exist yet — will 404 live)
+Files: `pm-assign.component.ts`, `.html`; `pm.service.ts`; `api.service.ts`; `translation.service.ts`.
+- `canReassign(task)`: true only for `In Progress`/`Overdue` + `canManageTask()`.
+- `getReassignTechnicians(task)`: same dept-scoped list as `getTaskTechnicians()`, minus whoever is currently assigned.
+- New per-row dropdown + Confirm button in the "Assigned To" cell (only rendered when `canReassign()`), reusing the `.c-dropdown` pattern; centered under the tech name via explicit `justify-content:center` (a bare `display:flex` div does NOT inherit centering from an ancestor's `text-align`).
+- Confirm opens a modal (reused Bulk-Assign-modal pattern) — "You are reassigning X from A to B" — before calling `pmService.reassignTask(task, newTech)` → `ApiService.reassignTask()` → `PUT /api/v1/pm-tasks/:id/reassign`.
+- `PmService.reassignTask()` refetches the full task list afterward (`api.getTasks()`, no filters) rather than patching one row in place, since the backend cascade can touch sibling rows — same pattern already used by `addPmSchedule()`/`updatePmSchedule()`.
+- All new UI strings translated (Thai) in `translation.service.ts`: `Confirm Reassignment`, `You are reassigning`, `from`, `to`, `Reassign...`, `Reassign`, `Select Tech...`.
 
-Files changed:
-- `frontend/src/app/pages/pm-calendar/pm-calendar.component.ts` — removed the dead `editingTask`/`editDescription`/`editEntireSeries`/`closeEditModal`/`saveEditTask` (confirmed fully unreferenced before deleting); `goToRecord()`'s "Scheduled and Overdue, not from sidebar" branch now does `this.router.navigate(['/pm-assign'], { queryParams: { task: taskId } })` instead.
-- `frontend/src/app/layout/layout.component.ts` — `onSearch()` now branches by `task.status` the same way (`Done` → modal, technician or `Pending Approval` → `/pm-record`, else → `/pm-assign` with highlight) instead of unconditionally opening the modal.
-- `frontend/src/app/pages/pm-assign/pm-assign.component.ts` — new `highlightFromParam(taskId)` (called from constructor via `route.snapshot.queryParams['task']` and from a `route.queryParams` subscription for same-page re-triggers). New `highlightedTaskId` signal, `implements OnDestroy` with the same `isDestroyed` guard pattern already used in `pm-calendar.component.ts`.
-- `frontend/src/app/pages/pm-assign/pm-assign.component.html` — added `[id]="'task-row-' + task.id"` and `[class.highlight-row]` to both the Unassigned and Assigned table rows.
-- `frontend/src/app/pages/pm-assign/pm-assign.component.scss` — added `.highlight-row` pulse animation (`pmAssignPulseHighlight` keyframes), mirrors the calendar's existing `.cal-chip.highlight-animation` pattern but at row level.
+### 4. Reference doc (not tied to reassign specifically)
+- [docs/pm_task_lifecycle_diagram.html](../docs/pm_task_lifecycle_diagram.html) — full code-verified PM lifecycle (create → unassigned → assign → assigned → record → approve/reject → done), with Mermaid diagrams, scheduler cron behavior, permission matrix, and 2 flagged pre-existing gaps (see below).
 
-### 3. `/scrutinize` review of the above (item 2) — 3 findings, all fixed
-- **Race condition (major)**: overlapping `highlightFromParam` calls (e.g. two rapid searches while staying on `/pm-assign`) had no identity check — an earlier call's 2500ms cleanup timer could fire and clear a *later* call's highlight + query param before its own 2.5s elapsed. Fixed with a `highlightRequestSeq` counter captured per-call; timers no-op if the sequence has moved on. **Verified live**: searched task A, then task B ~600ms later, confirmed B was still highlighted ~1.2s after being set (well past when A's original timer would have fired unguarded).
-- **Department filter silently hides target row (moderate)**: for admin/manager (who can change the Department Filter dropdown), if it's set to a different department than the target task's, the row lookup silently failed. Fixed: if the row isn't found and `canChangeDept` is true, reset `deptFilter` to the task's department and retry once (signals recompute synchronously, so this works within the same call). Verified correct by code inspection + `tsc` (didn't have a manager credential on hand to click-test live).
-- **Silent no-op nit**: if a task genuinely can't be shown (e.g. permission mismatch between the calendar/search's own gate and `canManageTask`), added a toast fallback (`Work order <id> could not be shown on this page.`) instead of nothing happening.
+### 5. Personal preference recorded
+- User dislikes text-heavy `.html` explainer docs — wants Mermaid diagrams/compact tables over prose. Written into the user-level `coding-guidelines.instructions.md` (§6, outside this repo) and into user memory (`/memories/preferences.md`).
 
 ## In-flight / next steps
 
-1. **User has not yet approved pushing.** All changes are uncommitted on `fix/pm-assign-series-representative`. Do NOT push to `update_feature_fullstack` until the user explicitly says so.
-2. Once approved: commit with a descriptive message, then push/merge into `update_feature_fullstack` (the confirmed real branch — not `feature/update_feature_frontend`, which is stale).
-3. Note `origin/update_feature_fullstack` already has 2 commits we branched from that aren't in the old `agents/backend-assign-pm-feature-fix` history: `e66aeab` (fix: technicians see zero assigned PM tasks — backend `pm-tasks.controller.ts`, NOT YET DEPLOYED to the live 10.144.15.76 server per that commit's own message) and `9f1fe67` (Docker deploy setup). Don't lose these when merging.
+1. **Ask the user how to handle the pre-existing staged deletions** (see warning above) before running any `git add`/`commit` — do not silently include or silently discard them.
+2. **Ask the user which branch to push to** — stay on `update_feature_fullstack` directly, or cut a dedicated `feature/pm-reassign` branch first (repo convention prefers a dedicated feature branch; this session never created one).
+3. Once branch/staging is resolved: `git add` only the files touched this session (`frontend/src/app/core/models/pm.model.ts`, `frontend/src/app/core/services/api.service.ts`, `frontend/src/app/core/services/pm.service.ts`, `frontend/src/app/core/services/translation.service.ts`, `frontend/src/app/pages/pm-assign/pm-assign.component.ts`, `frontend/src/app/pages/pm-assign/pm-assign.component.html`, `docs/backend_pm_reassign_api.html`, `docs/backend_pm_rolling_due_dates.html`, `docs/pm_task_lifecycle_diagram.html`), commit, then push only after explicit user confirmation (push is a "confirm first" action).
+4. **Backend implementation is the actual next feature-build step** — neither doc has been implemented server-side. Reassign endpoint currently 404s against the live/shared backend; the frontend UI is fully wired but non-functional until the backend lands. Build order suggested: Reassign endpoint + `reassignCount` migration first (frontend already expects it), then Rolling Due Dates (pure backend, zero frontend changes needed once done).
+5. After backend lands: re-verify the full reassign flow live (single-task and series cascade cases), and confirm `reassignCount` increments correctly on both the primary row and cascaded siblings.
 
-## Known issues / deferred work (discovered, NOT fixed — out of scope this session)
+## Known issues / deferred work
 
-- **"Done" tasks are invisible on fresh page load in several places** unless `loadHistoricalTasks()` has already been called. `pm.service.ts`'s `loadData()` deliberately excludes `Done` tasks on initial load (`getTasks(..., 'Done')` as excludeStatus). Only `pm-record.component.ts` and `pm-reports.component.ts` call `loadHistoricalTasks()` to backfill them. **PM Calendar never calls it** — so on a hard page load/reload landing directly on `/pm-calendar`, Done tasks won't show even with the "Done" filter checkbox checked, until the user visits Record PM or PM Reports at least once in that session. Confirmed via live testing (approved a task, hard-navigated to `/pm-calendar`, Done chip missing until visiting `/pm-record` first).
-- **Calendar shows Done tasks by `completedAt`, not `nextDueDate`** (`pm-calendar.component.ts` `buildDay()`, explicit existing comment). This is intentional (shows when work actually happened), not a bug, but worth knowing if a Done task's chip "moves" to a different day than expected.
-- Engineers cannot search for `Pending` (unassigned) tasks via the global search bar — `layout.component.ts` `onSearch()`'s `isApprovalStatus` check for engineer/manager only allows `Pending Approval | Done | In Progress`, excluding `Pending` (and `Overdue`, for that matter). Pre-existing, unrelated to this session's changes, not touched.
-- Backend: `origin/update_feature_fullstack`'s `e66aeab` fix for technician task visibility is NOT deployed to the live shared server per that commit's own message — worth checking before assuming technician-visibility issues are resolved in production.
+- **Done-task immutability gap** (pre-existing, not fixed): `PUT /api/v1/pm-tasks/:id`'s "cannot modify a completed task" guard only fires when the request body includes `status`. A request that changes only `assignedTo` on a `Done` task currently isn't blocked. The fix is already scoped as Rule A in `docs/backend_pm_reassign_api.html` — should be implemented alongside the reassign endpoint, not separately.
+- **`Overdue` has no entry in the backend's `TECHNICIAN_ALLOWED` map** (pre-existing, flagged only, not fixed/confirmed as a real bug) — see `docs/pm_task_lifecycle_diagram.html` §11.
+- **Bulk Assign modal's own strings** (`Confirm Assignment`, `Confirm`, `Cancel` in that specific modal) still lack `| tr` pipes — pre-existing gap noticed while translating the new Reassign modal, not touched (out of scope, surgical-changes rule).
 
 ## Anti-patterns to avoid (NEW this session)
 
-### Dead code that "looks wired" but isn't — always grep the template, not just the component
-`pm-calendar.component.ts` had fully-implemented `editingTask`/`saveEditTask`/etc. (with sensible logic, comments, the works) that had **zero template references**, confirmed only by `git log -p` across the whole file history. A component method existing and being *called* from another method (`goToRecord()` called `this.editingTask.set(task)`) is not proof the resulting state is ever rendered — always check the `.html` for the signal/property before assuming a feature works.
+### New UI copy needs `| tr` + a translation.service.ts entry added in the SAME edit, not after
+Added the whole Reassign modal/dropdown without any `| tr` pipes on the first pass, because the adjacent pre-existing Bulk Assign modal in the same file is itself untranslated — easy to copy that (wrong) precedent by mistake. Had to circle back after the user pointed it out twice. Check `translation.service.ts` for an existing key before assuming a string doesn't need one, and add both the pipe and the dictionary entry together, immediately.
 
-### Bare `setTimeout` chains for UI-highlight-then-clear patterns need a request-identity guard
-Both `pm-calendar.component.ts`'s pre-existing `highlightTask()` and my new `pm-assign.component.ts` `highlightFromParam()` schedule a "clear after N ms" timer with only an `isDestroyed` (component-teardown) guard — no guard against a **second call superseding the first while both are still in-flight**. Any component with a "set state → show for exactly one caller → reset" async will race if the user can trigger it twice in quick succession. Use an incrementing request id captured in the closure (see `highlightRequestSeq` in `pm-assign.component.ts`) rather than just `isDestroyed`.
-
-### Angular computed signals recompute synchronously — safe to call `.set()` then immediately re-read a dependent computed in the same function
-Used this in `highlightFromParam`: `this.deptFilter.set(task.department)` followed immediately by re-calling `this.pendingTasks()` in the same synchronous block correctly reflects the new value. No `tick()`/`setTimeout` needed. Confirmed via live testing.
+### `display:flex` children do not inherit an ancestor's `text-align` centering
+A flex container is a block box — setting `text-align:center` on a parent centers inline/text content but does **not** center a `display:flex` child as a whole; you need explicit `justify-content:center` on the flex container itself. Caused the new Reassign dropdown+button row to render left-aligned under an otherwise-centered technician name until fixed explicitly.
 
 ## TypeScript / build status
 
-`npx tsc --noEmit` — 0 errors (last run this session, after all fixes including the scrutinize round)
-`npm start` (`ng serve --port 4300`) — builds and hot-reloads clean; final rebuild produced `pm-assign-component` chunk at 183.69 kB with no errors
+`npx tsc --noEmit` (frontend) — 0 errors, last run this session after the translation fix.
+No backend changes this session — backend untouched, docs only.

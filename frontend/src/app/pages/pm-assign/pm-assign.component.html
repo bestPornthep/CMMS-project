@@ -150,9 +150,9 @@
               <th>{{ 'Asset' }}</th>
               <th>{{ 'Type' }}</th>
               <th>{{ 'Created By' }}</th>
-              <th>{{ 'Due Date' }}</th>
               <th>{{ 'Assigned To' }}</th>
               <th>{{ 'Time Stamp' }}</th>
+              <th>{{ 'Action' }}</th>
             </tr>
           </thead>
           <tbody>
@@ -174,11 +174,27 @@
                 </span>
               </td>
               <td style="color:var(--text-secondary);font-weight:500;font-size:12px;">{{ getCreatorName(task.createdBy) }}</td>
-              <td style="color:var(--text-secondary);font-weight:500;font-size:12px;">{{ task.nextDueDate | date: (task.frequency.includes('hour') ? 'MMM d, yyyy, h:mm a' : 'MMM d, yyyy') }}</td>
               <td>
                 <div style="font-weight:600;color:var(--text-primary);">{{ getTechName(task.assignedTo) }}</div>
+                <div *ngIf="canReassign(task)" style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:6px;">
+                  <div class="c-dropdown form-dropdown" [class.open]="reassignDropdownOpen[task.id]" (click)="toggleReassignDropdown(task.id, $event)" style="width:120px;">
+                    <div class="c-dropdown-trigger" style="height:28px; width:100%; display:flex; align-items:center; padding:4px 8px;">
+                      <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:85px; display:inline-block; text-align:left; font-size:11px;">{{ reassignSelectedTech[task.id] ? getTechName(reassignSelectedTech[task.id]) : ('Reassign...' | tr) }}</span>
+                      <span class="material-symbols-outlined" style="margin-left:auto; flex-shrink:0; font-size:16px;">expand_more</span>
+                    </div>
+                    <div class="c-dropdown-menu" *ngIf="reassignDropdownOpen[task.id]">
+                      <div class="c-dropdown-item" (click)="reassignSelectedTech[task.id] = ''">{{ 'Select Tech...' | tr }}</div>
+                      <div class="c-dropdown-item" *ngFor="let tech of getReassignTechnicians(task)" (click)="reassignSelectedTech[task.id] = tech.employeeId!">{{ getTechNameWithWorkload(tech.employeeId, getWindowDays(task.frequency)) }}</div>
+                    </div>
+                  </div>
+                  <button class="btn btn-ghost" style="padding:2px 8px;font-size:11px; height:28px;" (click)="openReassignModal(task)">{{ 'Confirm' | tr }}</button>
+                </div>
               </td>
               <td style="color:var(--text-muted);font-size:12px;">{{ (task.assignedAt || task.createdAt) | date:'MMM d, y, h:mm a' }}</td>
+              <td>
+                <span *ngIf="task.reassignCount" class="badge badge-info">{{ 'Reassign' | tr }} #{{ task.reassignCount }}</span>
+                <span *ngIf="!task.reassignCount" style="color:var(--text-muted);">&mdash;</span>
+              </td>
             </tr>
             <tr *ngIf="assignedTasks().length === 0">
               <td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted);">
@@ -338,6 +354,25 @@
     <div style="display:flex;gap:8px; margin-top:24px;">
       <button class="btn btn-primary" style="flex:1; justify-content:center;" (click)="confirmBulkAssign()">{{ 'Confirm' }}</button>
       <button class="btn btn-ghost" style="flex:1; justify-content:center;" (click)="showBulkModal.set(false)">{{ 'Cancel' }}</button>
+    </div>
+  </div>
+
+  <!-- REASSIGN CONFIRMATION MODAL -->
+  <div class="modal-overlay" [class.open]="!!taskPendingReassign()"></div>
+  <div class="template-modal" [class.open]="!!taskPendingReassign()">
+    <div class="modal-header">
+      <div>
+        <h2 class="modal-title">{{ 'Confirm Reassignment' | tr }}</h2>
+        <p class="modal-sub" *ngIf="taskPendingReassign()">
+          {{ 'You are reassigning' | tr }} <strong style="color:var(--text-primary);">{{ taskPendingReassign()!.id }}</strong>
+          {{ 'from' | tr }} <strong style="color:var(--text-primary);">{{ getTechName(taskPendingReassign()!.assignedTo) }}</strong>
+          {{ 'to' | tr }} <strong style="color:var(--text-primary);">{{ getTechName(reassignSelectedTech[taskPendingReassign()!.id]) }}</strong>.
+        </p>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px; margin-top:24px;">
+      <button class="btn btn-primary" style="flex:1; justify-content:center;" (click)="confirmReassign()">{{ 'Confirm' | tr }}</button>
+      <button class="btn btn-ghost" style="flex:1; justify-content:center;" (click)="cancelReassign()">{{ 'Cancel' | tr }}</button>
     </div>
   </div>
 
