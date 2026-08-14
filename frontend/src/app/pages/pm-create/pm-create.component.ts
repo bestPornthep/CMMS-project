@@ -62,10 +62,10 @@ export class PmCreateComponent {
   }
 
   // Dynamic Lists
-  checklist = signal<{ text: string, requiresPhoto: boolean }[]>([
-    { text: 'Inspect bearing assembly', requiresPhoto: false },
-    { text: 'Check lubrication levels', requiresPhoto: false },
-    { text: 'Test pressure relief valve', requiresPhoto: false }
+  checklist = signal<{ text: string, requiresPhoto: boolean, requiresValue: boolean }[]>([
+    { text: 'Inspect bearing assembly', requiresPhoto: false, requiresValue: false },
+    { text: 'Check lubrication levels', requiresPhoto: false, requiresValue: false },
+    { text: 'Test pressure relief valve', requiresPhoto: false, requiresValue: false }
   ]);
   newChecklistItem = '';
 
@@ -207,7 +207,7 @@ export class PmCreateComponent {
   // Checklist Methods
   addChecklistItem() {
     if (this.newChecklistItem.trim()) {
-      this.checklist.update(list => [...list, { text: this.newChecklistItem.trim(), requiresPhoto: false }]);
+      this.checklist.update(list => [...list, { text: this.newChecklistItem.trim(), requiresPhoto: false, requiresValue: false }]);
       this.newChecklistItem = '';
     }
   }
@@ -228,6 +228,14 @@ export class PmCreateComponent {
     this.checklist.update(list => {
       const newList = [...list];
       newList[index] = { ...newList[index], requiresPhoto: !newList[index].requiresPhoto };
+      return newList;
+    });
+  }
+
+  toggleValueRequirement(index: number) {
+    this.checklist.update(list => {
+      const newList = [...list];
+      newList[index] = { ...newList[index], requiresValue: !newList[index].requiresValue };
       return newList;
     });
   }
@@ -256,8 +264,8 @@ export class PmCreateComponent {
   loadTemplate(tpl: Template) {
     this.loadedTemplateId = tpl.id || null;
     this.loadedTemplateName = tpl.name;
-    // Make sure we have proper boolean for requiresPhoto when loading
-    const mapped = tpl.checklist.map(item => ({ text: item.text, requiresPhoto: !!item.requiresPhoto }));
+    // Make sure we have proper boolean for requiresPhoto/requiresValue when loading
+    const mapped = tpl.checklist.map(item => ({ text: item.text, requiresPhoto: !!item.requiresPhoto, requiresValue: !!item.requiresValue }));
     this.checklist.set([...mapped]);
     this.dropdownOpen = false;
   }
@@ -391,7 +399,7 @@ export class PmCreateComponent {
           department: this.department,
           startDate: nextDueDate,
           estimatedHours: this.estimatedHours,
-          checklist: this.checklist().map(item => ({ text: item.text, requiresPhoto: item.requiresPhoto })),
+          checklist: this.checklist().map(item => ({ text: item.text, requiresPhoto: item.requiresPhoto, requiresValue: item.requiresValue })),
           partsRequired: [...this.parts()],
           assignedTo: undefined,
           createdBy: this.authService.currentUser()?.employeeId
@@ -409,7 +417,7 @@ export class PmCreateComponent {
             estimatedHours: this.estimatedHours,
             status: 'Pending' as PMTaskStatus,
             createdBy: this.authService.currentUser()?.employeeId,
-            checklist: this.checklist().map(item => ({ text: item.text, done: false, requiresPhoto: item.requiresPhoto })),
+            checklist: this.checklist().map(item => ({ text: item.text, done: false, requiresPhoto: item.requiresPhoto, requiresValue: item.requiresValue })),
             partsRequired: [...this.parts()]
           });
         } catch (inner) {

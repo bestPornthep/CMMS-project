@@ -57,6 +57,11 @@ export const routes: Routes = [
         path: 'pm-audit',
         loadComponent: () => import('./pages/pm-audit/pm-audit.component').then(m => m.PmAuditComponent),
         data: { permission: 'pm.audit.view', section: 'Administration', title: 'Audit Log' }
+      },
+      {
+        path: 'profile-config',
+        loadComponent: () => import('./pages/profile-config/profile-config.component').then(m => m.ProfileConfigComponent),
+        data: { permission: 'pm.users.manage', section: 'Administration', title: 'Profile Config' }
       }
     ]
   },

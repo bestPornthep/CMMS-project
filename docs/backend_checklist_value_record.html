@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AssetIntel CMMS — Checklist "Require Value" — Backend Requirements</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #161923; --border: #2a2f3d; --text: #e6e8ef;
+    --muted: #9aa2b1; --accent: #5b8cff; --good: #3ddc97; --bad: #ff6b6b; --warn: #ffb84d;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 40px; line-height: 1.6; }
+  .wrap { max-width: 1000px; margin: 0 auto; }
+  h1 { font-size: 28px; margin-bottom: 4px; }
+  .subtitle { color: var(--muted); margin-bottom: 32px; }
+  h2 { border-bottom: 2px solid var(--border); padding-bottom: 8px; margin-top: 48px; color: var(--accent); }
+  h4 { margin-top: 18px; color: var(--muted); font-size: 14px; text-transform: uppercase; letter-spacing: .03em; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin: 16px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  th, td { border: 1px solid var(--border); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: #1d212c; color: var(--muted); }
+  code { background: #1d212c; padding: 2px 6px; border-radius: 4px; font-size: 13px; color: #f0ad4e; }
+  pre { background: #1d212c; padding: 14px; border-radius: 8px; overflow-x: auto; border: 1px solid var(--border); font-size: 13px; }
+  pre code { background: none; padding: 0; color: #d7dce6; }
+  ul { padding-left: 22px; }
+  .note { color: var(--muted); font-size: 13px; }
+  .warn-box { background: rgba(255,184,77,.1); border: 1px solid var(--warn); border-radius: 10px; padding: 16px 20px; margin: 16px 0; }
+  .good-box { background: rgba(61,220,151,.1); border: 1px solid var(--good); border-radius: 10px; padding: 16px 20px; margin: 16px 0; }
+  .toc { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px 24px; }
+  .toc a { color: var(--accent); text-decoration: none; }
+  .toc li { margin: 4px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Checklist "Require Value" — Backend Requirements</h1>
+  <div class="subtitle">New checklist item flag: technician must type a free-text value (e.g. a reading) before submitting. Frontend is fully implemented; one small backend DTO gap remains.</div>
+
+  <div class="toc">
+    <ul>
+      <li><a href="#rule">1. What changed on the frontend (already shipped)</a></li>
+      <li><a href="#gap">2. The one backend gap: <code>POST /api/v1/pm-tasks</code></a></li>
+      <li><a href="#noop">3. Everything else needs no backend change</a></li>
+    </ul>
+  </div>
+
+  <h2 id="rule">1. What changed on the frontend (already shipped)</h2>
+  <div class="card">
+    <p>Checklist items now support an independent <code>requiresValue</code> flag alongside the existing <code>requiresPhoto</code> flag, configurable in both the Template builder and PM Create's checklist editor. When set, the technician sees a free-text input in PM Record and must fill it in (stored as <code>checklist[].value</code>) before the record can be submitted — enforced client-side same as the existing missing-photo check. Recorded values also render in the PM Reports export grid in place of the "√" mark.</p>
+    <p class="note">No range/type validation — plain free text, by design (technician may need to write "N/A" or a note instead of a strict number).</p>
+  </div>
+
+  <h2 id="gap">2. The one backend gap: <span style="font-family:monospace;">POST /api/v1/pm-tasks</span></h2>
+  <div class="card">
+    <p>File: <code>backend/src/dto/create-pm-task.dto.ts</code>. This is the <strong>only</strong> endpoint in the checklist's path that validates against a strict, whitelisted DTO (global <code>ValidationPipe({ whitelist: true })</code> in <code>main.ts</code> strips any property not declared on the DTO class). <code>ChecklistItemDto</code> currently only declares <code>text</code> and <code>requiresPhoto</code>:</p>
+    <pre><code>class ChecklistItemDto {
+  @IsString() @IsNotEmpty() text: string;
+  @IsOptional() @IsBoolean() requiresPhoto?: boolean;
+  // requiresValue is silently stripped here today
+}</code></pre>
+    <p>Without adding the field below, creating a <strong>one-time</strong> PM task (not a recurring schedule) whose checklist has a <code>requiresValue: true</code> item will silently lose that flag on save.</p>
+    <h4>Required change</h4>
+    <pre><code>class ChecklistItemDto {
+  @IsString() @IsNotEmpty() text: string;
+  @IsOptional() @IsBoolean() requiresPhoto?: boolean;
+  @IsOptional() @IsBoolean() requiresValue?: boolean;  // add this
+}</code></pre>
+  </div>
+
+  <h2 id="noop">3. Everything else needs no backend change</h2>
+  <div class="card">
+    <ul>
+      <li><code>POST /api/v1/pm-tasks/schedule</code> (recurring) and <code>POST /api/v1/templates</code> both take <code>@Body() body: any</code> with no DTO — arbitrary checklist item shapes already pass through untouched.</li>
+      <li><code>PUT /api/v1/pm-tasks/:id</code> (technician record submission, storing <code>done</code>/<code>value</code>/<code>photoUrl</code>) also takes <code>@Body() body: any</code> — no change needed there either.</li>
+      <li>No schema change — <code>checklist</code> is stored as a JSON string column already.</li>
+    </ul>
+  </div>
+
+</div>
+</body>
+</html>

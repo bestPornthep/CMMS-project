@@ -223,7 +223,11 @@ export class PmReportsComponent implements OnInit {
         if (!d.marks.has(item.text)) {
           d.marks.set(item.text, {});
         }
-        if (item.done) {
+        if (item.requiresValue) {
+          if (item.value) {
+            d.marks.get(item.text)![month] = item.value;
+          }
+        } else if (item.done) {
           d.marks.get(item.text)![month] = '√';
         }
       }

@@ -13,7 +13,7 @@ export interface Template {
   name: string;
   department: string;
   isDefault?: boolean;
-  checklist: { text: string; requiresPhoto?: boolean }[];
+  checklist: { text: string; requiresPhoto?: boolean; requiresValue?: boolean }[];
   createdBy?: string;
 }
 
@@ -27,7 +27,7 @@ export interface PMSchedule {
   department?: string;
   startDate?: Date; // exact due date of the first occurrence; later ones are startDate + N×frequency
   estimatedHours: number;
-  checklist?: { text: string; requiresPhoto?: boolean }[];
+  checklist?: { text: string; requiresPhoto?: boolean; requiresValue?: boolean }[];
   partsRequired?: string[];
   assignedTo?: string;
   createdBy?: string;
@@ -49,7 +49,7 @@ export interface PMTask {
 
   productId?: string;
   department?: string;
-  checklist?: { text: string; done: boolean; requiresPhoto?: boolean; photoUrl?: string }[];
+  checklist?: { text: string; done: boolean; requiresPhoto?: boolean; photoUrl?: string; requiresValue?: boolean; value?: string }[];
   partsRequired?: string[];
 
   // Execution details
@@ -91,6 +91,19 @@ export interface User {
   department: string;
   ownedProducts: string[];
   delegatedProducts: DelegatedProduct[];
+  permissions: string[];
+  isActive?: boolean; // defaults to true when absent (pre-existing users, backend not yet sending this field)
+}
+
+export interface NewUserPayload {
+  employeeId: string;
+  name: string;
+  initials: string;
+  baseRole: Role;
+  roleLabel: string;
+  department: string;
+  password: string;
+  ownedProducts: string[];
   permissions: string[];
 }
 

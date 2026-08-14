@@ -210,6 +210,11 @@
           <div style="display:flex;flex-direction:column;gap:0;">
             <div class="checklist-item" *ngFor="let item of checklist(); let i = index" style="display:flex; align-items:center; gap:4px;">
               <input type="text" name="item_{{i}}" [ngModel]="item.text" (ngModelChange)="updateChecklistItem(i, $event)" style="flex:1;"/>
+              <button class="value-req-btn" (click)="toggleValueRequirement(i)"
+                      [class.active]="item.requiresValue"
+                      [title]="'Require Value Record' | tr">
+                <span class="material-symbols-outlined" [style.font-variation-settings]="item.requiresValue ? '\'FILL\' 1' : '\'FILL\' 0'">edit_note</span>
+              </button>
               <button class="photo-req-btn" (click)="togglePhotoRequirement(i)" 
                       [class.active]="item.requiresPhoto"
                       title="Require Photo Evidence">

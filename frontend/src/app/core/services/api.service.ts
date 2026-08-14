@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
-import { Asset, AuditLog, PMTask, Template, User } from '../models/pm.model';
+import { Asset, AuditLog, NewUserPayload, PMTask, Template, User } from '../models/pm.model';
 import { environment } from '../../../environments/environment';
 
 @Injectable({ providedIn: 'root' })
@@ -88,6 +88,10 @@ export class ApiService {
 
   updateUser(id: string, patch: Partial<User & { password?: string }>): Promise<User> {
     return firstValueFrom(this.http.patch<User>(`${this.baseUrl}/users/${id}`, patch));
+  }
+
+  createUser(payload: NewUserPayload): Promise<User> {
+    return firstValueFrom(this.http.post<User>(`${this.baseUrl}/users`, payload));
   }
 
   getAuditLogs(userId: string, role: string, department?: string): Promise<AuditLog[]> {

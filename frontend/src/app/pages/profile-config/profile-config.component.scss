@@ -1,0 +1,111 @@
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.data-table th {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 10px 16px;
+  text-align: center;
+  border-bottom: 1px solid var(--color-border);
+}
+.data-table td {
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--color-border-soft);
+  vertical-align: middle;
+  font-size: 13px;
+  text-align: center;
+  color: var(--color-text-primary);
+}
+.data-table tr:last-child td {
+  border-bottom: none;
+}
+
+.ms-checkbox {
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--color-border-strong);
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--color-bg-page);
+  transition: background 0.15s ease, border-color 0.15s ease;
+
+  .material-symbols-outlined {
+    font-size: 12px;
+    color: white;
+  }
+
+  &.checked {
+    background: var(--color-blue-DEFAULT);
+    border-color: var(--color-blue-DEFAULT);
+  }
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Forms Custom Dropdown — same pattern as pm-create's department/product pickers */
+.c-dropdown { position: relative; width: 190px; font-family: var(--font-sans); }
+.c-dropdown.form-dropdown { width: 100%; }
+.c-dropdown-trigger {
+  display: flex; align-items: center; justify-content: space-between; width: 100%; height: 32px;
+  padding: 6px 10px; background: var(--color-bg-card); border: 1px solid var(--color-border);
+  border-radius: var(--radius-md); font-size: 12.5px; font-weight: 500; color: var(--color-text-primary);
+  cursor: pointer; user-select: none;
+  transition: background var(--duration-base) var(--ease-out), border-color var(--duration-base) var(--ease-out), box-shadow var(--duration-base) var(--ease-out);
+}
+.c-dropdown-trigger:hover { border-color: var(--color-border-strong); background: var(--color-bg-card-alt); }
+.c-dropdown.open .c-dropdown-trigger { border-color: var(--color-blue-DEFAULT); box-shadow: 0 0 0 3px rgba(26,86,219,0.08); background: var(--color-bg-card); }
+.c-dropdown-trigger .material-symbols-outlined { font-size: 16px; color: var(--color-text-muted); transition: transform 0.4s var(--ease-out); }
+.c-dropdown.open .c-dropdown-trigger .material-symbols-outlined { transform: rotate(180deg); color: var(--color-blue-DEFAULT); }
+.c-dropdown-menu {
+  position: absolute; top: calc(100% + 6px); left: 0; width: 100%; max-height: 240px; overflow-y: auto;
+  background: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: var(--radius-md);
+  box-shadow: 0 10px 30px rgba(12,21,35,0.15); z-index: 20; opacity: 0; pointer-events: none;
+  transform: scale(0.98) translateY(-4px);
+  transition: opacity var(--duration-base) var(--ease-out), transform var(--duration-base) var(--ease-out);
+}
+.c-dropdown.open .c-dropdown-menu { opacity: 1; pointer-events: auto; transform: scale(1) translateY(0); }
+.c-dropdown-item { padding: 8px 12px; font-size: 12.5px; font-weight: 500; color: var(--color-text-primary); cursor: pointer; }
+.c-dropdown-item:hover { background: var(--color-bg-card-alt); }
+
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(12, 21, 35, 0.45);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-base) var(--ease-out);
+}
+.modal-overlay.open { opacity: 1; pointer-events: auto; }
+
+.template-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.95);
+  z-index: 1001;
+  background: var(--color-bg-card);
+  border-radius: var(--radius-xl);
+  padding: 28px 32px;
+  opacity: 0;
+  pointer-events: none;
+  box-shadow: 0 10px 40px rgba(12, 21, 35, 0.2);
+  transition: opacity var(--duration-base) var(--ease-out), transform var(--duration-base) var(--ease-out);
+}
+.template-modal.open { opacity: 1; pointer-events: auto; transform: translate(-50%, -50%) scale(1); }
+.template-modal .modal-header { margin-bottom: 20px; }
+.template-modal .modal-title { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -0.5px; color: var(--color-text-primary); }
+.template-modal .modal-sub { font-size: 12.5px; color: var(--color-text-muted); margin: 4px 0 0; }
+

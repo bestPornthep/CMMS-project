@@ -58,6 +58,11 @@
         <span class="material-symbols-outlined">history</span>
         <span>Audit Log</span>
       </a>
+
+      <a class="pm-subitem" routerLink="/profile-config" routerLinkActive="active" *ngIf="hasPermission('pm.users.manage')">
+        <span class="material-symbols-outlined">manage_accounts</span>
+        <span>{{ 'Profile Config' | tr }}</span>
+      </a>
     </nav>
 
     <div class="sidebar-footer">
@@ -127,15 +132,6 @@
           </button>
           
           <div class="dropdown-menu" *ngIf="settingsOpen" style="position: absolute; right: 0; top: 100%; margin-top: 8px; width: 200px; background: var(--color-bg-card); box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 8px; border: 1px solid var(--color-border-soft); z-index: 1000; overflow: hidden; padding: 8px 0;">
-             <div style="padding: 10px 16px; display: flex; align-items: center; gap: 10px; cursor: pointer; color: var(--color-text-primary);" onmouseover="this.style.background='var(--color-bg-hover)'" onmouseout="this.style.background='transparent'">
-                <span class="material-symbols-outlined" style="font-size: 20px; color: var(--color-text-secondary);">person</span>
-                <span style="font-size: 14px; font-weight: 500;">Profile</span>
-             </div>
-             <div style="padding: 10px 16px; display: flex; align-items: center; gap: 10px; cursor: pointer; color: var(--color-text-primary);" onmouseover="this.style.background='var(--color-bg-hover)'" onmouseout="this.style.background='transparent'">
-                <span class="material-symbols-outlined" style="font-size: 20px; color: var(--color-text-secondary);">tune</span>
-                <span style="font-size: 14px; font-weight: 500;">Preferences</span>
-             </div>
-             <div style="height: 1px; background: var(--color-border-soft); margin: 8px 0;"></div>
              <div style="padding: 10px 16px; display: flex; align-items: center; gap: 10px; cursor: pointer; color: var(--color-error-mid);" onmouseover="this.style.background='var(--color-bg-hover)'" onmouseout="this.style.background='transparent'" (click)="logout()">
                 <span class="material-symbols-outlined" style="font-size: 20px;">logout</span>
                 <span style="font-size: 14px; font-weight: 600;">Sign out</span>
@@ -250,6 +246,9 @@
               </div>
               <div style="flex:1;">
                 <span class="checkbox-label" [class.done]="item.done">{{ item.text }}</span>
+                <div *ngIf="item.value" style="margin-top: 4px; font-size: 12.5px; color: var(--color-text-secondary);">
+                  {{ 'Recorded value' | tr }}: <strong style="color: var(--color-text-primary);">{{ item.value }}</strong>
+                </div>
                 <div *ngIf="item.photoUrl" style="margin-top: 8px;">
                   <img [src]="item.photoUrl" alt="Evidence"
                     style="max-width: 100px; max-height: 100px; border-radius: 4px; border: 1px solid var(--color-border-soft); display: block;" />
