@@ -238,6 +238,7 @@ const THAI_TRANSLATIONS: Record<string, string> = {
   'Yearly': 'รายปี',
   'Custom': 'กำหนดเอง',
   'Custom Duration': 'ระยะเวลากำหนดเอง',
+  'Start date cannot be in the past.': 'วันที่เริ่มต้นต้องไม่เป็นวันในอดีต',
   'hour(s)': 'ชั่วโมง',
   'day(s)': 'วัน',
   'month(s)': 'เดือน',

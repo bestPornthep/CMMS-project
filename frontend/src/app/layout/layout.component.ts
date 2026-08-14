@@ -231,9 +231,9 @@ export class LayoutComponent {
           // always routes there regardless of role since that's where approval happens.
           this.router.navigate(['/pm-record'], { queryParams: { task: task.id } });
         } else {
-          // Pending / In Progress / Overdue — send to Assign PM and highlight the
-          // row there so the user can see at a glance whether it's assigned or not.
-          this.router.navigate(['/pm-assign'], { queryParams: { task: task.id } });
+          // Pending / In Progress / Overdue — show details/assign in the shared
+          // modal, same as clicking the task in the calendar grid.
+          this.pmService.viewedTaskGlobal.set(task);
         }
       } else {
         this.toast.warning(notFoundMsg);

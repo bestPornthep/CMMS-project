@@ -25,6 +25,7 @@ export interface PMSchedule {
   assetId: string;
   productId?: string;
   department?: string;
+  startDate?: Date; // exact due date of the first occurrence; later ones are startDate + N×frequency
   estimatedHours: number;
   checklist?: { text: string; requiresPhoto?: boolean }[];
   partsRequired?: string[];

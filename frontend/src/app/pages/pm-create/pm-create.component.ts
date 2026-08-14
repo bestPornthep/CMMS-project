@@ -25,7 +25,12 @@ export class PmCreateComponent {
   pmType: PMTaskFrequency = 'Monthly';
   customDurationValue: number = 1;
   customDurationUnit: string = 'month(s)';
-  
+
+  // ISO yyyy-MM-dd, local-date (not UTC) so it matches the user's actual "today"
+  // regardless of timezone offset — bound directly to the native date input.
+  startDate: string = this.toIsoDate(new Date());
+  readonly minStartDate = this.startDate;
+
   isRecurring: boolean = true;
   isGenerating = signal(false);
 
@@ -47,6 +52,13 @@ export class PmCreateComponent {
     if (!this.canChangeDept && this.currentUser?.department) {
       this.department = this.currentUser.department;
     }
+  }
+
+  private toIsoDate(d: Date): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
   }
 
   // Dynamic Lists
@@ -310,6 +322,12 @@ export class PmCreateComponent {
       return;
     }
 
+    // Start date must be today or later — no backdating
+    if (!this.startDate || this.startDate < this.minStartDate) {
+      this.toast.error('Start date cannot be in the past.');
+      return;
+    }
+
     // Warn but don't block if checklist is empty
     if (this.checklist().length === 0) {
       this.toast.warning('No checklist items added — technician will have no steps to follow.');
@@ -349,26 +367,14 @@ export class PmCreateComponent {
       }
     }
 
-    const nextDueDate = new Date();
+    // First occurrence is due exactly on the chosen start date — no interval
+    // offset applied to it. Later occurrences (recurring only) are computed
+    // by the backend as startDate + N×frequency.
+    const nextDueDate = new Date(this.startDate);
     let finalFrequency = this.pmType;
 
-    switch (this.pmType) {
-      case 'Daily': nextDueDate.setDate(nextDueDate.getDate() + 1); break;
-      case 'Weekly': nextDueDate.setDate(nextDueDate.getDate() + 7); break;
-      case 'Monthly': nextDueDate.setDate(nextDueDate.getDate() + 30); break;
-      case 'Quarterly': nextDueDate.setDate(nextDueDate.getDate() + 90); break;
-      case 'Yearly': nextDueDate.setDate(nextDueDate.getDate() + 365); break;
-      case 'Custom': {
-        finalFrequency = `${this.customDurationValue} ${this.customDurationUnit}`;
-        const val = this.customDurationValue;
-        switch (this.customDurationUnit) {
-          case 'hour(s)': nextDueDate.setHours(nextDueDate.getHours() + val); break;
-          case 'day(s)': nextDueDate.setDate(nextDueDate.getDate() + val); break;
-          case 'month(s)': nextDueDate.setMonth(nextDueDate.getMonth() + val); break;
-          case 'Year(s)': nextDueDate.setFullYear(nextDueDate.getFullYear() + val); break;
-        }
-        break;
-      }
+    if (this.pmType === 'Custom') {
+      finalFrequency = `${this.customDurationValue} ${this.customDurationUnit}`;
     }
 
     this.isGenerating.set(true);
@@ -383,6 +389,7 @@ export class PmCreateComponent {
           assetId: this.assetId,
           productId: this.productId,
           department: this.department,
+          startDate: nextDueDate,
           estimatedHours: this.estimatedHours,
           checklist: this.checklist().map(item => ({ text: item.text, requiresPhoto: item.requiresPhoto })),
           partsRequired: [...this.parts()],

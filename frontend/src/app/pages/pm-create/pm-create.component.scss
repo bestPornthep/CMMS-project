@@ -171,7 +171,16 @@
     }
     
     .form-textarea{resize:vertical;min-height:90px;line-height:1.6;border-radius:var(--radius-lg);}
-    
+
+    input[type="date"].form-input {
+        cursor: pointer;
+        color-scheme: light;
+    }
+
+    :host-context([data-theme="dark"]) input[type="date"].form-input {
+        color-scheme: dark;
+    }
+
     /* Forms Custom Dropdown */
     .c-dropdown.form-dropdown { width: 100%; }
     .c-dropdown.form-dropdown .c-dropdown-trigger {
