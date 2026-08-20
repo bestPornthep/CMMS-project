@@ -1,5 +1,6 @@
-import { Controller, Get, Patch, Param, Body, Query, UseGuards, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body, Query, UseGuards, ForbiddenException, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaService } from './prisma.service';
+import { CmmsService } from './cmms.service';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { CurrentUser } from './auth/current-user.decorator';
 import * as bcrypt from 'bcrypt';
@@ -7,7 +8,10 @@ import * as bcrypt from 'bcrypt';
 @UseGuards(JwtAuthGuard)
 @Controller('api/v1/users')
 export class UsersController {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private cmms: CmmsService,
+  ) {}
 
   @Get()
   async getAll(@Query('role') role?: string, @Query('department') department?: string) {
@@ -50,6 +54,7 @@ export class UsersController {
         baseRole: u.baseRole,
         roleLabel: u.roleLabel,
         department: u.department,
+        isActive: u.isActive,
         ownedProducts: u.ownedProducts.map((op) => op.productId),
         delegatedProducts: userDelegations,
         permissions: typeof u.permissions === 'string' ? JSON.parse(u.permissions) : u.permissions,
@@ -84,6 +89,7 @@ export class UsersController {
       baseRole: u.baseRole,
       roleLabel: u.roleLabel,
       department: u.department,
+      isActive: u.isActive,
       ownedProducts: u.ownedProducts.map((op) => op.productId),
       delegatedProducts: delegations.map((d) => ({
         id: d.id,
@@ -94,6 +100,54 @@ export class UsersController {
       })),
       permissions: typeof u.permissions === 'string' ? JSON.parse(u.permissions) : u.permissions,
     };
+  }
+
+  @Post()
+  async create(@Body() body: any, @CurrentUser() actor: any) {
+    if (actor.baseRole !== 'admin') {
+      throw new ForbiddenException('Admin only');
+    }
+
+    if (!body.employeeId || !body.name || !body.password) {
+      throw new BadRequestException('employeeId, name, and password are required');
+    }
+
+    const existing = await this.prisma.user.findUnique({ where: { employeeId: body.employeeId } });
+    if (existing) {
+      throw new ConflictException(`User ${body.employeeId} already exists`);
+    }
+
+    const passwordHash = await bcrypt.hash(body.password, 10);
+
+    const created = await this.prisma.user.create({
+      data: {
+        employeeId: body.employeeId,
+        name: body.name,
+        initials: body.initials,
+        passwordHash,
+        baseRole: body.baseRole,
+        roleLabel: body.roleLabel,
+        department: body.department,
+        permissions: JSON.stringify(body.permissions || []),
+      },
+    });
+
+    if (body.ownedProducts?.length) {
+      for (const p of body.ownedProducts) {
+        await this.prisma.userOwnedProduct.create({ data: { employeeId: created.employeeId, productId: p } });
+      }
+    }
+
+    await this.cmms.logAction(
+      `Created user ${created.employeeId} (${created.roleLabel})`,
+      { id: actor.employeeId, name: actor.name },
+      { id: created.employeeId, name: created.name, isUser: true },
+      'N/A',
+      'security',
+      created.department,
+    );
+
+    return this.getOne(created.employeeId);
   }
 
   @Patch(':id')
@@ -109,6 +163,7 @@ export class UsersController {
     if (body.roleLabel !== undefined) data.roleLabel = body.roleLabel;
     if (body.department !== undefined) data.department = body.department;
     if (body.permissions !== undefined) data.permissions = JSON.stringify(body.permissions);
+    if (body.isActive !== undefined) data.isActive = body.isActive;
 
     if (body.password !== undefined && body.password !== '') {
       data.passwordHash = await bcrypt.hash(body.password, 10);

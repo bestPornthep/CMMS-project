@@ -71,6 +71,18 @@ export class CmmsService {
     throw new ForbiddenException(`Product access denied for ${productId}`);
   }
 
+  // ── Legacy Series Marker Helper ────────────────────────────────────────────
+  /**
+   * Series created before PmSchedule rows existed only carry their series id
+   * as a `[SeriesID: xxx]` marker inside `description`. Extracts it so those
+   * legacy series can still be matched by description-contains fallback.
+   */
+  extractSeriesIdFromDescription(description: string | null | undefined): string | null {
+    if (!description) return null;
+    const match = description.match(/\[SeriesID: (.+?)\]/);
+    return match ? match[1] : null;
+  }
+
   // ── Logging Helper ───────────────────────────────────────────────────────
   async logAction(
     action: string,
@@ -96,6 +108,26 @@ export class CmmsService {
   }
 
   // ── Scheduling Logic ───────────────────────────────────────────────────────
+  private getFrequencyIncrementFn(frequency: string): (d: Date) => void {
+    if (frequency === 'Daily') return (d: Date) => d.setDate(d.getDate() + 1);
+    if (frequency === 'Weekly') return (d: Date) => d.setDate(d.getDate() + 7);
+    if (frequency === 'Monthly') return (d: Date) => d.setMonth(d.getMonth() + 1);
+    if (frequency === 'Quarterly') return (d: Date) => d.setMonth(d.getMonth() + 3);
+    if (frequency === 'Yearly') return (d: Date) => d.setFullYear(d.getFullYear() + 1);
+
+    const parts = frequency.split(' ');
+    if (parts.length === 2) {
+      const val = parseInt(parts[0], 10);
+      const unit = parts[1];
+      if (unit === 'hour(s)') return (d: Date) => d.setHours(d.getHours() + val);
+      if (unit === 'day(s)') return (d: Date) => d.setDate(d.getDate() + val);
+      if (unit === 'month(s)') return (d: Date) => d.setMonth(d.getMonth() + val);
+      if (unit === 'Year(s)') return (d: Date) => d.setFullYear(d.getFullYear() + val);
+    }
+
+    return (d: Date) => d.setMonth(d.getMonth() + 1);
+  }
+
   calculateDates(frequency: string, startDate?: Date): Date[] {
     const dates: Date[] = [];
     let current = startDate ? new Date(startDate) : new Date();
@@ -103,25 +135,7 @@ export class CmmsService {
     oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
 
     const maxTasks = 365;
-
-    let addFunc = (d: Date) => d.setMonth(d.getMonth() + 1);
-
-    if (frequency === 'Daily') addFunc = (d: Date) => d.setDate(d.getDate() + 1);
-    else if (frequency === 'Weekly') addFunc = (d: Date) => d.setDate(d.getDate() + 7);
-    else if (frequency === 'Monthly') addFunc = (d: Date) => d.setMonth(d.getMonth() + 1);
-    else if (frequency === 'Quarterly') addFunc = (d: Date) => d.setMonth(d.getMonth() + 3);
-    else if (frequency === 'Yearly') addFunc = (d: Date) => d.setFullYear(d.getFullYear() + 1);
-    else {
-      const parts = frequency.split(' ');
-      if (parts.length === 2) {
-        const val = parseInt(parts[0], 10);
-        const unit = parts[1];
-        if (unit === 'hour(s)') addFunc = (d: Date) => d.setHours(d.getHours() + val);
-        else if (unit === 'day(s)') addFunc = (d: Date) => d.setDate(d.getDate() + val);
-        else if (unit === 'month(s)') addFunc = (d: Date) => d.setMonth(d.getMonth() + val);
-        else if (unit === 'Year(s)') addFunc = (d: Date) => d.setFullYear(d.getFullYear() + val);
-      }
-    }
+    const addFunc = this.getFrequencyIncrementFn(frequency);
 
     while (dates.length < maxTasks) {
       const nextDate = new Date(current);
@@ -134,6 +148,22 @@ export class CmmsService {
       current = nextDate;
     }
 
+    return dates;
+  }
+
+  /**
+   * Recalculates `count` future occurrence dates anchored off `anchor`
+   * (e.g. an approval timestamp), using the same per-frequency increment
+   * logic as calculateDates() so both paths never drift apart.
+   */
+  calculateDatesFromAnchor(frequency: string, anchor: Date, count: number): Date[] {
+    const addFunc = this.getFrequencyIncrementFn(frequency);
+    const dates: Date[] = [];
+    let current = new Date(anchor);
+    for (let i = 0; i < count; i++) {
+      addFunc(current);
+      dates.push(new Date(current));
+    }
     return dates;
   }
 }

@@ -260,7 +260,132 @@ export class PmTasksController {
       });
     }
 
+    // Rolling due dates: every time a task in a recurring series is approved,
+    // re-anchor the remaining Pending siblings' due dates off the actual
+    // approval time instead of their original fixed calendar dates. Repeats
+    // on every approval, indefinitely — independent of the reassign cascade.
+    const approvedAt = updated.approvedAt;
+    const isApproving = body.status === 'Done' && !!approvedAt && existing.status !== 'Done';
+    if (isApproving && approvedAt) {
+      const seriesWhere = existing.scheduleId
+        ? { scheduleId: existing.scheduleId, status: 'Pending' }
+        : this.cmms.extractSeriesIdFromDescription(existing.description)
+          ? { description: { contains: `[SeriesID: ${this.cmms.extractSeriesIdFromDescription(existing.description)}]` }, status: 'Pending' }
+          : null;
+
+      if (seriesWhere) {
+        const pendingSiblings = await this.prisma.pmTask.findMany({
+          where: seriesWhere,
+          orderBy: { nextDueDate: 'asc' },
+        });
+
+        if (pendingSiblings.length > 0) {
+          const newDates = this.cmms.calculateDatesFromAnchor(existing.frequency, approvedAt, pendingSiblings.length);
+          await this.prisma.$transaction(
+            pendingSiblings.map((sibling, i) =>
+              this.prisma.pmTask.update({ where: { id: sibling.id }, data: { nextDueDate: newDates[i] } }),
+            ),
+          );
+        }
+      }
+    }
+
     return this.cleanPmTask(updated);
+  }
+
+  @Put(':id/reassign')
+  async reassign(@Param('id') id: string, @Body() body: any, @CurrentUser() user: any) {
+    if (!body.assignedTo) {
+      throw new BadRequestException('assignedTo is required');
+    }
+
+    const existing = await this.prisma.pmTask.findUnique({ where: { id } });
+    if (!existing) {
+      throw new NotFoundException(`Task ${id} not found`);
+    }
+
+    // Same canAssign computation as the generic update() handler.
+    const isOwner =
+      user.baseRole === 'admin' ||
+      user.baseRole === 'manager' ||
+      user.ownedProducts.includes('*') ||
+      user.ownedProducts.includes(existing.productId);
+
+    const hasDelegatedAssign = user.baseRole === 'technician' && user.delegatedProducts?.some((dp: any) => dp.productId === existing.productId && dp.permissions.includes('pm.assign.submit'));
+
+    const canAssign =
+      user.baseRole === 'admin' ||
+      user.baseRole === 'manager' ||
+      (user.baseRole === 'engineer' && isOwner) ||
+      hasDelegatedAssign;
+
+    if (!canAssign) {
+      throw new ForbiddenException('You do not have permission to reassign this task');
+    }
+
+    if (existing.status === 'Done') {
+      throw new ForbiddenException('Cannot modify a completed task');
+    }
+    if (!['In Progress', 'Overdue'].includes(existing.status)) {
+      throw new ForbiddenException(`Cannot reassign a task in '${existing.status}' status`);
+    }
+    if (body.assignedTo === existing.assignedTo) {
+      throw new BadRequestException('Task is already assigned to this technician');
+    }
+
+    const oldAssignedTo = existing.assignedTo;
+
+    // Cascade to every other still-Pending occurrence in the same series
+    // (falls back to the legacy [SeriesID: xxx] description marker for
+    // series created before PmSchedule rows existed); standalone tasks have
+    // no series to cascade to.
+    const legacySeriesId = this.cmms.extractSeriesIdFromDescription(existing.description);
+    const seriesWhere = existing.scheduleId
+      ? { scheduleId: existing.scheduleId, status: 'Pending', id: { not: existing.id } }
+      : legacySeriesId
+        ? { description: { contains: `[SeriesID: ${legacySeriesId}]` }, status: 'Pending', id: { not: existing.id } }
+        : null;
+
+    const [updatedPrimary, cascadeCount] = await this.prisma.$transaction(async (tx) => {
+      const primary = await tx.pmTask.update({
+        where: { id: existing.id },
+        data: {
+          assignedTo: body.assignedTo,
+          assignedAt: new Date(),
+          assignedBy: user.employeeId,
+          reassignCount: { increment: 1 },
+        },
+      });
+
+      const cascade = seriesWhere
+        ? await tx.pmTask.updateMany({
+            where: seriesWhere,
+            data: { assignedTo: body.assignedTo, assignedBy: user.employeeId, reassignCount: { increment: 1 } },
+          })
+        : { count: 0 };
+
+      if (existing.scheduleId) {
+        await tx.pmSchedule.update({ where: { id: existing.scheduleId }, data: { assignedTo: body.assignedTo } }).catch(() => {});
+      }
+
+      return [primary, cascade.count];
+    });
+
+    const [oldTech, newTech] = await Promise.all([
+      oldAssignedTo ? this.prisma.user.findUnique({ where: { employeeId: oldAssignedTo } }) : null,
+      this.prisma.user.findUnique({ where: { employeeId: body.assignedTo } }),
+    ]);
+
+    await this.cmms.logAction(
+      `Reassigned ${existing.id}${cascadeCount > 0 ? ` + ${cascadeCount} future occurrence(s)` : ''} from ${oldTech?.name ?? oldAssignedTo ?? 'Unassigned'} to ${newTech?.name ?? body.assignedTo}`,
+      { id: user.employeeId, name: user.name },
+      { id: existing.id, name: existing.title, isUser: false },
+      existing.productId,
+      'data',
+      existing.department,
+    );
+
+    return this.cleanPmTask(updatedPrimary);
   }
 
   @Delete(':id')
@@ -312,7 +437,17 @@ export class PmTasksController {
     await this.cmms.checkProductOwnership(user, body.productId, 'pm.create.submit');
 
     const seriesId = `SCH-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-    const dates = this.cmms.calculateDates(body.frequency);
+
+    const startDate = body.startDate ? new Date(body.startDate) : new Date();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (startDate < today) {
+      throw new BadRequestException('Start date cannot be in the past');
+    }
+
+    // First occurrence lands exactly on the user-chosen start date; every
+    // later occurrence is startDate + N×frequency via the existing helper.
+    const dates = [startDate, ...this.cmms.calculateDates(body.frequency, startDate)];
 
     // Persist a real PmSchedule row (id = seriesId) so the nightly
     // topUpSchedules() cron can keep generating future tasks for this series

@@ -12,6 +12,10 @@ class ChecklistItemDto {
   @IsOptional()
   @IsBoolean()
   requiresPhoto?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  requiresValue?: boolean;
 }
 
 export class CreatePmTaskDto {
