@@ -1,103 +1,65 @@
-# Handoff — Session 2026-08-14 (cont'd): Profile Config (user management) page — frontend done, backend deferred. Committed + pushed.
+# Handoff — Session 2026-08-20: 6 Backend Requirements for Checklist/Photo/PM/User-Management Features
 
 ## Branch
-`feature/checklist-value-and-real-photo` — **note the name mismatch**: this branch was checked out from (and, as of this session's commit, points to the same history as) `update_feature_fullstack` at commit `f8816a5`. It had **no upstream** set (never pushed before this session) — this session added `-u origin feature/checklist-value-and-real-photo` on push. The branch name is misleading for what's actually in it now — see below.
-
-**Everything on this branch is now committed and pushed to `origin/feature/checklist-value-and-real-photo`.** The commit bundles together two unrelated bodies of work that happened to be sitting in the same working tree:
-1. This session's Profile Config feature (see below) — new, built and reviewed this session.
-2. **Pre-existing uncommitted changes from a different, earlier feature** (checklist value record + real photo upload — `pm-create`/`pm-record`/`pm-reports` component changes, `docs/backend_checklist_value_record.html`, `docs/backend_real_photo_upload.html`, deletion of `docs/pm_calendar_detail_modal_mockup.html` and `docs/pm_task_lifecycle_diagram.html`) that **this session did not author and has no context on** — found already modified/untracked in the working tree when this session ran `git status`. Committed+pushed together per explicit user decision ("commit everything as-is on this branch") rather than being investigated or split out.
-
-**Next session: if that checklist/photo-upload work is incomplete or was mid-edit, it is now committed as-is — check `git log -p` on this commit for those files specifically before assuming it's finished.**
+`update_feature_fullstack` — not merged to `main`. Fully pushed to `origin/update_feature_fullstack` (no local commits ahead, no divergence). Latest commit: `d5c633c`.
 
 ## What was done this session
 
-### 1. Global search now opens the shared PM Details modal (parity with calendar)
-- `layout.component.ts` `onSearch()`: Pending/In Progress/Overdue results (manager/engineer/admin) now open `pmService.viewedTaskGlobal` — same as clicking a task in the calendar grid — instead of navigating to `/pm-assign` with a `?task=` highlight query param.
-- Since search was the only remaining caller deep-linking into `/pm-assign` that way, the now-dead highlight mechanism was fully removed from `pm-assign.component.ts` (`highlightFromParam`, `highlightedTaskId`, `ngOnDestroy`, unused `ActivatedRoute`/`Router`/`DestroyRef` imports), `pm-assign.component.html` (`highlight-row`/row-id bindings), and `pm-assign.component.scss` (pulse-highlight keyframes).
+### Branch sync (before any feature work)
+- Frontend team had pushed 5 new commits directly to `origin/update_feature_fullstack` (calendar modal, reassign-cascade UI, rolling-due-dates design docs, PM Create start-date UI) since the last session, while local `update_feature_fullstack` also had 1 unpushed commit (`7a5d618`, the recurring-assignment fix from the prior session). Rebased local onto origin cleanly (no conflicts) — that commit is now `cb27025`.
+- Frontend also had a separate branch `feature/checklist-value-and-real-photo` (forked from an older point, `e66aeab`) containing two fully-shipped frontend features (checklist `requiresValue` free-text field, real camera-only photo capture) plus a third bundled-in WIP commit (`60de312`) with the Profile Config admin user-management page. Merged this into `update_feature_fullstack` as `aff2545` — one conflict, in `.scratch/handoff.md` only (docs, not code), resolved by keeping the merged/newer version and dropping a stale pre-existing uncommitted draft that had been sitting unstaged since a prior session.
+- Post-merge `npx tsc --noEmit` (backend + frontend) — 0 errors both, confirming the merge itself introduced no breakage before any new feature work started.
 
-### 2. New feature: PM Create — user-chosen Start Date
-Full Grill → Spec → Backend-doc → Build → Scrutinize workflow followed. Spec and scrutinize report lived under `.scratch/pm-create-start-date/` — **deleted per user request (`.scratch/` cleanup at session end), content already fully summarized here.** The backend requirements doc itself, `docs/backend_pm_create_start_date.html`, was **not** deleted — it's still in `docs/` and remains the source of truth for the backend team.
+### 6 backend features implemented, per 6 spec docs the frontend team dropped in `docs/backend_*.html`
+All committed together in `d1070c7`:
 
-Agreed behavior: user picks a Start Date on Create PM; that date becomes task #1's **exact** due date (no interval offset). Later recurring occurrences are still `startDate + N×frequency`. Applies to both Recurring and One-Time. Native `<input type="date">`, min = today, defaults to today.
+1. **`docs/backend_checklist_value_record.html`** — added `requiresValue?: boolean` to `ChecklistItemDto` in `backend/src/dto/create-pm-task.dto.ts` (was being silently stripped by the whitelist `ValidationPipe` on one-time task create).
+2. **`docs/backend_real_photo_upload.html`** — `backend/src/main.ts` now calls `app.useBodyParser('json', { limit: '10mb' })` / `useBodyParser('urlencoded', ...)` (required retyping `NestFactory.create<NestExpressApplication>` — the generic `INestApplication` type doesn't expose `useBodyParser`). Base64 checklist photos were 413ing against Express's 100kb default. The doc's deferred multipart-upload endpoint was explicitly out of scope — not built.
+3. **`docs/backend_pm_create_start_date.html`** — `createSchedule()` in `backend/src/pm-tasks.controller.ts` accepts optional `body.startDate`, rejects past dates (day-granularity, 400), and prepends it as task #1's exact due date (`dates = [startDate, ...calculateDates(frequency, startDate)]`). **Note:** this changes behavior even when `startDate` is omitted — previously `calculateDates(frequency)` with no start date returned only future occurrences (task #1 = today + 1 interval); now it always prepends the anchor date, so task #1 = today exactly, task #2 = today + 1 interval. The doc claims this is "identical to today's behavior" when omitted — it isn't quite, but this is the literal code the doc specifies, so it was implemented as written. Confirmed real via the pre-existing T4 e2e test, which had to be updated (see below).
+4. **`docs/backend_pm_reassign_api.html`** — new `PUT /pm-tasks/:id/reassign` endpoint in `pm-tasks.controller.ts`: reassigns the clicked occurrence, cascades to every other `Pending` sibling in the same series (falls back to the legacy `[SeriesID: xxx]` description-marker match for series with no `scheduleId`), and updates `PmSchedule.assignedTo` — all in one `$transaction`. Added `PmTask.reassignCount Int @default(0)` to `schema.prisma` + `backend/prisma/manual-sql/add-pm-task-reassign-count.sql`. Added a shared `extractSeriesIdFromDescription()` helper to `CmmsService` (used by both this and feature 5) since no such helper existed yet despite the docs assuming one.
+5. **`docs/backend_pm_rolling_due_dates.html`** — hooked into the existing `update()` approve path in `pm-tasks.controller.ts`: when `body.status === 'Done'` and `approvedAt` is actually set (and wasn't already `Done`), recalculates every remaining `Pending` sibling's `nextDueDate` anchored off the approval time. Extracted `getFrequencyIncrementFn()` out of `CmmsService.calculateDates()` and added `calculateDatesFromAnchor()` alongside it so both paths share the same per-frequency date math, per the doc's explicit instruction not to duplicate it.
+6. **`docs/backend_profile_config_users.html`** — `backend/src/users.controller.ts` gained `POST /users` (admin-only, 409 on duplicate `employeeId`, technician-by-default creation), and `isActive` is now accepted on `PATCH /users/:id` and returned by both `GET /users` and `GET /users/:id`. Added `User.isActive Boolean @default(true)` to `schema.prisma` + `backend/prisma/manual-sql/add-user-is-active.sql`. `backend/src/auth/auth.service.ts` `login()` now rejects deactivated accounts with 401 before even checking the password.
 
-**Frontend fully implemented:**
-- `pm.model.ts` — `PMSchedule.startDate?: Date` added.
-- `pm-create.component.ts` — new `startDate`/`minStartDate` fields (local-date ISO string, not UTC), validation rejects past dates, `nextDueDate` is now `new Date(this.startDate)` directly (no more today+interval math), `finalFrequency` logic for Custom kept as-is. Recurring path now passes `startDate` through to `pmService.addPmSchedule()`.
-- `pm-create.component.html` — new Start Date field after PM Type/Custom Duration, plus a preview-panel row.
-- `pm-create.component.scss` — dark-mode `color-scheme` toggle for the native date input, same pattern as `pm-reports.component.scss`.
-- `translation.service.ts` — added `'Start date cannot be in the past.'` (Thai). `'Start Date'` key already existed from PM Reports — reused, not duplicated (a duplicate was introduced then caught and removed after a live `npm start` build error).
+### Database migrations — applied, not just written
+Both new `manual-sql/*.sql` scripts were actually run against the live dev DB (`KETL_Tester`) via `npx prisma db execute --file <path>` (Prisma 7 CLI reads the datasource from `prisma.config.ts`, not a `--schema` flag — that flag no longer exists and will error). `npx prisma generate` was re-run after each `schema.prisma` edit so the Prisma Client picked up `reassignCount` / `isActive` before `tsc` would pass.
 
-**Backend — explicitly deferred, not implemented this session** (user's decision: handle backend separately). Fully documented in [docs/backend_pm_create_start_date.html](../docs/backend_pm_create_start_date.html):
-- `POST /pm-tasks` (one-time task): **no backend change needed**, already works end-to-end today.
-- `POST /pm-tasks/schedule` (recurring): needs to read optional `body.startDate`, validate not-in-past, and build dates as `[startDate, ...calculateDates(frequency, startDate)]` instead of `calculateDates(frequency)` alone. `calculateDates()` itself and `SchedulerService.topUpSchedules()` need zero changes.
-- Confirmed live by the user: testing the recurring flow today still shows the old today-based due date, exactly as expected until the backend change ships.
+### Testing
+- Added 16 new e2e regression tests to `backend/test/api-smoke.e2e-spec.ts`, self-contained fixtures + `afterAll` cleanup, one describe block per feature (`Profile Config user management`, `PM Task Reassignment (Series Cascade)`, `Rolling Due Dates on Approval`, plus inline tests for `requiresValue` passthrough and start-date validation in the existing `PM Tasks` block).
+- Updated one pre-existing assertion: the T4 test `POST /pm-tasks/schedule creates a PmSchedule row plus its task(s)` expected `res.body.length` to be `1` for a `6 month(s)` schedule with no `startDate`; it's now `2` per the intentional behavior change in feature 3 above.
+- Full result: **61/61 e2e tests passed** (`api-smoke`, `pm-templates`, `app` specs), backend unit tests 1/1 passed, `npx tsc --noEmit` 0 errors.
 
-### 3. Scrutinize review of the Start Date feature
-One MAJOR finding: `new Date(this.startDate)` parses a date-only string as UTC midnight, which can roll the calendar day back by one in negative-UTC-offset timezones. **User confirmed the app is Thailand-only (UTC+7), where this never manifests — explicitly decided not to fix it.** Recorded in `/memories/repo/conventions.md` so future sessions don't "fix" this pattern unprompted (same naive-parse pattern already exists in `pm-reports.component.ts`).
-Minor finding, not fixed: `minStartDate` is frozen at component construction — if the Create PM page is left open across midnight without touching the field, past-date validation compares against a stale cached "today" instead of a fresh one. Low severity, not addressed.
-
-### 4. New feature: Profile Config (admin-only user management page)
-Grilled live via `vscode_askQuestions` before building. Key decisions: separate from the existing product-scoped Delegation feature; **admin only**; every new user starts as a plain `technician`, admin picks a **Role Template** (Technician/Engineer/Manager/Admin) which sets `baseRole` + auto-grants that role's standard permission set (mirrors `AuthService.ROLE_DEFAULTS`), plus optional extra permission checkboxes on top (shown in plain English, e.g. "Assign PM Tasks to Technicians", not raw strings); page also lists/edits all existing users with Deactivate/Reactivate.
-
-**Frontend fully implemented:**
-- `pm.model.ts` — `User.isActive?: boolean`, new `NewUserPayload` interface.
-- `api.service.ts` — `createUser(payload: NewUserPayload): Promise<User>` → `POST /users`.
-- `auth.service.ts` — `ROLE_DEFAULTS` made public `readonly`; `hasPermission()` special-cases `'pm.users.manage'` → `baseRole === 'admin'` only (before the general admin/manager bypass, so Managers are excluded); new public `refreshUsers()` to refresh the cached user list after create/edit.
-- `app.routes.ts` — new route `/profile-config`, `data: { permission: 'pm.users.manage', section: 'Administration', title: 'Profile Config' }`.
-- `layout.component.html` — new sidebar link under Administration (gated by `hasPermission('pm.users.manage')`); also removed "Preferences" and then "Profile" from the topbar Settings dropdown per user request — **only "Sign out" remains there now**.
-- New page `pages/profile-config/profile-config.component.ts/.html/.scss` — users table (Employee ID/Name/Department/Role/Actions, **no Status column** per user request), Add/Edit User modal (Role Template pills, Owned Products multi-select **shown only for Engineer** — see scrutinize fix below, Permissions checklist with role-standard items locked+checked, Active toggle in edit mode).
-- Department field intentionally **never translated** (`| tr` removed from department values, both table cell and dropdown) — label "Department" itself still translates, values stay English always, per explicit user correction.
-- `translation.service.ts` — ~45 new Thai keys added, grepped for duplicates first (reused existing `'Cancel'`/`'Department'`/`'Technician'`/`'Engineer'`/`'Manager'`/`'Admin'`/`'Facility'`/`'Mechanic'`/`'Manufacturing'`/`'Maintenance'`/`'Test'`/`'Status'` rather than duplicating).
-- Two UI bugs found and fixed live: (1) the Add User modal initially had **no local `.modal-overlay`/`.template-modal` CSS** at all (these are only globally defined for the open/close *animation*, not position/size/background — every page must re-declare the base block locally, confirmed convention from `pm-create.component.scss`) — clicking "Add User" visibly did nothing until this was added; (2) Department was first built as a native `<select>`, which rendered as an unstyled/broken-looking dropdown in dark mode — the `color-scheme` CSS trick (which correctly fixes the native date input elsewhere) does **not** fix a `<select>`'s native option-list popup, since that popup's layout is OS/browser-rendered, not CSS-stylable — replaced with the app's existing custom `.c-dropdown` component instead (same pattern as `pm-create.component.ts`'s product/department pickers).
-
-**Scrutinize pass run on this feature, 3 issues found and fixed, 1 reported (backend-gated, not fixed):**
-1. **(Fixed, was a blocker)** No self-lockout guard — an admin could edit/deactivate their own account with no restriction; only one admin is seeded (`seed.ts`), so this could zero out all admins. Fixed: Edit/Deactivate buttons disabled for the row matching `authService.currentUser()?.employeeId`.
-2. **(Fixed)** `selectRoleTemplate()` unconditionally reset `formPermissions = []`, even re-clicking the *already selected* role — silently wiping previously granted extra permissions on an accidental re-click. Fixed: no-ops if `role === this.formBaseRole`.
-3. **(Fixed)** "Owned Products" picker was shown for Manager/Admin too, but `AuthService.getAccessibleProducts()` hardcodes full product access for both regardless of `ownedProducts` — the picker was silently inert for those roles. Fixed: now shown only when `formBaseRole === 'engineer'`.
-4. **(Reported, not fixed — backend-gated)** "Deactivate" currently shows a success toast but has zero real effect (backend doesn't persist/check `isActive` yet) — gives false confidence that an account is blocked. No frontend mitigation applied; purely waiting on the backend changes below.
-
-**Backend — explicitly deferred**, documented in new file [docs/backend_profile_config_users.html](../docs/backend_profile_config_users.html) (same style as the existing `backend_pm_reassign_api.html`):
-- **New column**: `cmms_users.is_active` (Boolean, default `true`) — the only schema change.
-- **New endpoint**: `POST /api/v1/users` (create) — admin-only, 409 on duplicate `employeeId`. Does not exist yet — clicking "Save" on a **new** user will currently fail until this ships. Editing existing users already works today via the existing `PATCH /users/:id`.
-- **Changed**: `PATCH /api/v1/users/:id` needs to accept `isActive`; `GET /users`/`GET /:id` need to return it.
-- **Login change**: `auth/auth.service.ts login()` must reject with 401 if `!user.isActive`, checked before password comparison.
+### Live deployment
+- Added `backend/.dockerignore` (excludes `node_modules`, `dist`, `.git`, `coverage`) — this was a known issue flagged in the prior handoff (build tarring ~530MB context, ~8 min rebuilds) and directly blocked this session's redeploy, so it was fixed now rather than deferred again. Committed separately as `d5c633c`.
+- Rebuilt (`docker compose build backend`, now much faster) and redeployed (`docker compose up -d --no-deps backend`) the live `cmms-backend` container on this host (currently at LAN IP `10.144.15.22` — **note this differs from `10.144.15.76` referenced in older docs/handoffs**; re-confirm the current IP each session, it appears to change).
+- Verified live post-deploy: login works, `GET /users` returns the new `isActive` field, container logs show `PUT /api/v1/pm-tasks/:id/reassign` registered. Sibling containers (`spare-parts-*`, `git-mirror`, `nginx-proxy`) confirmed untouched (`--no-deps` worked as intended).
 
 ## In-flight / next steps
 
-1. **Committed and pushed this session** to `origin/feature/checklist-value-and-real-photo` (see Branch section above for the branch-name/bundling caveat). Nothing left uncommitted as of end of session.
-2. **Backend must implement `POST /api/v1/users`** before "Add User" works end-to-end (currently 404/500s). Editing existing users already works.
-3. **Backend must add the `is_active` column + login check** before Deactivate/Reactivate has any real effect.
-4. Once backend ships, live-test: create a user end-to-end, deactivate + confirm login is actually blocked, reactivate + confirm login works again.
-5. **Backend work for PM Create Start Date is still pending** — hand [docs/backend_pm_create_start_date.html](../docs/backend_pm_create_start_date.html) to whoever implements the backend.
-6. **Reassign endpoint is still not implemented on the backend** (documented in `docs/backend_pm_reassign_api.html`, still pending).
-7. **Rolling Due Dates "prepare frontend" open question is still unresolved** — needs the user to clarify what concrete frontend work (if any) is wanted.
-8. **The bundled-in checklist-value-record / real-photo-upload changes need review** by whoever owns that feature — this session has no context on whether they were finished; see Branch section.
-9. No formal `/code-review` was run against a base branch this session for any of this — only `/scrutinize` passes (scoped to Start Date, and to Profile Config). Run the repo's standard self-review before merge to `main`.
+1. **No PR opened yet** for `update_feature_fullstack` → `main`. Next session should check with the user whether/when to open one — this branch now contains a large batch of both frontend and backend work across multiple sessions.
+2. **Frontend was not re-verified this session** beyond the immediate post-merge `tsc --noEmit` check — no new frontend code was touched, but the frontend team's own in-flight UI for reassign-cascade/rolling-due-dates/profile-config (already on this branch from their commits) has not been manually smoke-tested end-to-end against the newly-deployed backend endpoints. Worth a quick manual pass before considering this batch fully done.
+3. **The dedicated photo-upload endpoint** (`POST /pm-tasks/:id/checklist/:index/photo`, multipart/multer-based) described in `docs/backend_real_photo_upload.html` was explicitly marked deferred/optional in that doc and was not built — only the interim body-size-limit fix was. Revisit if/when photo storage growth becomes a real problem (base64-in-JSON-column is the doc's own stated interim tradeoff).
+4. **Two untracked HTML report files at repo root** (`backend-change-request.html`, `technician-visibility-bug.html`) are still sitting there, undecided across three sessions now (leave as-is / delete / move into `docs/`). Raise with the user directly next time rather than deferring again.
 
 ## Known issues / deferred work
 
-- **Local dev backend reachability** — not re-verified this session; carry forward the prior session's note that `environment.ts`'s hardcoded `http://10.144.15.76:3000` was unreachable from this machine. If still true, live verification of anything in this handoff is blocked until resolved.
-- **UTC midnight date-parsing pattern** (`new Date(dateOnlyString)`) — latent bug, accepted as a non-issue for this TH-only (UTC+7) deployment per user decision. Documented in `/memories/repo/conventions.md`. Do not "fix" proactively elsewhere.
-- **`minStartDate` staleness across midnight** — minor, not fixed, not requested.
-- **Frontend unit tests still cannot run in this sandbox** (`npm test` / Vitest worker timeout) — pre-existing environment limitation, recorded in `/memories/repo/build-and-test.md`.
-- **"Deactivate" on Profile Config is currently a no-op in practice** — see item 4 in the scrutinize summary above. Don't assume it works just because the button/toast exist.
-- **Owned Products picker on Profile Config only shows for Engineer** — this is intentional (Manager/Admin get all products regardless, per `getAccessibleProducts()`), not a bug if a future session notices it missing for those roles.
-- Three `docs/*.html` backend-requirement docs are now pending: `backend_pm_reassign_api.html`, `backend_pm_create_start_date.html`, and the new `backend_profile_config_users.html` — these are the durable source of truth for backend work, unlike `.scratch/` which is session-scratch and was cleared in an earlier session.
+- `PUT /templates/:id` backend endpoint still missing — required by frontend (carried from prior handoffs, not touched this session).
+- `POST /products` still does not assign creator ownership rows for all cases — not touched this session.
+- `[SeriesID: xxx]` in task descriptions remains the legacy series-matching fallback; both new features this session (reassign cascade, rolling due dates) correctly implement the same `scheduleId`-first / description-marker-fallback pattern as existing code, but the underlying migration-to-`pm-schedules`-only debt is unchanged.
+- The new `extractSeriesIdFromDescription()` helper in `CmmsService` is used by 2 of the 3 legacy-fallback call sites in `pm-tasks.controller.ts` (reassign, rolling-due-dates); the pre-existing `updateSchedule()` legacy fallback still does its own inline `description.contains` match since it already has the `seriesId` from the URL param and doesn't need extraction — this is intentional, not an oversight, but worth knowing they're not literally unified into one code path.
+- `backend/prisma/schema.prisma` is a very large generated-looking file (3000+ lines) — only the `User` and `PmTask` models were touched this session; did not audit the rest of the file for drift against the live DB.
 
-## Anti-patterns to avoid (NEW this session)
+## Anti-patterns to avoid
 
-### A modal needs its own local `.modal-overlay`/`.template-modal` CSS — the global styles.scss only handles the open/close animation
-`styles.scss` only declares `opacity`/`transform`/`pointer-events` transitions for `.open`. Actual `position: fixed; top/left: 50%; z-index; background; border-radius; padding` must be redeclared in **every page's own component `.scss`** (confirmed in `pm-create.component.scss`, `pm-assign.component.scss`). Forgetting this makes a modal exist and toggle `.open` correctly but render invisibly. Always copy the base block from an existing page when adding a new modal.
+### Prisma 7 CLI dropped `--schema` from `db execute`
+Older sessions' manual-sql scripts document `prisma db execute --file ... ` without ever showing the exact CLI invocation used. This session first tried `--schema ./prisma/schema.prisma` (matching very common Prisma docs/examples) and got a hard CLI error: `unknown or unexpected option: --schema`. In this repo's Prisma 7 setup, the datasource is read from `prisma.config.ts` automatically — just run `npx prisma db execute --file <path>` with no `--schema` flag. Check `prisma.config.ts` exists before assuming any particular CLI flag shape; don't copy flag syntax from general Prisma docs without verifying against the installed version.
 
-### Native `<select>` dropdowns can't be restyled to match this app — use the `.c-dropdown` component instead
-The app has an established custom dropdown pattern (`.c-dropdown`/`.c-dropdown-trigger`/`.c-dropdown-menu`/`.c-dropdown-item`, div-based, first built in `pm-create.component.ts`). A native `<select>` tried this session looked broken in dark mode; `color-scheme` (which correctly fixes the native date input elsewhere) does **not** fix a `<select>`'s native option-list popup — that's OS/browser-rendered, not CSS-controllable. Default to `.c-dropdown` for any new dropdown field, never a native `<select>`.
-
-### When editing/permission-granting UI lets a privileged user act on themselves, add a self-lockout guard before shipping
-Profile Config initially had no check preventing an admin from demoting or deactivating their own account. Any future "admin manages other users" UI in this app should disable self-targeting actions (or at minimum warn) by comparing the row's ID against `authService.currentUser()?.employeeId`, especially in a system where the seed data has exactly one admin account.
+### `NestFactory.create(AppModule)` return type doesn't expose Express-specific methods
+`app.useBodyParser(...)`, `app.useStaticAssets(...)`, etc. live on `NestExpressApplication`, not the generic `INestApplication` that `NestFactory.create()` returns by default. Fix is `NestFactory.create<NestExpressApplication>(AppModule)` (import `NestExpressApplication` from `@nestjs/platform-express`) — a plain type-only change, no runtime behavior difference since the underlying app is already Express-based via `@nestjs/platform-express`.
 
 ## TypeScript / build status
 
-`npx tsc --noEmit` (frontend) — 0 errors, last run at the end of this session, after the scrutinize fixes.
-`npm start` — not re-run this session; should be re-verified at the start of next session given ~45 new translation keys were added (a duplicate-key esbuild failure has happened before and `tsc --noEmit` does not catch it — grep `translation.service.ts` for exact key strings before adding new ones).
-No backend changes this session — all backend work for Profile Config is documented only, in `docs/backend_profile_config_users.html`.
-
+`npx tsc --noEmit` (backend) — 0 errors
+`npx tsc --noEmit` (frontend) — 0 errors (checked once, right after the merge; not re-checked after backend-only changes since none touch frontend code)
+Backend e2e (`npx jest --config ./test/jest-e2e.json`) — 61/61 passed
+Backend unit (`npm test`) — 1/1 passed
+Live `cmms-backend` container — rebuilt, redeployed, verified responding correctly at `10.144.15.22:3000`
