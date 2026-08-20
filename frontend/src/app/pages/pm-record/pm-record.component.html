@@ -116,7 +116,8 @@
               Checklist</div>
             <div
               style="display:flex;flex-direction:column;gap:12px; background:var(--color-bg-card-alt); padding:16px; border-radius:var(--radius-lg); border:1px solid var(--color-border-soft);">
-              <div class="checkbox-row" *ngFor="let item of getDisplayChecklist(selectedTask); let i = index"
+              <ng-container *ngFor="let item of getDisplayChecklist(selectedTask); let i = index; trackBy: trackByIndex">
+              <div class="checkbox-row"
                 (click)="toggleChecklist(i)">
                 <div style="display:flex; align-items:center; gap:12px; flex:1;">
                   <div class="checkbox-box" [class.checked]="item.done">
@@ -130,16 +131,27 @@
                 </div>
                 <div *ngIf="item.requiresPhoto" style="display:flex; align-items:center; gap:8px;"
                   (click)="$event.stopPropagation()">
-                  <button *ngIf="!item.photoUrl" class="btn btn-ghost" (click)="uploadPhoto(i, $event)"
+                  <button *ngIf="!item.photoUrl" class="btn btn-ghost" (click)="startPhotoCapture(i, $event)"
                     style="padding:4px 8px; font-size:11px; height:28px; border: 1px solid var(--color-border-strong);" [disabled]="isApprover">
-                    <span class="material-symbols-outlined" style="font-size:14px;">add_a_photo</span> Upload
+                    <span class="material-symbols-outlined" style="font-size:14px;">photo_camera</span> {{ 'Take Photo' | tr }}
                   </button>
                   <div *ngIf="item.photoUrl"
-                    style="display:flex; align-items:center; gap:4px; color:var(--success-mid); font-size:12px; font-weight:600; background: var(--success-light); padding: 4px 8px; border-radius: 4px;">
-                    <span class="material-symbols-outlined" style="font-size:16px;">image</span> {{ 'Photo Uploaded' }}
+                    style="display:flex; align-items:center; gap:6px; color:var(--success-mid); font-size:12px; font-weight:600; background: var(--success-light); padding: 4px 8px; border-radius: 4px;">
+                    <img [src]="item.photoUrl" alt="Evidence" style="width:24px; height:24px; border-radius:3px; object-fit:cover;" />
+                    {{ 'Photo Captured' | tr }}
                   </div>
+                  <button *ngIf="item.photoUrl && !isApprover" class="btn btn-ghost" (click)="startPhotoCapture(i, $event)"
+                    style="padding:4px 6px; font-size:11px; height:28px; border: 1px solid var(--color-border-strong);" [title]="'Retake' | tr">
+                    <span class="material-symbols-outlined" style="font-size:14px;">replay</span>
+                  </button>
                 </div>
               </div>
+              <div *ngIf="item.requiresValue" style="padding: 0 12px 4px 44px;" (click)="$event.stopPropagation()">
+                <input type="text" class="form-input" style="width:100%; max-width:240px;"
+                  name="value_{{i}}" [ngModel]="item.value" (ngModelChange)="updateChecklistValue(i, $event)"
+                  [placeholder]="'Enter value...' | tr" [disabled]="isApprover" />
+              </div>
+              </ng-container>
               <div *ngIf="getDisplayChecklist(selectedTask).length === 0" class="empty-state"
                 style="padding: 20px 0;">
                 No checklist items.
@@ -162,18 +174,10 @@
               [placeholder]="isApprover ? 'Approval notes or feedback...' : 'Any issues found or notes...'"></textarea>
           </div>
 
-          <!-- Too early notice -->
-          <div *ngIf="!isApprover && isTooEarly(selectedTask)"
-            style="padding:10px 14px; background:var(--color-bg-card-alt); border:1px solid var(--color-border-soft); border-radius:var(--radius-md); font-size:13px; color:var(--color-text-secondary); display:flex; align-items:center; gap:8px;">
-            <span class="material-symbols-outlined" style="font-size:18px; color:var(--color-warning, #d97706);">schedule</span>
-            This task is not due for more than 14 days. You can view it but cannot execute it yet.
-          </div>
-
           <!-- Submit Button -->
           <div style="margin-top: 10px; display: flex; gap: 10px;">
             <button class="btn btn-primary" (click)="submitRecord()"
-              style="flex: 1; justify-content:center; padding:12px; font-size:14px;"
-              [disabled]="!isApprover && isTooEarly(selectedTask)">
+              style="flex: 1; justify-content:center; padding:12px; font-size:14px;">
               <span class="material-symbols-outlined">{{ isApprover ? 'verified' : 'check_circle' }}</span> {{
               isApprover ? 'Approve PM Record' : 'Submit PM Record' }}
             </button>
@@ -296,6 +300,23 @@
     </div>
   </div>
 
+  <!-- Shared native camera-app fallback (used when getUserMedia is unavailable, e.g. mobile over HTTP) -->
+  <input type="file" accept="image/*" capture="environment" #nativePhotoInput style="display:none"
+    (change)="onPhotoSelected($event)" />
+
+  <!-- Live in-app camera capture (desktop / any secure-context browser) -->
+  <div class="camera-modal-overlay" [style.display]="cameraModalOpen ? 'flex' : 'none'"
+    style="position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:2000; flex-direction:column; align-items:center; justify-content:center; gap:16px;">
+    <video #cameraVideo autoplay playsinline muted style="max-width:90vw; max-height:70vh; border-radius:8px; background:#000;"></video>
+    <div style="display:flex; gap:12px;">
+      <button class="btn btn-primary" (click)="capturePhoto()" style="padding:12px 24px;">
+        <span class="material-symbols-outlined">photo_camera</span> {{ 'Capture' | tr }}
+      </button>
+      <button class="btn btn-ghost" (click)="closeCamera()" style="padding:12px 24px; color:white; border-color:white;">
+        {{ 'Cancel' | tr }}
+      </button>
+    </div>
+  </div>
 
 </div>
 

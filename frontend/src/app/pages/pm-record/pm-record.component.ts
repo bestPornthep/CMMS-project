@@ -1,4 +1,4 @@
-import { Component, computed, inject, OnInit, signal, DestroyRef } from '@angular/core';
+import { Component, computed, inject, OnInit, OnDestroy, signal, DestroyRef, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PmService } from '../../core/services/pm.service';
@@ -17,13 +17,20 @@ import { TranslatePipe } from '../../shared/pipes/translate.pipe';
   templateUrl: './pm-record.component.html',
   styleUrl: './pm-record.component.scss'
 })
-export class PmRecordComponent implements OnInit {
+export class PmRecordComponent implements OnInit, OnDestroy {
   private pmService = inject(PmService);
   private authService = inject(AuthService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private toast = inject(ToastService);
   private destroyRef = inject(DestroyRef);
+
+  @ViewChild('cameraVideo') cameraVideo?: ElementRef<HTMLVideoElement>;
+  @ViewChild('nativePhotoInput') nativePhotoInput?: ElementRef<HTMLInputElement>;
+
+  ngOnDestroy() {
+    this.mediaStream?.getTracks().forEach(t => t.stop());
+  }
 
   ngOnInit() {
     // Lazy load historical data, then re-check route param in case target task is a Done task
@@ -155,13 +162,6 @@ export class PmRecordComponent implements OnInit {
   get isApprover(): boolean {
     const role = this.authService.currentUser()?.baseRole;
     return role === 'engineer' || role === 'manager' || role === 'admin';
-  }
-
-  isTooEarly(task: PMTask): boolean {
-    if (!task.nextDueDate) return false;
-    const lookahead = new Date();
-    lookahead.setDate(lookahead.getDate() + 14);
-    return new Date(task.nextDueDate) > lookahead;
   }
 
   activeTab = 'action';
@@ -359,16 +359,144 @@ export class PmRecordComponent implements OnInit {
     }
   }
 
-  uploadPhoto(index: number, event: Event) {
+  // Which checklist row is currently being captured (drives both the live camera modal and the native-input fallback)
+  pendingPhotoIndex: number | null = null;
+  cameraModalOpen = false;
+  private mediaStream: MediaStream | null = null;
+
+  async startPhotoCapture(index: number, event: Event) {
     event.stopPropagation();
     if (this.isApprover) return;
+    this.pendingPhotoIndex = index;
+
+    if (navigator.mediaDevices?.getUserMedia) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' } },
+          audio: false
+        });
+        this.mediaStream = stream;
+        this.cameraModalOpen = true;
+        // Video element is always in the DOM (hidden via CSS) so the ViewChild ref is already available here.
+        if (this.cameraVideo) {
+          this.cameraVideo.nativeElement.srcObject = stream;
+        }
+        return;
+      } catch {
+        // No camera / permission denied / insecure context (e.g. HTTP on a non-localhost host) — fall back below.
+      }
+    }
+
+    this.nativePhotoInput?.nativeElement.click();
+  }
+
+  capturePhoto() {
+    const index = this.pendingPhotoIndex;
+    if (index === null || !this.cameraVideo) return;
+    const video = this.cameraVideo.nativeElement;
+
+    const dataUrl = this.drawVideoFrameToDataUrl(video);
+    if (!dataUrl) {
+      this.toast.error('Failed to process the captured photo. Please try again.');
+      return;
+    }
+    this.applyPhotoToChecklist(index, dataUrl);
+    this.closeCamera();
+  }
+
+  closeCamera() {
+    this.mediaStream?.getTracks().forEach(t => t.stop());
+    this.mediaStream = null;
+    this.cameraModalOpen = false;
+    this.pendingPhotoIndex = null;
+  }
+
+  async onPhotoSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = ''; // reset so retaking the same shot still fires a change event
+    const index = this.pendingPhotoIndex;
+    this.pendingPhotoIndex = null;
+    if (!file || this.isApprover || index === null) return;
+
+    try {
+      const dataUrl = await this.compressImageToDataUrl(file);
+      this.applyPhotoToChecklist(index, dataUrl);
+    } catch {
+      this.toast.error('Failed to process the captured photo. Please try again.');
+    }
+  }
+
+  private applyPhotoToChecklist(index: number, dataUrl: string) {
     if (this.selectedTask && this.selectedTask.checklist) {
       // C3 fix: deep copy before mutating
       const newChecklist = this.selectedTask.checklist.map((item, i) =>
-        i === index ? { ...item, photoUrl: 'assets/demo-photo.jpg', done: true } : { ...item }
+        i === index ? { ...item, photoUrl: dataUrl, done: true } : { ...item }
       );
       this.selectedTask = { ...this.selectedTask, checklist: newChecklist };
     }
+  }
+
+  private drawVideoFrameToDataUrl(video: HTMLVideoElement, maxDimension = 1280, quality = 0.7): string | null {
+    let width = video.videoWidth;
+    let height = video.videoHeight;
+    if (!width || !height) return null;
+    if (width > maxDimension || height > maxDimension) {
+      const scale = maxDimension / Math.max(width, height);
+      width = Math.round(width * scale);
+      height = Math.round(height * scale);
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.drawImage(video, 0, 0, width, height);
+    return canvas.toDataURL('image/jpeg', quality);
+  }
+
+  // Downscales the captured photo client-side (base64 inline storage - no upload endpoint exists yet)
+  private compressImageToDataUrl(file: File, maxDimension = 1280, quality = 0.7): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(reader.error);
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => reject(new Error('Failed to load captured image'));
+        img.onload = () => {
+          let { width, height } = img;
+          if (width > maxDimension || height > maxDimension) {
+            const scale = maxDimension / Math.max(width, height);
+            width = Math.round(width * scale);
+            height = Math.round(height * scale);
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) { reject(new Error('Canvas context unavailable')); return; }
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.src = reader.result as string;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  updateChecklistValue(index: number, val: string) {
+    if (this.isApprover) return;
+    if (this.selectedTask && this.selectedTask.checklist) {
+      const newChecklist = this.selectedTask.checklist.map((item, i) =>
+        i === index ? { ...item, value: val } : { ...item }
+      );
+      this.selectedTask = { ...this.selectedTask, checklist: newChecklist };
+    }
+  }
+
+  // Stable identity across re-renders so typing in one row doesn't rebuild every input and steal focus
+  trackByIndex(index: number): number {
+    return index;
   }
 
   get allChecked(): boolean {
@@ -389,6 +517,11 @@ export class PmRecordComponent implements OnInit {
       const missingPhotos = this.selectedTask.checklist?.some(item => item.requiresPhoto && !item.photoUrl);
       if (missingPhotos) {
         this.toast.warning('Please upload photographic evidence for all required checklist items.');
+        return;
+      }
+      const missingValues = this.selectedTask.checklist?.some(item => item.requiresValue && !item.value?.trim());
+      if (missingValues) {
+        this.toast.warning('Please enter a value for all required checklist items.');
         return;
       }
       if (this.actualHours <= 0 || isNaN(this.actualHours)) {
@@ -450,6 +583,7 @@ export class PmRecordComponent implements OnInit {
     const updatedChecklist = this.selectedTask.checklist ? this.selectedTask.checklist.map(item => ({
       ...item,
       photoUrl: undefined,
+      value: undefined,
       done: false
     })) : undefined;
 

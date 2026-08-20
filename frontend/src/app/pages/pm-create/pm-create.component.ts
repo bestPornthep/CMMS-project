@@ -25,7 +25,12 @@ export class PmCreateComponent {
   pmType: PMTaskFrequency = 'Monthly';
   customDurationValue: number = 1;
   customDurationUnit: string = 'month(s)';
-  
+
+  // ISO yyyy-MM-dd, local-date (not UTC) so it matches the user's actual "today"
+  // regardless of timezone offset — bound directly to the native date input.
+  startDate: string = this.toIsoDate(new Date());
+  readonly minStartDate = this.startDate;
+
   isRecurring: boolean = true;
   isGenerating = signal(false);
 
@@ -49,11 +54,18 @@ export class PmCreateComponent {
     }
   }
 
+  private toIsoDate(d: Date): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
   // Dynamic Lists
-  checklist = signal<{ text: string, requiresPhoto: boolean }[]>([
-    { text: 'Inspect bearing assembly', requiresPhoto: false },
-    { text: 'Check lubrication levels', requiresPhoto: false },
-    { text: 'Test pressure relief valve', requiresPhoto: false }
+  checklist = signal<{ text: string, requiresPhoto: boolean, requiresValue: boolean }[]>([
+    { text: 'Inspect bearing assembly', requiresPhoto: false, requiresValue: false },
+    { text: 'Check lubrication levels', requiresPhoto: false, requiresValue: false },
+    { text: 'Test pressure relief valve', requiresPhoto: false, requiresValue: false }
   ]);
   newChecklistItem = '';
 
@@ -195,7 +207,7 @@ export class PmCreateComponent {
   // Checklist Methods
   addChecklistItem() {
     if (this.newChecklistItem.trim()) {
-      this.checklist.update(list => [...list, { text: this.newChecklistItem.trim(), requiresPhoto: false }]);
+      this.checklist.update(list => [...list, { text: this.newChecklistItem.trim(), requiresPhoto: false, requiresValue: false }]);
       this.newChecklistItem = '';
     }
   }
@@ -216,6 +228,14 @@ export class PmCreateComponent {
     this.checklist.update(list => {
       const newList = [...list];
       newList[index] = { ...newList[index], requiresPhoto: !newList[index].requiresPhoto };
+      return newList;
+    });
+  }
+
+  toggleValueRequirement(index: number) {
+    this.checklist.update(list => {
+      const newList = [...list];
+      newList[index] = { ...newList[index], requiresValue: !newList[index].requiresValue };
       return newList;
     });
   }
@@ -244,8 +264,8 @@ export class PmCreateComponent {
   loadTemplate(tpl: Template) {
     this.loadedTemplateId = tpl.id || null;
     this.loadedTemplateName = tpl.name;
-    // Make sure we have proper boolean for requiresPhoto when loading
-    const mapped = tpl.checklist.map(item => ({ text: item.text, requiresPhoto: !!item.requiresPhoto }));
+    // Make sure we have proper boolean for requiresPhoto/requiresValue when loading
+    const mapped = tpl.checklist.map(item => ({ text: item.text, requiresPhoto: !!item.requiresPhoto, requiresValue: !!item.requiresValue }));
     this.checklist.set([...mapped]);
     this.dropdownOpen = false;
   }
@@ -310,6 +330,12 @@ export class PmCreateComponent {
       return;
     }
 
+    // Start date must be today or later — no backdating
+    if (!this.startDate || this.startDate < this.minStartDate) {
+      this.toast.error('Start date cannot be in the past.');
+      return;
+    }
+
     // Warn but don't block if checklist is empty
     if (this.checklist().length === 0) {
       this.toast.warning('No checklist items added — technician will have no steps to follow.');
@@ -349,26 +375,14 @@ export class PmCreateComponent {
       }
     }
 
-    const nextDueDate = new Date();
+    // First occurrence is due exactly on the chosen start date — no interval
+    // offset applied to it. Later occurrences (recurring only) are computed
+    // by the backend as startDate + N×frequency.
+    const nextDueDate = new Date(this.startDate);
     let finalFrequency = this.pmType;
 
-    switch (this.pmType) {
-      case 'Daily': nextDueDate.setDate(nextDueDate.getDate() + 1); break;
-      case 'Weekly': nextDueDate.setDate(nextDueDate.getDate() + 7); break;
-      case 'Monthly': nextDueDate.setDate(nextDueDate.getDate() + 30); break;
-      case 'Quarterly': nextDueDate.setDate(nextDueDate.getDate() + 90); break;
-      case 'Yearly': nextDueDate.setDate(nextDueDate.getDate() + 365); break;
-      case 'Custom': {
-        finalFrequency = `${this.customDurationValue} ${this.customDurationUnit}`;
-        const val = this.customDurationValue;
-        switch (this.customDurationUnit) {
-          case 'hour(s)': nextDueDate.setHours(nextDueDate.getHours() + val); break;
-          case 'day(s)': nextDueDate.setDate(nextDueDate.getDate() + val); break;
-          case 'month(s)': nextDueDate.setMonth(nextDueDate.getMonth() + val); break;
-          case 'Year(s)': nextDueDate.setFullYear(nextDueDate.getFullYear() + val); break;
-        }
-        break;
-      }
+    if (this.pmType === 'Custom') {
+      finalFrequency = `${this.customDurationValue} ${this.customDurationUnit}`;
     }
 
     this.isGenerating.set(true);
@@ -383,8 +397,9 @@ export class PmCreateComponent {
           assetId: this.assetId,
           productId: this.productId,
           department: this.department,
+          startDate: nextDueDate,
           estimatedHours: this.estimatedHours,
-          checklist: this.checklist().map(item => ({ text: item.text, requiresPhoto: item.requiresPhoto })),
+          checklist: this.checklist().map(item => ({ text: item.text, requiresPhoto: item.requiresPhoto, requiresValue: item.requiresValue })),
           partsRequired: [...this.parts()],
           assignedTo: undefined,
           createdBy: this.authService.currentUser()?.employeeId
@@ -402,7 +417,7 @@ export class PmCreateComponent {
             estimatedHours: this.estimatedHours,
             status: 'Pending' as PMTaskStatus,
             createdBy: this.authService.currentUser()?.employeeId,
-            checklist: this.checklist().map(item => ({ text: item.text, done: false, requiresPhoto: item.requiresPhoto })),
+            checklist: this.checklist().map(item => ({ text: item.text, done: false, requiresPhoto: item.requiresPhoto, requiresValue: item.requiresValue })),
             partsRequired: [...this.parts()]
           });
         } catch (inner) {

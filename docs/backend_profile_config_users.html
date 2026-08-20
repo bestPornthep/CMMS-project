@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AssetIntel CMMS — Profile Config (User Management): Backend Requirements</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #161923; --border: #2a2f3d; --text: #e6e8ef;
+    --muted: #9aa2b1; --accent: #5b8cff; --good: #3ddc97; --bad: #ff6b6b; --warn: #ffb84d;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 40px; line-height: 1.6; }
+  .wrap { max-width: 1000px; margin: 0 auto; }
+  h1 { font-size: 28px; margin-bottom: 4px; }
+  .subtitle { color: var(--muted); margin-bottom: 32px; }
+  h2 { border-bottom: 2px solid var(--border); padding-bottom: 8px; margin-top: 48px; color: var(--accent); }
+  h3 { margin-top: 24px; color: var(--text); }
+  h4 { margin-top: 18px; color: var(--muted); font-size: 14px; text-transform: uppercase; letter-spacing: .03em; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin: 16px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  th, td { border: 1px solid var(--border); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: #1d212c; color: var(--muted); }
+  code { background: #1d212c; padding: 2px 6px; border-radius: 4px; font-size: 13px; color: #f0ad4e; }
+  pre { background: #1d212c; padding: 14px; border-radius: 8px; overflow-x: auto; border: 1px solid var(--border); font-size: 13px; }
+  pre code { background: none; padding: 0; color: #d7dce6; }
+  ul { padding-left: 22px; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 700; text-transform: uppercase; padding: 3px 10px; border-radius: 999px; margin-left: 6px; }
+  .tag.get { background: rgba(91,140,255,.15); color: var(--accent); border: 1px solid rgba(91,140,255,.4); }
+  .tag.post { background: rgba(61,220,151,.15); color: var(--good); border: 1px solid rgba(61,220,151,.4); }
+  .tag.patch { background: rgba(255,184,77,.15); color: var(--warn); border: 1px solid rgba(255,184,77,.4); }
+  .note { color: var(--muted); font-size: 13px; }
+  .warn-box { background: rgba(255,184,77,.1); border: 1px solid var(--warn); border-radius: 10px; padding: 16px 20px; margin: 16px 0; }
+  .good-box { background: rgba(61,220,151,.1); border: 1px solid var(--good); border-radius: 10px; padding: 16px 20px; margin: 16px 0; }
+  .toc { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px 24px; }
+  .toc a { color: var(--accent); text-decoration: none; }
+  .toc li { margin: 4px 0; }
+  .endpoint-title { font-family: monospace; font-size: 15px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Profile Config (User Management) — Backend Requirements</h1>
+  <div class="subtitle">New admin-only page: create user accounts and grant permissions. Frontend is fully built against these contracts — this doc lists what the backend still needs to implement.</div>
+
+  <div class="toc">
+    <ul>
+      <li><a href="#concept">1. Concept — every user starts as a Technician</a></li>
+      <li><a href="#create">2. New Endpoint: <code>POST /api/v1/users</code></a></li>
+      <li><a href="#patch">3. Changed Endpoint: <code>PATCH /api/v1/users/:id</code> (add <code>isActive</code>)</a></li>
+      <li><a href="#get">4. Changed Endpoint: <code>GET /api/v1/users</code> (return <code>isActive</code>)</a></li>
+      <li><a href="#schema">5. Schema Change (new column)</a></li>
+      <li><a href="#login">6. Login must reject inactive users</a></li>
+      <li><a href="#permissions">7. Permission Catalog (reference)</a></li>
+      <li><a href="#notes">8. Implementation Notes / Edge Cases</a></li>
+    </ul>
+  </div>
+
+  <h2 id="concept">1. Concept</h2>
+  <div class="card">
+    <p>Admin creates a new employee account. Every new account is created as a plain <code>technician</code> with the standard technician permission set. The admin then picks a <strong>Role Template</strong> (Technician / Engineer / Manager / Admin) in the same form — this sets <code>baseRole</code> and auto-grants that role's standard permission set. Admin can also check a few extra permissions on top of the standard set (e.g. an Engineer with an extra permission, given the free-text <code>roleLabel</code> "Senior Engineer" for display purposes).</p>
+    <p class="note">No new role-level concept is introduced — still exactly the 4 existing <code>baseRole</code> values (<code>technician</code>/<code>engineer</code>/<code>manager</code>/<code>admin</code>). "Senior Engineer" etc. is just a <code>roleLabel</code> string, not a new enum value. Nothing changes about how <code>AuthService.hasPermission()</code> already interprets <code>baseRole</code> and <code>permissions</code> — see existing <code>backend/src/users.controller.ts</code> and frontend <code>auth.service.ts</code>.</p>
+  </div>
+
+  <h2 id="create">2. New Endpoint: <span class="endpoint-title">POST /api/v1/users</span> <span class="tag post">POST</span></h2>
+  <div class="card">
+    <p>File: <code>backend/src/users.controller.ts</code>. Does not exist yet — only <code>GET</code>/<code>GET :id</code>/<code>PATCH :id</code> exist today. Admin only (same guard pattern already used in <code>update()</code>: <code>if (actor.baseRole !== 'admin') throw new ForbiddenException()</code>).</p>
+
+    <h4>Request body</h4>
+    <pre><code>{
+  "employeeId": "TECH-FAC-5",
+  "name": "Somchai Jaidee",
+  "initials": "SJ",
+  "baseRole": "technician",       // 'technician' | 'engineer' | 'manager' | 'admin'
+  "roleLabel": "Technician",      // free text, admin-editable display label
+  "department": "Facility",       // one of Facility/Mechanic/Manufacturing/Maintenance/Test/All
+  "password": "plaintext-from-form",
+  "ownedProducts": [],            // string[] of product IDs, or ["*"] for all
+  "permissions": [ "pm.dashboard.view", "pm.record.view", "pm.record.submit", "pm.calendar.view" ]
+}</code></pre>
+
+    <h4>Handler logic</h4>
+    <pre><code>if (actor.baseRole !== 'admin') throw new ForbiddenException('Admin only');
+
+if (!body.employeeId || !body.name || !body.password) {
+  throw new BadRequestException('employeeId, name, and password are required');
+}
+
+const existing = await prisma.user.findUnique({ where: { employeeId: body.employeeId } });
+if (existing) {
+  throw new ConflictException(`User ${body.employeeId} already exists`);
+}
+
+const passwordHash = await bcrypt.hash(body.password, 10);
+
+const created = await prisma.user.create({
+  data: {
+    employeeId: body.employeeId,
+    name: body.name,
+    initials: body.initials,
+    passwordHash,
+    baseRole: body.baseRole,
+    roleLabel: body.roleLabel,
+    department: body.department,
+    permissions: JSON.stringify(body.permissions || []),
+    isActive: true, // see schema change below
+  },
+});
+
+if (body.ownedProducts?.length) {
+  for (const p of body.ownedProducts) {
+    await prisma.userOwnedProduct.create({ data: { employeeId: created.employeeId, productId: p } });
+  }
+}
+
+await cmms.logAction(
+  `Created user ${created.employeeId} (${created.roleLabel})`,
+  { id: actor.employeeId, name: actor.name },
+  { id: created.employeeId, name: created.name, isUser: true },
+  'N/A', 'security', created.department,
+);
+
+return this.getOne(created.employeeId); // reuse existing getOne() to shape the response consistently</code></pre>
+    <p class="note">Pseudocode — adapt to existing style/helpers already in <code>users.controller.ts</code>. Response shape should match the existing <code>GET /users/:id</code> response (same fields the frontend <code>User</code> model already expects).</p>
+  </div>
+
+  <h2 id="patch">3. Changed Endpoint: <span class="endpoint-title">PATCH /api/v1/users/:id</span> <span class="tag patch">PATCH</span></h2>
+  <div class="card">
+    <p>Already exists and already admin-gated. Just needs one more field accepted in the body handling in <code>update()</code>:</p>
+    <pre><code>if (body.isActive !== undefined) data.isActive = body.isActive;</code></pre>
+    <p>This is what powers the frontend's <strong>Deactivate / Reactivate</strong> button on the Profile Config user list — it currently calls this same endpoint with <code>{ isActive: false }</code> / <code>{ isActive: true }</code>.</p>
+  </div>
+
+  <h2 id="get">4. Changed Endpoint: <span class="endpoint-title">GET /api/v1/users</span> / <span class="endpoint-title">GET /api/v1/users/:id</span> <span class="tag get">GET</span></h2>
+  <div class="card">
+    <p>Both already exist. Just add <code>isActive: u.isActive</code> to the returned object in both <code>getAll()</code> and <code>getOne()</code> so the frontend list can show the Active/Inactive badge. No filtering needed — <strong>return all users regardless of <code>isActive</code></strong> so admin can see and reactivate deactivated accounts from the same list.</p>
+  </div>
+
+  <h2 id="schema">5. Schema Change (new column)</h2>
+  <div class="card">
+    <p>Add to <code>User</code> in <code>backend/prisma/schema.prisma</code>:</p>
+    <pre><code>isActive  Boolean  @default(true) @map("is_active")</code></pre>
+    <p>Migration: <code>ALTER TABLE cmms_users ADD is_active BIT NOT NULL DEFAULT 1;</code> — additive, backward compatible, all existing rows default to active. Follow the existing convention in <code>backend/prisma/manual-sql/</code> for a standalone script (e.g. <code>add-user-is-active.sql</code>) alongside the schema.prisma edit.</p>
+  </div>
+
+  <h2 id="login">6. Login must reject inactive users</h2>
+  <div class="card">
+    <p>File: <code>backend/src/auth/auth.service.ts</code>, <code>login()</code>. Add a check right after the user is found (before password comparison, so a deactivated account's password isn't even validated):</p>
+    <pre><code>if (!user.isActive) {
+  throw new UnauthorizedException('This account has been deactivated');
+}</code></pre>
+    <p class="note">Deactivating is a soft-delete — no rows or FK references (audit logs, PM tasks assigned to this employeeId, delegations) are removed. This preserves audit history integrity, consistent with why the frontend button is labeled "Deactivate", not "Delete".</p>
+  </div>
+
+  <h2 id="permissions">7. Permission Catalog (reference — no backend action needed)</h2>
+  <div class="card">
+    <p>The frontend's permission checkboxes send these exact string values in the <code>permissions</code> array — same strings <code>hasPermission()</code> already checks against today, just surfaced with plain-English labels in the UI. Listed here for reference only:</p>
+    <table>
+      <tr><th>Permission string</th><th>Shown to admin as</th></tr>
+      <tr><td><code>pm.dashboard.view</code></td><td>View Dashboard</td></tr>
+      <tr><td><code>pm.create.view</code></td><td>View Create PM Page</td></tr>
+      <tr><td><code>pm.create.submit</code></td><td>Create PM Tasks</td></tr>
+      <tr><td><code>pm.assign.view</code></td><td>View Assign PM Page</td></tr>
+      <tr><td><code>pm.assign.submit</code></td><td>Assign PM Tasks to Technicians</td></tr>
+      <tr><td><code>pm.record.view</code></td><td>View Record PM Page</td></tr>
+      <tr><td><code>pm.record.submit</code></td><td>Submit / Approve PM Records</td></tr>
+      <tr><td><code>pm.calendar.view</code></td><td>View PM Calendar</td></tr>
+      <tr><td><code>pm.reports.view</code></td><td>View PM Reports</td></tr>
+      <tr><td><code>pm.reports.export</code></td><td>Export PM Reports (PDF)</td></tr>
+      <tr><td><code>pm.audit.view</code></td><td>View Audit Log</td></tr>
+      <tr><td><code>pm.permission.delegate</code></td><td>Delegate Permissions to Technicians</td></tr>
+    </table>
+  </div>
+
+  <h2 id="notes">8. Implementation Notes / Edge Cases</h2>
+  <div class="card">
+    <ul>
+      <li><strong>New permission string used by the route guard: <code>pm.users.manage</code>.</strong> This is <strong>frontend-only</strong> (checked client-side in <code>AuthService.hasPermission()</code>, hardcoded to <code>baseRole === 'admin'</code>) — it does not need to exist in any backend permission list or be persisted anywhere. Flagging it only so it isn't mistaken for a missing/broken permission if it's grepped for on the backend.</li>
+      <li><strong>Employee ID uniqueness</strong> — <code>POST /users</code> must 409 on a duplicate <code>employeeId</code> (the frontend does not pre-check this before submitting).</li>
+      <li><strong>Password hashing</strong> — reuse the same <code>bcrypt.hash(password, 10)</code> pattern already used in the existing <code>PATCH /users/:id</code> handler.</li>
+      <li><strong>Owned products replace, not merge</strong> — on both create and update, treat the incoming <code>ownedProducts</code> array as the full replacement set, same as the existing <code>PATCH</code> handler already does (delete-all-then-recreate).</li>
+      <li><strong>No endpoint to hard-delete a user</strong> — intentionally not requested. Deactivate (<code>isActive: false</code>) is the only removal path, to preserve audit/PM history referential integrity.</li>
+    </ul>
+  </div>
+
+</div>
+</body>
+</html>

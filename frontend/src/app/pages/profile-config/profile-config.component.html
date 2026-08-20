@@ -1,0 +1,169 @@
+<div class="profile-config-page">
+  <div class="page-header" data-enter>
+    <div>
+      <h1 class="page-title">{{ 'Profile Config' | tr }}</h1>
+      <p class="page-sub">{{ 'Create and manage user accounts and their permissions' | tr }}</p>
+    </div>
+    <div class="header-actions">
+      <div class="topbar-search" style="background:var(--color-bg-card);">
+        <span class="material-symbols-outlined">search</span>
+        <input type="text" [placeholder]="'Search users...' | tr" (input)="updateSearch($event)" />
+      </div>
+      <button class="btn btn-primary" (click)="openCreateModal()">
+        <span class="material-symbols-outlined">person_add</span>
+        <span>{{ 'Add User' | tr }}</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="card" data-enter>
+    <div class="card-header">
+      <div class="card-title">{{ 'All Users' | tr }}</div>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>{{ 'Employee ID' | tr }}</th>
+            <th>{{ 'Name' | tr }}</th>
+            <th>{{ 'Department' | tr }}</th>
+            <th>{{ 'Role' | tr }}</th>
+            <th>{{ 'Actions' | tr }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let u of filteredUsers()">
+            <td class="mono">{{ u.employeeId }}</td>
+            <td style="font-weight:600;">{{ u.name }}</td>
+            <td>{{ u.department }}</td>
+            <td>
+              <div class="badge badge-blue">{{ u.roleLabel }}</div>
+            </td>
+            <td>
+              <div style="display:flex; gap:6px; justify-content:center;">
+                <button class="btn btn-ghost" style="padding:4px 8px; font-size:11px;" [disabled]="u.employeeId === currentUserId()" (click)="openEditModal(u)">{{ 'Edit' | tr }}</button>
+                <button class="btn btn-ghost" style="padding:4px 8px; font-size:11px;" [disabled]="u.employeeId === currentUserId()" [style.color]="u.isActive === false ? 'var(--color-success)' : 'var(--color-error-mid)'" (click)="toggleActive(u)">
+                  {{ (u.isActive === false ? 'Reactivate' : 'Deactivate') | tr }}
+                </button>
+              </div>
+            </td>
+          </tr>
+          <tr *ngIf="filteredUsers().length === 0">
+            <td colspan="5" style="text-align:center; padding:40px; color:var(--color-text-primary);">{{ 'No users found.' | tr }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Create / Edit User Modal -->
+  <div class="modal-overlay" [class.open]="modalOpen()" (click)="closeModal()"></div>
+  <div class="template-modal" [class.open]="modalOpen()" style="max-width:640px; width:95%; max-height:88vh; overflow-y:auto;">
+    <div class="modal-header">
+      <div>
+        <h2 class="modal-title">{{ (isEditing() ? 'Edit User' : 'Create User') | tr }}</h2>
+        <p class="modal-sub">{{ 'Every new user starts as a Technician. Pick a role template to grant its standard permissions.' | tr }}</p>
+      </div>
+    </div>
+
+    <div class="card-body" style="padding:0; display:flex; flex-direction:column; gap:16px;">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+        <div class="form-group">
+          <label class="form-label">{{ 'Employee ID' | tr | uppercase }}</label>
+          <input type="text" class="form-input" [(ngModel)]="formEmployeeId" [disabled]="isEditing()" placeholder="e.g. TECH-FAC-5" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">{{ 'Name' | tr | uppercase }}</label>
+          <input type="text" class="form-input" [(ngModel)]="formName" placeholder="e.g. Somchai Jaidee" />
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+        <div class="form-group">
+          <label class="form-label">{{ 'Department' | tr | uppercase }}</label>
+          <div class="c-dropdown form-dropdown" [class.open]="deptDropdownOpen" (click)="toggleDeptDropdown($event)">
+            <div class="c-dropdown-trigger">
+              <span>{{ formDepartment }}</span>
+              <span class="material-symbols-outlined">expand_more</span>
+            </div>
+            <div class="c-dropdown-menu">
+              <div class="c-dropdown-item" *ngFor="let d of departmentOptions" (click)="selectDept(d, $event)">{{ d }}</div>
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">{{ 'Role Label' | tr | uppercase }}</label>
+          <input type="text" class="form-input" [(ngModel)]="formRoleLabel" placeholder="e.g. Senior Engineer" />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">{{ (isEditing() ? 'New Password (leave blank to keep current)' : 'Password') | tr | uppercase }}</label>
+        <input type="password" class="form-input" [(ngModel)]="formPassword" placeholder="••••••••" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">{{ 'Role Template' | tr | uppercase }}</label>
+        <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:8px;">
+          <button type="button" class="btn" *ngFor="let role of roleTemplates"
+            [class.btn-primary]="formBaseRole === role" [class.btn-ghost]="formBaseRole !== role"
+            (click)="selectRoleTemplate(role)" style="justify-content:center;">
+            {{ roleLabels[role] | tr }}
+          </button>
+        </div>
+      </div>
+
+      <div class="form-group" *ngIf="formBaseRole === 'engineer'">
+        <label class="form-label">{{ 'Owned Products' | tr | uppercase }}</label>
+        <div style="display:flex; flex-wrap:wrap; gap:8px;">
+          <div class="ms-item" style="display:flex; align-items:center; gap:6px; cursor:pointer;" (click)="toggleAllOwnedProducts()">
+            <div class="ms-checkbox" [class.checked]="formOwnedProducts.length === productOptions.length">
+              <span class="material-symbols-outlined" *ngIf="formOwnedProducts.length === productOptions.length">check</span>
+            </div>
+            <span>{{ 'All Products' | tr }}</span>
+          </div>
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:6px;">
+          <div class="ms-item" style="display:flex; align-items:center; gap:6px; cursor:pointer;" *ngFor="let p of productOptions" (click)="toggleOwnedProduct(p)">
+            <div class="ms-checkbox" [class.checked]="formOwnedProducts.includes(p)">
+              <span class="material-symbols-outlined" *ngIf="formOwnedProducts.includes(p)">check</span>
+            </div>
+            <span>{{ p }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">{{ 'Permissions' | tr | uppercase }}</label>
+        <div style="display:flex; flex-direction:column; gap:8px; max-height:220px; overflow-y:auto;">
+          <div style="display:flex; align-items:center; gap:8px;" *ngFor="let perm of permissionCatalog"
+            [style.cursor]="isStandardPermission(perm.key) ? 'default' : 'pointer'"
+            [style.opacity]="isStandardPermission(perm.key) ? '0.65' : '1'"
+            (click)="togglePermission(perm.key)">
+            <div class="ms-checkbox" [class.checked]="isPermissionChecked(perm.key)">
+              <span class="material-symbols-outlined" *ngIf="isPermissionChecked(perm.key)">check</span>
+            </div>
+            <span>{{ perm.label | tr }}</span>
+            <span *ngIf="isStandardPermission(perm.key)" style="font-size:10px; color:var(--color-text-muted); background:var(--bg-muted); padding:2px 6px; border-radius:4px;">
+              {{ 'Included by role' | tr }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group" *ngIf="isEditing()">
+        <div class="ms-item" style="display:flex; align-items:center; gap:8px; cursor:pointer;" (click)="formIsActive = !formIsActive">
+          <div class="ms-checkbox" [class.checked]="formIsActive">
+            <span class="material-symbols-outlined" *ngIf="formIsActive">check</span>
+          </div>
+          <span class="form-label" style="margin:0;">{{ 'Active' | tr | uppercase }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex; gap:8px; margin-top:16px;">
+      <button class="btn btn-primary" style="flex:1; justify-content:center;" (click)="submit()" [disabled]="saving()">{{ 'Save' | tr }}</button>
+      <button class="btn btn-ghost" style="flex:1; justify-content:center;" (click)="closeModal()">{{ 'Cancel' | tr }}</button>
+    </div>
+  </div>
+</div>

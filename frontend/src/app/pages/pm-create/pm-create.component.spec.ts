@@ -52,8 +52,8 @@ describe('PmCreateComponent - Checklist', () => {
 
   it('should remove a checklist item', () => {
     component.checklist.set([
-      { text: 'Item 1', requiresPhoto: false },
-      { text: 'Item 2', requiresPhoto: false },
+      { text: 'Item 1', requiresPhoto: false, requiresValue: false },
+      { text: 'Item 2', requiresPhoto: false, requiresValue: false },
     ]);
 
     component.removeChecklistItem(0);
@@ -68,14 +68,14 @@ describe('PmCreateComponent - Checklist', () => {
 
     component.newTemplateName = 'My Test Template';
     component.department = 'Test';
-    component.checklist.set([{ text: 'Task 1', requiresPhoto: false }, { text: 'Task 2', requiresPhoto: false }]);
+    component.checklist.set([{ text: 'Task 1', requiresPhoto: false, requiresValue: false }, { text: 'Task 2', requiresPhoto: false, requiresValue: false }]);
 
     component.saveTemplate();
 
     expect(savedTemplate).toEqual({
       name: 'My Test Template',
       department: 'Test',
-      checklist: [{ text: 'Task 1', requiresPhoto: false }, { text: 'Task 2', requiresPhoto: false }]
+      checklist: [{ text: 'Task 1', requiresPhoto: false, requiresValue: false }, { text: 'Task 2', requiresPhoto: false, requiresValue: false }]
     });
   });
 
@@ -114,7 +114,7 @@ describe('PmCreateComponent - Checklist', () => {
     component.assetId = 'THC-P1-01';
     component.pmType = 'Weekly';
 
-    component.checklist.set([{ text: 'Task A', requiresPhoto: false }]);
+    component.checklist.set([{ text: 'Task A', requiresPhoto: false, requiresValue: false }]);
     component.parts.set(['Part A']);
 
     component.submitForm();

@@ -148,6 +148,11 @@
           </div>
 
           <div class="form-group">
+            <label class="form-label">{{ 'Start Date' | tr | uppercase }}</label>
+            <input type="date" class="form-input" [(ngModel)]="startDate" [min]="minStartDate" style="max-width:200px;" />
+          </div>
+
+          <div class="form-group">
             <label class="form-label">{{ 'Description' | tr | uppercase }}</label>
             <textarea class="form-textarea" [(ngModel)]="description" [placeholder]="'Describe the maintenance task…' | tr"></textarea>
           </div>
@@ -205,6 +210,11 @@
           <div style="display:flex;flex-direction:column;gap:0;">
             <div class="checklist-item" *ngFor="let item of checklist(); let i = index" style="display:flex; align-items:center; gap:4px;">
               <input type="text" name="item_{{i}}" [ngModel]="item.text" (ngModelChange)="updateChecklistItem(i, $event)" style="flex:1;"/>
+              <button class="value-req-btn" (click)="toggleValueRequirement(i)"
+                      [class.active]="item.requiresValue"
+                      [title]="'Require Value Record' | tr">
+                <span class="material-symbols-outlined" [style.font-variation-settings]="item.requiresValue ? '\'FILL\' 1' : '\'FILL\' 0'">edit_note</span>
+              </button>
               <button class="photo-req-btn" (click)="togglePhotoRequirement(i)" 
                       [class.active]="item.requiresPhoto"
                       title="Require Photo Evidence">
@@ -278,6 +288,7 @@
         <div class="preview-row"><span class="preview-label">{{ 'DEPT' | tr }}</span><span class="preview-val" [style.color]="department ? 'var(--color-text-primary)' : 'var(--color-text-muted)'">{{ department || '—' }}</span></div>
         <div class="preview-row"><span class="preview-label">{{ 'Asset' | tr }}</span><span class="preview-val" [style.color]="assetId ? 'var(--color-text-primary)' : 'var(--color-text-muted)'">{{ assetId || '—' }}</span></div>
         <div class="preview-row"><span class="preview-label">{{ 'Type' | tr }}</span><span class="preview-val">{{ pmType === 'Custom' ? customDurationValue + ' ' + (customDurationUnit | tr) : ((pmType | tr) || '—') }}</span></div>
+        <div class="preview-row"><span class="preview-label">{{ 'Start Date' | tr | uppercase }}</span><span class="preview-val">{{ startDate }}</span></div>
         <div class="preview-row"><span class="preview-label">{{ 'Tasks' | tr | uppercase }}</span><span class="preview-val">{{ checklist().length }} {{ 'items' | tr }}</span></div>
         <div class="preview-row"><span class="preview-label">{{ 'EST. TIME' | tr }}</span><span class="preview-val">{{ estimatedHours }} {{ 'hrs' | tr }}</span></div>
         <div class="preview-row"><span class="preview-label">{{ 'Parts' | tr | uppercase }}</span><span class="preview-val">{{ parts().length }} {{ 'required' | tr }}</span></div>

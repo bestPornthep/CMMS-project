@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal, HostListener, DestroyRef, OnDestroy } from '@angular/core';
+import { Component, computed, inject, signal, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { PmService } from '../../core/services/pm.service';
 import { PMTask } from '../../core/models/pm.model';
@@ -6,8 +6,6 @@ import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
 import { TranslatePipe } from '../../shared/pipes/translate.pipe';
-import { ActivatedRoute, Router } from '@angular/router';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 @Component({
   selector: 'app-pm-assign',
@@ -16,14 +14,10 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
   templateUrl: './pm-assign.component.html',
   styleUrl: './pm-assign.component.scss'
 })
-export class PmAssignComponent implements OnDestroy {
+export class PmAssignComponent {
   private pmService = inject(PmService);
   private authService = inject(AuthService);
   private toast = inject(ToastService);
-  private route = inject(ActivatedRoute);
-  private router = inject(Router);
-  private destroyRef = inject(DestroyRef);
-  private isDestroyed = false; // guards stale setTimeout callbacks from navigating after leaving this page
 
   get currentUser() { return this.authService.currentUser(); }
   get canChangeDept() {
@@ -39,17 +33,6 @@ export class PmAssignComponent implements OnDestroy {
     if (!this.canChangeDept && this.currentUser?.department) {
       this.deptFilter.set(this.currentUser.department);
     }
-
-    // Support being deep-linked (e.g. from PM Calendar or global search) with
-    // ?task=<id> — switch to whichever tab currently displays that task and
-    // highlight/scroll to it, so the user can see at a glance whether it's
-    // already assigned or still needs a technician.
-    const initialTaskId = this.route.snapshot.queryParams['task'];
-    if (initialTaskId) this.highlightFromParam(initialTaskId);
-
-    this.route.queryParams.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(params => {
-      if (params['task']) this.highlightFromParam(params['task']);
-    });
   }
 
   deptFilter = signal<string>('All');
@@ -241,77 +224,11 @@ export class PmAssignComponent implements OnDestroy {
   selectedTech: Record<string, string> = {};
   techDropdownOpen: Record<string, boolean> = {};
   activeTab: string = 'unassigned';
-  highlightedTaskId = signal<string | null>(null);
 
   // Reassign: which tech is picked per task row, and which task the confirm modal is open for
   reassignSelectedTech: Record<string, string> = {};
   reassignDropdownOpen: Record<string, boolean> = {};
   taskPendingReassign = signal<PMTask | null>(null);
-
-  ngOnDestroy() {
-    this.isDestroyed = true;
-  }
-
-  // Incremented on every highlight request so overlapping calls (e.g. two
-  // quick searches) don't let an earlier call's timers clear a later call's
-  // highlight/query-param out from under it.
-  private highlightRequestSeq = 0;
-
-  private highlightFromParam(taskId: string) {
-    const task = this.pmService.pmTasks().find(t => t.id === taskId);
-    if (!task) return;
-
-    const targetTab = task.status === 'Pending' ? 'unassigned' : 'assigned';
-    this.activeTab = targetTab;
-
-    // Recurring series only show one representative row, so the clicked
-    // occurrence may not be the row actually rendered — fall back to the
-    // representative sharing the same SeriesID.
-    const findRow = () => {
-      const rows = targetTab === 'unassigned' ? this.pendingTasks() : this.assignedTasks();
-      let row = rows.find(t => t.id === taskId);
-      if (!row) {
-        const seriesMatch = task.description?.match(/\[SeriesID:\s*([^\]]+)\]/);
-        if (seriesMatch) {
-          row = rows.find(t => t.description?.includes(`[SeriesID: ${seriesMatch[1]}]`));
-        }
-      }
-      return row;
-    };
-
-    let row = findRow();
-
-    // The row can be missing simply because the Department Filter dropdown is
-    // currently set to a different department than the task's — reset it
-    // (only for roles allowed to change it) and retry before giving up.
-    if (!row && this.canChangeDept && task.department && this.deptFilter() !== task.department) {
-      this.deptFilter.set(task.department);
-      row = findRow();
-    }
-
-    if (!row) {
-      this.toast.warning(`Work order ${task.id} could not be shown on this page.`);
-      return;
-    }
-    const rowId = row.id;
-
-    const requestId = ++this.highlightRequestSeq;
-    this.highlightedTaskId.set(rowId);
-    setTimeout(() => {
-      if (this.isDestroyed || requestId !== this.highlightRequestSeq) return;
-      document.getElementById('task-row-' + rowId)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 100);
-    setTimeout(() => {
-      if (this.isDestroyed || requestId !== this.highlightRequestSeq) return;
-      this.highlightedTaskId.set(null);
-      this.router.navigate([], {
-        relativeTo: this.route,
-        queryParams: { task: null },
-        queryParamsHandling: 'merge',
-        replaceUrl: true
-      });
-    }, 2500);
-  }
 
   // Dropdown states
   bulkDropdownOpen = false;
