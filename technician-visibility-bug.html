@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Bug Report — Technicians See No Assigned PM Tasks</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #161923; --border: #2a2f3d; --text: #e6e8ef;
+    --muted: #9aa2b1; --accent: #5b8cff; --good: #3ddc97; --bad: #ff6b6b; --warn: #ffb84d;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 40px; line-height: 1.55; }
+  .wrap { max-width: 980px; margin: 0 auto; }
+  h1 { font-size: 28px; margin-bottom: 4px; }
+  .subtitle { color: var(--muted); margin-bottom: 32px; }
+  h2 { border-bottom: 2px solid var(--border); padding-bottom: 8px; margin-top: 48px; color: var(--accent); }
+  h3 { margin-top: 24px; color: var(--text); }
+  .ticket { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin: 16px 0; }
+  .ticket-header { display: flex; justify-content: space-between; align-items: center; }
+  .ticket-title { font-size: 18px; font-weight: 600; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 700; text-transform: uppercase; padding: 3px 10px; border-radius: 999px; margin-left: 8px; }
+  .tag.bug { background: rgba(255,107,107,.15); color: var(--bad); border: 1px solid rgba(255,107,107,.4); }
+  .tag.risk { background: rgba(255,184,77,.15); color: var(--warn); border: 1px solid rgba(255,184,77,.4); }
+  .priority { color: var(--muted); font-size: 13px; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  th, td { border: 1px solid var(--border); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: #1d212c; color: var(--muted); }
+  code { background: #1d212c; padding: 2px 6px; border-radius: 4px; font-size: 13px; color: #f0ad4e; }
+  pre { background: #1d212c; padding: 14px; border-radius: 8px; overflow-x: auto; border: 1px solid var(--border); }
+  pre .del { color: var(--bad); }
+  pre .add { color: var(--good); }
+  ul { padding-left: 22px; }
+  .diagram { background: #1d212c; border: 1px solid var(--border); border-radius: 8px; padding: 24px; margin: 16px 0; }
+  .flow { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .box { background: var(--panel); border: 1px solid var(--accent); border-radius: 8px; padding: 10px 14px; text-align: center; min-width: 130px; font-size: 13px; }
+  .box.bad { border-color: var(--bad); }
+  .box.good { border-color: var(--good); }
+  .arrow { color: var(--muted); font-size: 20px; }
+  .col { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .row { display: flex; gap: 24px; justify-content: center; flex-wrap: wrap; }
+  .caption { text-align: center; color: var(--muted); font-size: 12px; margin-top: 6px; }
+  .evidence { background: rgba(91,140,255,.08); border: 1px solid rgba(91,140,255,.4); border-radius: 8px; padding: 14px 18px; margin: 16px 0; }
+  .approve { background: rgba(61,220,151,.1); border: 1px solid var(--good); border-radius: 10px; padding: 20px; margin-top: 40px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Bug Report — Technicians See No Assigned PM Tasks</h1>
+  <div class="subtitle">Reported against the live server <code>http://10.144.15.76:3000</code>. Affects <code>GET /api/v1/pm-tasks</code> and <code>GET /api/v1/pm-tasks/:id</code> in <code>backend/src/pm-tasks.controller.ts</code>. Impacts the technician Dashboard, Calendar, and Record/Execute pages equally, since all three read from the same endpoint.</div>
+
+  <div class="ticket">
+    <div class="ticket-header">
+      <div class="ticket-title">Assigned PM tasks vanish for the technician who owns them</div>
+      <span class="priority">Priority: High</span>
+      <span class="tag bug">Bug</span>
+    </div>
+
+    <h3>Symptom</h3>
+    <p>Engineer/manager assigns a PM task to a technician (status becomes <code>In Progress</code>, <code>assignedTo</code> set to the technician's <code>employeeId</code>). When that technician logs in, the Dashboard shows "nothing to do" and the Calendar shows no entries — even though the task is clearly assigned to them.</p>
+
+    <h3>Reproduction (verified live, exact accounts used)</h3>
+    <div class="evidence">
+      <p><b>Step 1:</b> Logged in as <code>ENG-TST-1</code> (engineer) and assigned a PM task to <code>TECH-TST-1</code> via the normal Assign flow. Task status correctly becomes <code>In Progress</code> with <code>assignedTo: "TECH-TST-1"</code>.</p>
+      <p><b>Step 2:</b> Logged in as <code>ADM001</code> (admin) and called <code>GET /pm-tasks</code> to confirm server-side state: <b>5 tasks</b> are currently assigned to <code>TECH-TST-1</code>, all <code>status: "In Progress"</code>, department <code>Test</code> (e.g. <code>PM-TES-0002</code>, <code>PM-TES-0007</code>, <code>PM-TES-0026</code>, <code>PM-TES-0028</code>, <code>PM-TES-0103</code>). So the assignment itself saved correctly.</p>
+      <p><b>Step 3:</b> Logged in as <code>TECH-TST-1</code> (technician, the assignee) and called <code>GET /pm-tasks</code>: request returns <b>HTTP 200</b> with an <b>empty array</b> — <b>0 tasks</b>. No exception, no error message, nothing in the response to indicate a problem.</p>
+    </div>
+
+    <h3>Why no error appears</h3>
+    <p>This is not a thrown exception, so it won't show up in server error logs or return a non-200 status — that's why it can look like "nothing is wrong" from the backend side. The request succeeds and returns a syntactically valid, empty list. The bug is in the <b>Prisma <code>where</code> clause construction</b> (below): it silently filters out every row instead of failing loudly. The only way to see it is to compare the admin's view of "who a task is assigned to" against that same technician's own <code>GET /pm-tasks</code> result, as done in Step 2 vs Step 3 above.</p>
+
+    <h3>Root Cause</h3>
+    <p>Technicians never own products in this data model — every seeded technician has <code>ownedProducts: []</code> (see <code>backend/prisma/seed.ts</code>). Their access to a task comes only from <code>assignedTo</code> matching their <code>employeeId</code> (or a delegated product). But <code>getAll()</code> in <code>pm-tasks.controller.ts</code> applies a product-ownership filter to <b>every</b> non-admin/manager role <em>before</em> adding the technician's assignment filter:</p>
+
+    <pre><code>if (!accessibleProducts.includes('*')) {
+  where.productId = productId ? productId : { in: accessibleProducts }; // accessibleProducts = [] for technicians
+}
+if (user.baseRole === 'technician') {
+  where.OR = [
+    { assignedTo: user.employeeId },
+    { productId: { in: delegated } },
+  ];
+}</code></pre>
+
+    <p>Prisma ANDs all top-level keys in a <code>where</code> clause. So the final query becomes:</p>
+    <pre><code>WHERE productId IN () AND (assignedTo = 'TECH-TST-1' OR productId IN (delegated))</code></pre>
+    <p><code>productId IN ()</code> can never match any row, so the query always returns zero results for a technician with no delegations — regardless of what's actually assigned to them.</p>
+
+    <div class="diagram">
+      <div class="flow">
+        <div class="box">Task assigned<br><code>assignedTo: TECH-TST-1</code></div>
+        <div class="arrow">&#8594;</div>
+        <div class="box bad">GET /pm-tasks<br><code>productId IN []</code><br>AND'd with OR clause</div>
+        <div class="arrow">&#8594;</div>
+        <div class="box bad">0 rows returned</div>
+        <div class="arrow">&#8594;</div>
+        <div class="box bad">Dashboard &amp; Calendar<br>show nothing</div>
+      </div>
+      <div class="caption">The same broken response feeds every technician-facing view — this is one bug, not three.</div>
+    </div>
+
+    <p>The same pattern exists in <code>getOne()</code> (used when opening a single task, e.g. from a calendar click or notification): it throws <code>ForbiddenException</code> based on <code>accessibleProducts.includes(t.productId)</code> — which is also empty for technicians — <em>before</em> ever checking whether the task is assigned to them.</p>
+
+    <h3>Fix</h3>
+    <p>For the <code>technician</code> role, skip the product-ownership restriction entirely and rely only on the assignment/delegation check. Engineer, manager, and admin logic is unaffected.</p>
+
+    <p><b><code>getAll()</code></b> — replace:</p>
+    <pre><code class="del">if (!accessibleProducts.includes('*')) {
+  if (productId) {
+    if (!accessibleProducts.includes(productId)) {
+      throw new ForbiddenException(`Product access denied for ${productId}`);
+    }
+    where.productId = productId;
+  } else {
+    where.productId = { in: accessibleProducts };
+  }
+}
+
+if (user.baseRole === 'technician') {
+  where.OR = [
+    { assignedTo: user.employeeId },
+    { productId: { in: delegated } },
+  ];
+}</code></pre>
+    <p>with:</p>
+    <pre><code class="add">if (user.baseRole === 'technician') {
+  // Technicians never own products — access is governed solely by
+  // assignment or delegation, not by ownedProducts/accessibleProducts.
+  where.OR = [
+    { assignedTo: user.employeeId },
+    { productId: { in: delegated } },
+  ];
+  if (productId) where.productId = productId;
+} else if (!accessibleProducts.includes('*')) {
+  if (productId) {
+    if (!accessibleProducts.includes(productId)) {
+      throw new ForbiddenException(`Product access denied for ${productId}`);
+    }
+    where.productId = productId;
+  } else {
+    where.productId = { in: accessibleProducts };
+  }
+}</code></pre>
+
+    <p><b><code>getOne()</code></b> — replace:</p>
+    <pre><code class="del">if (!accessibleProducts.includes('*') && !accessibleProducts.includes(t.productId)) {
+  throw new ForbiddenException(`Access denied for product ${t.productId}`);
+}
+
+if (user.baseRole === 'technician' && t.assignedTo !== user.employeeId && !delegated.includes(t.productId)) {
+  throw new ForbiddenException(`Task ${id} is not assigned to you`);
+}</code></pre>
+    <p>with:</p>
+    <pre><code class="add">if (user.baseRole === 'technician') {
+  if (t.assignedTo !== user.employeeId && !delegated.includes(t.productId)) {
+    throw new ForbiddenException(`Task ${id} is not assigned to you`);
+  }
+} else if (!accessibleProducts.includes('*') && !accessibleProducts.includes(t.productId)) {
+  throw new ForbiddenException(`Access denied for product ${t.productId}`);
+}</code></pre>
+
+    <p><b>Files touched:</b> <code>backend/src/pm-tasks.controller.ts</code> (<code>getAll</code> and <code>getOne</code> handlers only).</p>
+
+    <h3>Verify</h3>
+    <ul>
+      <li>Login as <code>TECH-TST-1</code> / <code>tech123</code> → <code>GET /pm-tasks</code> returns the 5 tasks listed above.</li>
+      <li>Frontend: Dashboard "My Tasks" and Calendar both show these tasks for that technician.</li>
+      <li>Engineer/manager/admin views of <code>GET /pm-tasks</code> return identical results before and after (regression check).</li>
+      <li>A technician with a product <b>delegation</b> still sees tasks for that delegated product even if not directly assigned (existing behavior, unaffected by this fix).</li>
+    </ul>
+  </div>
+
+  <div class="approve">
+    Needs a fix + redeploy of the shared server at <code>10.144.15.76:3000</code> to take effect — this repo's local <code>backend/</code> source is not what the frontend talks to.
+  </div>
+
+</div>
+</body>
+</html>

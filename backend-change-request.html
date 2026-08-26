@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Change Request — Recurring PM Assignment Doesn't Persist Across Future Occurrences</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #161923; --border: #2a2f3d; --text: #e6e8ef;
+    --muted: #9aa2b1; --accent: #5b8cff; --good: #3ddc97; --bad: #ff6b6b; --warn: #ffb84d;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 40px; line-height: 1.55; }
+  .wrap { max-width: 980px; margin: 0 auto; }
+  h1 { font-size: 28px; margin-bottom: 4px; }
+  .subtitle { color: var(--muted); margin-bottom: 32px; }
+  h3 { margin-top: 24px; color: var(--text); }
+  .ticket { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin: 16px 0; }
+  .ticket-header { display: flex; justify-content: space-between; align-items: center; }
+  .ticket-title { font-size: 18px; font-weight: 600; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 700; text-transform: uppercase; padding: 3px 10px; border-radius: 999px; margin-left: 8px; }
+  .tag.feature { background: rgba(91,140,255,.15); color: var(--accent); border: 1px solid rgba(91,140,255,.4); }
+  .priority { color: var(--muted); font-size: 13px; }
+  code { background: #1d212c; padding: 2px 6px; border-radius: 4px; font-size: 13px; color: #f0ad4e; }
+  pre { background: #1d212c; padding: 14px; border-radius: 8px; overflow-x: auto; border: 1px solid var(--border); }
+  pre .del { color: var(--bad); }
+  pre .add { color: var(--good); }
+  ul { padding-left: 22px; }
+  .diagram { background: #1d212c; border: 1px solid var(--border); border-radius: 8px; padding: 24px; margin: 16px 0; }
+  .flow { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .box { background: var(--panel); border: 1px solid var(--accent); border-radius: 8px; padding: 10px 14px; text-align: center; min-width: 130px; font-size: 13px; }
+  .box.bad { border-color: var(--bad); }
+  .arrow { color: var(--muted); font-size: 20px; }
+  .caption { text-align: center; color: var(--muted); font-size: 12px; margin-top: 6px; }
+  .approve { background: rgba(61,220,151,.1); border: 1px solid var(--good); border-radius: 10px; padding: 20px; margin-top: 40px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Change Request — Recurring PM Assignment Doesn't Persist Across Future Occurrences</h1>
+  <div class="subtitle">Affects <code>PUT /api/v1/pm-tasks/:id</code> in <code>backend/src/pm-tasks.controller.ts</code>, used by the PM Assign page's single-task Assign button and bulk-assign action.</div>
+
+  <div class="ticket">
+    <div class="ticket-header">
+      <div class="ticket-title">Assigning one occurrence of a recurring PM series doesn't assign the rest of the series</div>
+      <span class="priority">Priority: High</span>
+      <span class="tag feature">Change Request</span>
+    </div>
+
+    <h3>Symptom</h3>
+    <p>A recurring PM schedule (e.g. Monthly) already maintains a rolling ~1-year buffer of <code>Pending</code> task rows via the nightly <code>SchedulerService.topUpSchedules()</code> job. When an engineer assigns the current month's occurrence to a technician, next month's occurrence (and every month after that) still shows up unassigned — the engineer has to manually re-assign the same series every single period, indefinitely.</p>
+
+    <h3>Root Cause</h3>
+    <p><code>PUT /pm-tasks/:id</code> only ever updates the single task row being edited. It never writes to the parent <code>PmSchedule.assignedTo</code> field. <code>SchedulerService.topUpSchedules()</code> creates each new occurrence with <code>assignedTo: schedule.assignedTo</code> — but since that field is never set by the assign action, it stays <code>null</code> forever, so every newly-generated occurrence (and every occurrence already sitting in the buffer) comes out unassigned.</p>
+
+    <div class="diagram">
+      <div class="flow">
+        <div class="box">Engineer assigns<br>Jan occurrence &rarr; Tech A</div>
+        <div class="arrow">&#8594;</div>
+        <div class="box bad">Only the Jan task row<br>gets <code>assignedTo</code></div>
+        <div class="arrow">&#8594;</div>
+        <div class="box bad"><code>PmSchedule.assignedTo</code><br>stays null forever</div>
+        <div class="arrow">&#8594;</div>
+        <div class="box bad">Feb, Mar, ... Dec<br>all generated unassigned</div>
+      </div>
+      <div class="caption">Engineer must repeat the same assignment every month, forever.</div>
+    </div>
+
+    <h3>Desired Behavior</h3>
+    <p>Assigning any one occurrence of a recurring series should assign the <b>entire series</b>, permanently:</p>
+    <ul>
+      <li>Set <code>PmSchedule.assignedTo</code> so every occurrence the nightly job generates from now on automatically inherits the technician.</li>
+      <li>Immediately backfill every <b>already-existing</b> sibling task in that series that is still <code>Pending</code> or <code>Overdue</code> (i.e. not yet started or completed) with the same <code>assignedTo</code> — so the months already sitting in the 1-year buffer don't require a second manual assignment.</li>
+      <li>This should apply identically whether the assignment comes from the single-task "Assign" button or the "Assign Selected" bulk-assign action (both call this same endpoint).</li>
+    </ul>
+
+    <h3>Suggested Fix</h3>
+    <p>In <code>update()</code> (<code>PUT /pm-tasks/:id</code>), after the existing task update, add:</p>
+    <pre><code class="add">if (body.assignedTo && existing.scheduleId) {
+  await this.prisma.pmSchedule.update({
+    where: { id: existing.scheduleId },
+    data: { assignedTo: body.assignedTo },
+  });
+
+  await this.prisma.pmTask.updateMany({
+    where: {
+      scheduleId: existing.scheduleId,
+      id: { not: id },
+      status: { in: ['Pending', 'Overdue'] },
+    },
+    data: { assignedTo: body.assignedTo },
+  });
+}</code></pre>
+    <p>No schema change is needed — <code>PmSchedule.assignedTo</code> already exists in <code>schema.prisma</code>.</p>
+
+    <p><b>Scope note:</b> only series created with a real <code>scheduleId</code> (the current/only path the frontend uses to create schedules, per the existing comment in <code>pm-tasks.controller.ts</code> around the schedule-creation endpoint) are covered. Legacy <code>[SeriesID: xxx]</code>-only series without a matching <code>PmSchedule</code> row are already-documented technical debt and are not part of this request.</p>
+
+    <p><b>Files touched:</b> <code>backend/src/pm-tasks.controller.ts</code> (<code>update</code> handler only). No frontend changes needed for this part — the PM Assign page and PM Calendar already read <code>assignedTo</code> directly and will pick up the fix automatically once deployed.</p>
+
+    <h3>Verify</h3>
+    <ul>
+      <li>Create a Monthly recurring PM, assign the first occurrence to a technician.</li>
+      <li><code>GET /pm-tasks?scheduleId=&lt;id&gt;</code> should show every <code>Pending</code>/<code>Overdue</code> sibling task with <code>assignedTo</code> set to that technician.</li>
+      <li>A newly-generated occurrence (after the next nightly top-up run) should also come out pre-assigned.</li>
+      <li>Regression: assigning a one-time (non-recurring) PM task — no <code>scheduleId</code> — behaves exactly as before (only that single task is updated).</li>
+    </ul>
+  </div>
+
+  <div class="ticket">
+    <div class="ticket-header">
+      <div class="ticket-title">Reassigning a series to a different technician</div>
+      <span class="priority">Priority: Medium</span>
+      <span class="tag feature">Change Request</span>
+    </div>
+
+    <h3>Context</h3>
+    <p>The frontend is adding a "Reassign" action (Assigned PM Work Orders tab) that lets an engineer/manager change the technician on an already-assigned recurring series — e.g. the original technician left the team or is overloaded. It calls the exact same <code>PUT /pm-tasks/:id</code> endpoint as the initial assignment, just with a different <code>assignedTo</code> value on an already-assigned task.</p>
+
+    <h3>Good news — no extra backend code needed</h3>
+    <p>The suggested fix above is <b>not</b> conditioned on the task/schedule having been previously unassigned — it runs any time <code>body.assignedTo</code> is set on a task with a <code>scheduleId</code>, regardless of what <code>PmSchedule.assignedTo</code> was before. So reassigning Just Works with the same code: it overwrites <code>PmSchedule.assignedTo</code> with the new technician, and backfills every <code>Pending</code>/<code>Overdue</code> sibling to the new technician as well.</p>
+
+    <h3>One scope clarification to confirm</h3>
+    <p>The backfill in the suggested fix only touches sibling tasks with status <code>Pending</code> or <code>Overdue</code> — it intentionally does <b>not</b> touch a sibling that's already <code>In Progress</code>, <code>Pending Approval</code>, or <code>Done</code> under a <i>different</i> technician (an edge case where two occurrences of the same series happen to be active at once). The task actually being reassigned (the one identified by <code>:id</code> in the URL) is always updated directly regardless of its own status, since that's just the normal single-task update path — only the <i>other siblings</i> are status-gated. Please confirm this matches expectations; if a different behavior is needed for that edge case, let us know before implementing.</p>
+
+    <h3>Verify</h3>
+    <ul>
+      <li>With a series already assigned to Tech A, reassign the current occurrence to Tech B.</li>
+      <li>Confirm all <code>Pending</code>/<code>Overdue</code> siblings in the series now show <code>assignedTo = Tech B</code>, and <code>PmSchedule.assignedTo = Tech B</code>.</li>
+      <li>Confirm a newly-generated occurrence (next nightly top-up) also comes out assigned to Tech B, not Tech A.</li>
+    </ul>
+  </div>
+
+  <div class="approve">
+    Needs deployment to the shared server at <code>10.144.15.76:3000</code> to take effect, same as prior backend fixes — this repo's local <code>backend/</code> source is reference only.
+  </div>
+
+</div>
+</body>
+</html>
