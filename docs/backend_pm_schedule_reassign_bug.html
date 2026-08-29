@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AssetIntel CMMS — CRITICAL: PUT /pm-tasks/schedule/:seriesId Mass-Reassignment Bug</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #161923; --border: #2a2f3d; --text: #e6e8ef;
+    --muted: #9aa2b1; --accent: #5b8cff; --good: #3ddc97; --bad: #ff6b6b; --warn: #ffb84d;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 40px; line-height: 1.6; }
+  .wrap { max-width: 1000px; margin: 0 auto; }
+  h1 { font-size: 28px; margin-bottom: 4px; }
+  .subtitle { color: var(--muted); margin-bottom: 32px; }
+  h2 { border-bottom: 2px solid var(--border); padding-bottom: 8px; margin-top: 48px; color: var(--accent); }
+  h4 { margin-top: 18px; color: var(--muted); font-size: 14px; text-transform: uppercase; letter-spacing: .03em; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin: 16px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  th, td { border: 1px solid var(--border); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: #1d212c; color: var(--muted); }
+  code { background: #1d212c; padding: 2px 6px; border-radius: 4px; font-size: 13px; color: #f0ad4e; }
+  pre { background: #1d212c; padding: 14px; border-radius: 8px; overflow-x: auto; border: 1px solid var(--border); font-size: 13px; }
+  pre code { background: none; padding: 0; color: #d7dce6; }
+  ul { padding-left: 22px; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 700; text-transform: uppercase; padding: 3px 10px; border-radius: 999px; margin-left: 6px; }
+  .tag.critical { background: rgba(255,107,107,.15); color: var(--bad); border: 1px solid rgba(255,107,107,.4); }
+  .note { color: var(--muted); font-size: 13px; }
+  .bad-box { background: rgba(255,107,107,.1); border: 1px solid var(--bad); border-radius: 10px; padding: 16px 20px; margin: 16px 0; }
+  .good-box { background: rgba(61,220,151,.1); border: 1px solid var(--good); border-radius: 10px; padding: 16px 20px; margin: 16px 0; }
+  .toc { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px 24px; }
+  .toc a { color: var(--accent); text-decoration: none; }
+  .toc li { margin: 4px 0; }
+  .flow { display: flex; flex-direction: column; gap: 6px; margin: 16px 0; font-size: 13px; }
+  .flow .step { border: 1px solid var(--border); background: #1d212c; border-radius: 8px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .flow .step.branch-ok { border-color: rgba(61,220,151,.5); }
+  .flow .step.branch-bad { border-color: rgba(255,107,107,.6); background: rgba(255,107,107,.08); }
+  .flow .arrow { text-align: center; color: var(--muted); font-size: 16px; }
+  .flow .step .label { flex: 1; }
+  .flow .step .verdict { font-size: 11px; font-weight: 700; text-transform: uppercase; white-space: nowrap; }
+  .flow .step.branch-ok .verdict { color: var(--good); }
+  .flow .step.branch-bad .verdict { color: var(--bad); }
+  .step-table td.step-num { color: var(--muted); font-weight: 700; width: 32px; }
+  .step-table td.expected { color: var(--good); }
+  .step-table td.actual { color: var(--bad); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>PUT /api/v1/pm-tasks/schedule/:seriesId — Mass-Reassignment Bug <span class="tag critical">Critical</span></h1>
+  <div class="subtitle">Discovered 2026-08-26 during backend e2e regression testing against the live dev server. Confirmed to have already mutated real data.</div>
+
+  <div class="toc">
+    <ul>
+      <li><a href="#impact">1. Confirmed Impact (already happened)</a></li>
+      <li><a href="#repro">2. Reproduction</a></li>
+      <li><a href="#cause">3. Root Cause</a></li>
+      <li><a href="#fix">4. Required Fix</a></li>
+      <li><a href="#recovery">5. Data Recovery</a></li>
+    </ul>
+  </div>
+
+  <div class="bad-box">
+    <strong>This is not theoretical — it already happened.</strong> A single test call with a made-up/nonexistent <code>seriesId</code> reassigned <strong>299 real PM tasks across 10 unrelated recurring series</strong> to a single technician, on the live dev server (<code>http://10.144.15.76:3000</code>). There is no application-level audit trail for this field, so the previous assignees cannot be reconstructed without a DB backup/point-in-time restore.
+  </div>
+
+  <h2 id="impact">1. Confirmed Impact</h2>
+  <div class="card">
+    <p>Request that triggered it:</p>
+    <pre><code>PUT /api/v1/pm-tasks/schedule/SCH-does-not-exist
+Authorization: Bearer &lt;engineer token&gt;
+{ "assignedTo": "TECH-TST-1" }</code></pre>
+    <p><strong>Expected:</strong> no series matches this id → no-op, empty result.</p>
+    <p><strong>Actual:</strong> <code>200 OK</code> with a large array of updated tasks. Verified via <code>GET /api/v1/pm-tasks?assignedTo=TECH-TST-1</code> immediately after — <strong>299 tasks</strong> across <strong>10 distinct pre-existing series</strong> had just been overwritten (all `updatedAt` timestamps matched the exact moment of the one bad request):</p>
+    <table>
+      <tr><th>scheduleId</th><th>Tasks reassigned</th></tr>
+      <tr><td><code>SCH-1786008472097-226</code></td><td>192</td></tr>
+      <tr><td><code>SCH-1786510329530-890</code></td><td>47</td></tr>
+      <tr><td><code>SCH-1786676656377-757</code></td><td>11</td></tr>
+      <tr><td><code>SCH-1786697263412-145</code></td><td>10</td></tr>
+      <tr><td><code>SCH-1786415939527-540</code></td><td>8</td></tr>
+      <tr><td><code>SCH-1786333900345-403</code></td><td>8</td></tr>
+      <tr><td><code>SCH-1786422906700-258</code></td><td>8</td></tr>
+      <tr><td><code>SCH-1786509721798-528</code></td><td>8</td></tr>
+      <tr><td><code>SCH-1786075704449-729</code></td><td>6</td></tr>
+      <tr><td><code>SCH-1787199671379-685</code></td><td>1</td></tr>
+    </table>
+    <p class="note">These are real, pre-existing series (task titles match real seeded asset names — Calibration Bench #1, Thermal Chamber TC-1, Server Rack SR-2, ATE Station #6, etc.) unrelated to the test being run.</p>
+  </div>
+
+  <h2 id="repro">2. Reproduction</h2>
+  <div class="card">
+    <div class="bad-box">
+      <strong>⚠️ Only run this against a local/disposable DB (e.g. after <code>npx prisma db seed</code> on your own machine).</strong> Every run of the final step reassigns <em>every</em> pending task belonging to <em>every</em> real recurring series it can see to whatever <code>assignedTo</code> you send. Do not point <code>$BASE</code> at the shared dev server (<code>10.144.15.76</code>) again.
+    </div>
+
+    <h4>Prerequisites</h4>
+    <ul>
+      <li>A local backend running against your own DB (<code>npm run start:dev</code> from <code>backend/</code>), with <code>prisma/seed.ts</code> already applied.</li>
+      <li>At least one <em>real</em> recurring series already existing (e.g. run the app's "Generate PM Schedule" flow once, or call <code>POST /api/v1/pm-tasks/schedule</code> yourself) so you have something to observe getting wrongly touched.</li>
+    </ul>
+
+    <h4>Step-by-step (PowerShell) — exactly what was run to confirm this bug</h4>
+    <pre><code>$BASE = 'http://localhost:3000'   # &lt;-- your LOCAL disposable instance only
+
+# 1. Log in as any engineer who owns a product with an existing series
+$login = Invoke-RestMethod -Uri "$BASE/api/v1/auth/login" -Method Post `
+  -ContentType 'application/json' `
+  -Body (@{ employeeId = 'ENG-TST-1'; password = 'eng123' } | ConvertTo-Json)
+$headers = @{ Authorization = "Bearer $($login.token)" }
+
+# 2. Snapshot: how many tasks are currently assigned to TECH-TST-1, BEFORE
+$before = Invoke-RestMethod -Uri "$BASE/api/v1/pm-tasks?assignedTo=TECH-TST-1" -Headers $headers
+"BEFORE count: $($before.Count)"
+
+# 3. The actual bug trigger — a seriesId that does NOT exist anywhere
+Invoke-RestMethod -Uri "$BASE/api/v1/pm-tasks/schedule/SCH-does-not-exist" -Method Put `
+  -Headers $headers -ContentType 'application/json' `
+  -Body (@{ assignedTo = 'TECH-TST-1' } | ConvertTo-Json)
+# ^ EXPECTED: 200 OK, body == []
+# ^ ACTUAL:   200 OK, body == [ ...every Pending task in every real series... ]
+
+# 4. Snapshot again, AFTER
+$after = Invoke-RestMethod -Uri "$BASE/api/v1/pm-tasks?assignedTo=TECH-TST-1" -Headers $headers
+"AFTER count: $($after.Count)  (bug confirmed if this is much larger than BEFORE)"</code></pre>
+
+    <h4>Equivalent, minimal curl (same idea, just the trigger request)</h4>
+    <pre><code>curl -s -X POST http://localhost:3000/api/v1/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"employeeId":"ENG-TST-1","password":"eng123"}' | jq -r .token > /tmp/token.txt
+
+curl -s -X PUT http://localhost:3000/api/v1/pm-tasks/schedule/SCH-does-not-exist \
+  -H "Authorization: Bearer $(cat /tmp/token.txt)" \
+  -H 'Content-Type: application/json' \
+  -d '{"assignedTo":"TECH-TST-1"}' | jq 'length'
+# Expected: 0    Actual (bug): a large number</code></pre>
+
+    <h4>Expected vs. Actual</h4>
+    <table>
+      <tr><th></th><th>Expected (correct)</th><th>Actual (on live server, 2026-08-26)</th></tr>
+      <tr><td>HTTP status</td><td>200 (or arguably 404)</td><td>200 — same as correct case, no error surfaced</td></tr>
+      <tr><td>Response body</td><td><code>[]</code></td><td>Array of ~192+ task objects, growing with every repeat run</td></tr>
+      <tr><td>Rows touched in <code>cmms_pm_tasks</code></td><td>0</td><td>299 (across 10 unrelated series, confirmed via <code>GET ?assignedTo=</code> before/after diff)</td></tr>
+      <tr><td>Who is affected</td><td>nobody</td><td>every technician/engineer whose real series happened to still have <code>Pending</code> rows</td></tr>
+    </table>
+    <p class="note">This exact sequence (with <code>$BASE</code> pointed at the shared dev server) is how the 299/10 numbers in §1 were produced and measured — via a before/after diff of <code>GET /api/v1/pm-tasks?assignedTo=TECH-TST-1</code>, not guesswork.</p>
+  </div>
+
+  <h2 id="cause">3. Root Cause</h2>
+  <div class="card">
+    <p>This backend checkout is <strong>not necessarily the exact version currently deployed</strong> on the live server, so the line numbers below are a best-effort match, not a guaranteed diff — but the current source's <code>updateSchedule()</code> in <code>backend/src/pm-tasks.controller.ts</code> has the logic that <em>should</em> apply. Here is the exact request flow it's supposed to follow:</p>
+
+    <h4>Intended flow (this repo's current source)</h4>
+    <div class="flow">
+      <div class="step"><span class="label">1. <code>PUT /pm-tasks/schedule/SCH-does-not-exist</code> received</span></div>
+      <div class="arrow">↓</div>
+      <div class="step"><span class="label">2. <code>prisma.pmSchedule.findUnique({'{'} where: {'{'} id: seriesId {'}'} {'}'})</code> — look up a real schedule row</span></div>
+      <div class="arrow">↓ (no row found → <code>schedule</code> is <code>null</code>)</div>
+      <div class="step branch-ok"><span class="label">3a. Legacy fallback: <code>pmTask.findMany({'{'} where: {'{'} status:'Pending', description: {'{'} contains: '[SeriesID: SCH-does-not-exist]' {'}'} {'}'} {'}'})</code></span><span class="verdict">expected: 0 rows</span></div>
+      <div class="arrow">↓</div>
+      <div class="step branch-ok"><span class="label">4a. <code>if (tasks.length === 0) return [];</code></span><span class="verdict">expected result</span></div>
+    </div>
+
+    <h4>What the server actually did (inferred from evidence)</h4>
+    <div class="flow">
+      <div class="step"><span class="label">1. <code>PUT /pm-tasks/schedule/SCH-does-not-exist</code> received</span></div>
+      <div class="arrow">↓</div>
+      <div class="step branch-bad"><span class="label">2'. Either the schedule lookup, or the task lookup that follows, resolves to <strong>far more rows than it should</strong> — evidenced by 10 <em>different</em> real <code>scheduleId</code>s all being present in the update result</span><span class="verdict">actual: ~299 rows</span></div>
+      <div class="arrow">↓</div>
+      <div class="step branch-bad"><span class="label">3'. Those rows are passed into the update loop (<code>applyScheduleUpdatesToTasks</code> or equivalent) and every one gets <code>assignedTo</code> overwritten</span><span class="verdict">no scoping applied</span></div>
+    </div>
+
+    <h4>Step-by-step divergence trace</h4>
+    <table class="step-table">
+      <tr><th></th><th>Step</th><th class="expected">Expected</th><th class="actual">Actual (inferred)</th></tr>
+      <tr><td class="step-num">1</td><td>Schedule lookup by exact <code>id</code></td><td class="expected"><code>null</code> (no such row)</td><td class="actual">Unknown — either correctly <code>null</code> (falls to legacy path) or, if the deployed handler doesn't check for <code>null</code>/uses a different lookup, could wrongly resolve to <em>something</em></td></tr>
+      <tr><td class="step-num">2</td><td>Task lookup <code>where</code> clause</td><td class="expected"><code>{ scheduleId: seriesId, status: 'Pending' }</code> or <code>{ description: { contains: '[SeriesID: '+seriesId+']' } }</code> — both scoped to <em>this</em> seriesId only</td><td class="actual">Effectively unscoped — matches Pending tasks belonging to <strong>10 unrelated</strong> real series</td></tr>
+      <tr><td class="step-num">3</td><td>Empty-result short-circuit</td><td class="expected"><code>if (tasks.length === 0) return [];</code></td><td class="actual">Never triggered — list wasn't actually empty from the (broken) query's point of view</td></tr>
+      <tr><td class="step-num">4</td><td>Per-task update</td><td class="expected">Not reached (0 tasks)</td><td class="actual">Runs for all ~299 resolved rows, writing <code>assignedTo</code> to each</td></tr>
+    </table>
+
+    <h4>Two concrete hypotheses for where step 2 breaks</h4>
+    <ul>
+      <li><strong>(A) Most likely — stale/pre-fix deployed build.</strong> The deployed <code>updateSchedule()</code> may predate the <code>scheduleId</code>-scoped rewrite entirely (see the comment block above <code>createSchedule()</code> in this repo's <code>pm-tasks.controller.ts</code>, which explains a <em>previous</em> fix where a separate, unused <code>PmSchedule</code>-backed controller existed but the frontend never called it). If the deployed version is from before that fix, its task lookup may have no <code>scheduleId</code>/<code>description contains</code> predicate at all — e.g. something as simple as <code>pmTask.findMany({ where: { status: 'Pending' } })</code> with the <code>seriesId</code> only used for the <em>legacy description-prefix string it writes back</em>, never for filtering what it reads. That single missing predicate alone fully explains "every Pending task in the system gets touched, regardless of the id in the URL."</li>
+      <li><strong>(B) Alternative — ORM/driver-level predicate loss.</strong> If the deployed handler logic is byte-for-byte what's shown above, then <code>@prisma/adapter-mssql</code> may be silently dropping the <code>description: { contains: ... } }</code> predicate against the <code>NVarChar(Max)</code> column (rather than throwing). To rule this in/out, capture the actual T-SQL Prisma sends (e.g. <code>DEBUG="prisma:query"</code> env var, or SQL Server Profiler/Extended Events on the DB) for one call and confirm whether a <code>WHERE ... description LIKE N'%[SeriesID: SCH-does-not-exist]%'</code> clause is present in the generated SQL at all.</li>
+    </ul>
+    <p class="note">Hypothesis (A) is far more likely given the magnitude (299 rows, 10 series — consistent with "almost all Pending tasks", not a subtly-wrong-but-still-narrow filter) and given this checkout is explicitly known to differ from the deployed build.</p>
+  </div>
+
+  <h2 id="fix">4. Required Fix</h2>
+  <div class="card">
+    <ul>
+      <li>Redeploy from (or diff against) this repo's current <code>backend/src/pm-tasks.controller.ts</code> <code>updateSchedule()</code>/<code>applyScheduleUpdatesToTasks()</code> — confirm the deployed build actually contains the <code>scheduleId</code>/<code>description contains</code> scoping shown above.</li>
+      <li>Add a defensive guard regardless of root cause: if the resolved task list's length is implausibly large (e.g. more than some sane per-series ceiling) or if <code>tasks.some(t =&gt; t.scheduleId !== seriesId)</code> for the exact-scheduleId path, throw instead of proceeding — never trust an <code>updateMany</code>/loop-update to have been correctly scoped without verifying the resulting set first.</li>
+      <li>Add an integration test (see <code>backend/test/live-user-journeys.e2e-spec.ts</code>, Journey 3 — the dangerous assertion was deliberately <strong>removed</strong> from the automated suite here to avoid repeatedly damaging the shared dev DB; re-add it once fixed, against a disposable DB only) asserting that an unknown <code>seriesId</code> returns <code>[]</code> and touches zero rows.</li>
+      <li>Consider adding an audit log entry for schedule/series bulk updates (currently <code>assignedTo</code> changes on <code>PmTask</code> are not logged at all via <code>CmmsService.logAction()</code>), so an incident like this is traceable and reversible in the future.</li>
+    </ul>
+
+    <h4>How to verify the fix (before redeploying to shared infra)</h4>
+    <p>Run the exact PowerShell script from §2 against your local instance <em>after</em> the fix, and confirm:</p>
+    <table>
+      <tr><th>Check</th><th>Pass condition</th></tr>
+      <tr><td>Step 3 response body</td><td>Exactly <code>[]</code></td></tr>
+      <tr><td><code>AFTER count</code> vs <code>BEFORE count</code> (step 4)</td><td>Identical — no new tasks assigned to <code>TECH-TST-1</code></td></tr>
+      <tr><td>Any real series' tasks (spot-check a couple via <code>GET /api/v1/pm-tasks?productId=...</code>)</td><td><code>updatedAt</code> unchanged from before the call</td></tr>
+    </table>
+    <p class="note">Once confirmed locally, re-add the removed assertion in <code>backend/test/live-user-journeys.e2e-spec.ts</code> (Journey 3) so this can't regress silently — see the comment left in that file for exactly where.</p>
+  </div>
+
+  <h2 id="recovery">5. Data Recovery</h2>
+  <div class="card">
+    <div class="bad-box">
+      <strong>No application-side recovery is possible.</strong> <code>assignedTo</code> changes are not audit-logged, so the pre-incident assignee for each of the 299 affected tasks cannot be reconstructed from the API.
+    </div>
+    <p>Options for whoever owns the dev DB:</p>
+    <ul>
+      <li>Restore <code>cmms_pm_tasks</code> (or the whole DB) from a backup/snapshot taken before <strong>2026-08-26 02:46 UTC</strong>, if one exists.</li>
+      <li>If no backup exists, the 10 affected series listed in §1 will need their assignees manually re-set by whoever owns each series (their engineer/manager) — treat the current <code>assignedTo = TECH-TST-1</code> on those rows as unreliable.</li>
+    </ul>
+  </div>
+
+</div>
+</body>
+</html>

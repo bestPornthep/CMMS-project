@@ -284,6 +284,17 @@ export class PmCalendarComponent implements OnDestroy {
     });
   });
 
+  // Earliest future task, shown as a hint when nothing is due today (so an
+  // empty sidebar doesn't look like data failed to load).
+  nextUpcomingTask = computed(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const upcoming = this.filteredTasks()
+      .filter(t => t.status !== 'Done' && new Date(t.nextDueDate) > today)
+      .sort((a, b) => new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime());
+    return upcoming[0] ?? null;
+  });
+
   monthSummary = computed(() => {
     const date = this.currentDate();
     const monthTasks = this.filteredTasks().filter(t => {

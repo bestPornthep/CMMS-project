@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AssetIntel CMMS — Backend E2E Test Findings (2026-08-26)</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #161923; --border: #2a2f3d; --text: #e6e8ef;
+    --muted: #9aa2b1; --accent: #5b8cff; --good: #3ddc97; --bad: #ff6b6b; --warn: #ffb84d;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 40px; line-height: 1.6; }
+  .wrap { max-width: 1100px; margin: 0 auto; }
+  h1 { font-size: 28px; margin-bottom: 4px; }
+  .subtitle { color: var(--muted); margin-bottom: 32px; }
+  h2 { border-bottom: 2px solid var(--border); padding-bottom: 8px; margin-top: 48px; color: var(--accent); }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin: 16px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  th, td { border: 1px solid var(--border); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: #1d212c; color: var(--muted); }
+  code { background: #1d212c; padding: 2px 6px; border-radius: 4px; font-size: 13px; color: #f0ad4e; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 700; text-transform: uppercase; padding: 3px 10px; border-radius: 999px; }
+  .tag.critical { background: rgba(255,107,107,.18); color: var(--bad); border: 1px solid rgba(255,107,107,.4); }
+  .tag.medium { background: rgba(255,184,77,.18); color: var(--warn); border: 1px solid rgba(255,184,77,.4); }
+  .tag.low { background: rgba(91,140,255,.15); color: var(--accent); border: 1px solid rgba(91,140,255,.4); }
+  .tag.fixed { background: rgba(61,220,151,.15); color: var(--good); border: 1px solid rgba(61,220,151,.4); }
+  .tag.pending { background: rgba(255,184,77,.15); color: var(--warn); border: 1px solid rgba(255,184,77,.4); }
+  .tag.known { background: #1d212c; color: var(--muted); border: 1px solid var(--border); }
+  .note { color: var(--muted); font-size: 13px; }
+  .bad-box { background: rgba(255,107,107,.1); border: 1px solid var(--bad); border-radius: 10px; padding: 16px 20px; margin: 16px 0; }
+  .good-box { background: rgba(61,220,151,.1); border: 1px solid var(--good); border-radius: 10px; padding: 16px 20px; margin: 16px 0; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Backend E2E Test Findings — 2026-08-26</h1>
+  <div class="subtitle">Full black-box regression pass against the live dev server (<code>http://10.144.15.76:3000</code>), covering every controller and real user journeys (create → assign → execute → approve → audit). This backend checkout is <strong>not necessarily the exact deployed version</strong> — findings below are from testing the live API, with local source fixes applied where safe/possible.</div>
+
+  <h2>Summary</h2>
+  <div class="card">
+    <table>
+      <tr><th>Test suite</th><th>Result</th><th>Notes</th></tr>
+      <tr><td><code>backend/src/cmms.service.spec.ts</code> (new)</td><td>20/20 passed</td><td>Pure-logic unit tests: <code>calculateDates()</code>, <code>checkProductOwnership()</code>. No DB needed.</td></tr>
+      <tr><td><code>backend/test/live-user-journeys.e2e-spec.ts</code> (new)</td><td>69/70 passed</td><td>Full black-box journeys against the live server. The 1 failure is finding #2 below (confirmed live bug, fix applied locally, not yet deployed).</td></tr>
+    </table>
+  </div>
+
+  <h2>Findings</h2>
+
+  <div class="card">
+    <h3>1. Recurring schedule update with an unmatched seriesId mass-reassigns unrelated tasks <span class="tag critical">Critical</span> <span class="tag pending">Fix drafted, needs deploy</span></h3>
+    <p><strong>This already happened</strong> — 299 real tasks across 10 unrelated series were reassigned during testing. Full incident report, root cause, and required fix: <a href="backend_pm_schedule_reassign_bug.html">docs/backend_pm_schedule_reassign_bug.html</a>.</p>
+  </div>
+
+  <div class="card">
+    <h3>2. Technicians can delete PM Templates in their own department <span class="tag medium">Medium — permission gap</span> <span class="tag fixed">Fixed locally</span></h3>
+    <p>Confirmed live: a technician calling <code>DELETE /api/v1/templates/:id</code> (or the name+department variant) on a template in their own department gets <code>204</code> instead of <code>403</code>. Template <em>creation</em> already correctly forbids technicians — deletion didn't have the matching role check, only a department check.</p>
+    <p>Fix applied in this checkout: <code>backend/src/templates.controller.ts</code>, both <code>delete()</code> and <code>deleteByNameAndDept()</code> now also require <code>admin</code>/<code>manager</code>/<code>engineer</code> before the department check.</p>
+  </div>
+
+  <div class="card">
+    <h3>3. Editing a completed ("Done") PM task still succeeds if the request omits <code>status</code> <span class="tag medium">Medium — data integrity</span> <span class="tag fixed">Fixed locally</span></h3>
+    <p>Confirmed live: <code>PUT /api/v1/pm-tasks/:id</code> with <code>{ "recordNotes": "..." }</code> (no <code>status</code> field) on an already-<code>Done</code> task returns <code>200</code> and applies the edit. The existing "cannot modify a completed task" guard only fired when <code>status</code> was present in the body.</p>
+    <p>Fix applied in this checkout: <code>backend/src/pm-tasks.controller.ts</code> <code>update()</code> now checks <code>existing.status === 'Done'</code> unconditionally, before looking at <code>body.status</code>.</p>
+  </div>
+
+  <div class="card">
+    <h3>4. <code>PATCH /api/v1/users/:id</code> on an unknown id returns 500 instead of 404 <span class="tag low">Low</span> <span class="tag fixed">Fixed locally</span></h3>
+    <p>Confirmed live: patching a nonexistent <code>employeeId</code> returns an unhandled <code>500</code> (Prisma "record not found" error), unlike every other resource controller in this API which explicitly checks existence and throws <code>404</code>.</p>
+    <p>Fix applied in this checkout: <code>backend/src/users.controller.ts</code> <code>update()</code> now does a <code>findUnique</code> existence check first.</p>
+  </div>
+
+  <div class="card">
+    <h3>5. Recurring schedule <code>startDate</code> not honored <span class="tag medium">Medium</span> <span class="tag fixed">Fixed locally</span></h3>
+    <p>Already documented in <a href="backend_pm_create_start_date.html">docs/backend_pm_create_start_date.html</a>. Fix applied in this checkout per that doc's spec (no schema change needed) — <code>createSchedule()</code> now uses <code>body.startDate</code> as task #1's exact due date when provided, rejecting past dates.</p>
+  </div>
+
+  <div class="card">
+    <h3>6. Known, already-documented gaps (unchanged this session) <span class="tag known">Known</span></h3>
+    <table>
+      <tr><th>Gap</th><th>Doc</th></tr>
+      <tr><td><code>PUT /api/v1/pm-tasks/:id/reassign</code> — endpoint doesn't exist; frontend calls it</td><td><a href="backend_pm_reassign_api.html">docs/backend_pm_reassign_api.html</a></td></tr>
+      <tr><td><code>POST /api/v1/users</code> (create user) doesn't exist; <code>isActive</code> not on the User model/login check</td><td><a href="backend_profile_config_users.html">docs/backend_profile_config_users.html</a></td></tr>
+    </table>
+  </div>
+
+  <h2>Confirmed working correctly</h2>
+  <div class="good-box">
+    Full auth lifecycle (login/me/refresh/logout + invalid-credential/expired-token cases) · PM task lifecycle incl. technician status-transition guard and approver self-approval block · product/asset creation incl. duplicate/404 checks · delegation grant → use → revoke cascade incl. cross-department/ownership checks · template CRUD scoping · audit log role gating and filters · admin user patch + password round-trip. See <code>backend/test/live-user-journeys.e2e-spec.ts</code> for the full list (70 cases).
+  </div>
+
+  <h2>Action needed from whoever owns the deployed backend</h2>
+  <div class="bad-box">
+    <ol>
+      <li><strong>Urgent:</strong> investigate/restore the 10 series listed in <a href="backend_pm_schedule_reassign_bug.html">the schedule bug report</a> — no app-side recovery is possible.</li>
+      <li>Diff the deployed build against this repo's current <code>backend/src</code> (findings #2–#5 above are already fixed here) and redeploy.</li>
+      <li>Prioritize the two known gaps in §6 per their existing docs.</li>
+    </ol>
+  </div>
+
+</div>
+</body>
+</html>

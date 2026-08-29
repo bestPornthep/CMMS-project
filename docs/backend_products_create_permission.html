@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AssetIntel CMMS — POST /products: Engineer Access + Ownership Assignment</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #161923; --border: #2a2f3d; --text: #e6e8ef;
+    --muted: #9aa2b1; --accent: #5b8cff; --good: #3ddc97; --bad: #ff6b6b; --warn: #ffb84d;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 40px; line-height: 1.6; }
+  .wrap { max-width: 1000px; margin: 0 auto; }
+  h1 { font-size: 28px; margin-bottom: 4px; }
+  .subtitle { color: var(--muted); margin-bottom: 32px; }
+  h2 { border-bottom: 2px solid var(--border); padding-bottom: 8px; margin-top: 48px; color: var(--accent); }
+  h4 { margin-top: 18px; color: var(--muted); font-size: 14px; text-transform: uppercase; letter-spacing: .03em; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin: 16px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  th, td { border: 1px solid var(--border); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: #1d212c; color: var(--muted); }
+  code { background: #1d212c; padding: 2px 6px; border-radius: 4px; font-size: 13px; color: #f0ad4e; }
+  pre { background: #1d212c; padding: 14px; border-radius: 8px; overflow-x: auto; border: 1px solid var(--border); font-size: 13px; }
+  pre code { background: none; padding: 0; color: #d7dce6; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 700; text-transform: uppercase; padding: 3px 10px; border-radius: 999px; margin-left: 6px; }
+  .tag.post { background: rgba(61,220,151,.15); color: var(--good); border: 1px solid rgba(61,220,151,.4); }
+  .warn-box { background: rgba(255,184,77,.1); border: 1px solid var(--warn); border-radius: 10px; padding: 16px 20px; margin: 16px 0; }
+  .good-box { background: rgba(61,220,151,.1); border: 1px solid var(--good); border-radius: 10px; padding: 16px 20px; margin: 16px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>POST /products — Allow Engineers + Assign Creator Ownership</h1>
+  <div class="subtitle">Confirmed live on <code>http://10.144.15.76:3000</code> 2026-08-29: an Engineer creating a brand-new Product inline from the Create PM page gets <code>403 Forbidden</code>. Frontend fix decision: <strong>Engineers should be allowed to create products</strong> (confirmed by product owner).</div>
+
+  <h2 id="repro">1. Repro (confirmed against live server)</h2>
+  <div class="card">
+    <p>Logged in as <code>ENG-TST-3</code> (Engineer), called:</p>
+    <pre><code>POST /api/v1/products
+{ "id": "ZZTEST-DIAG-01", "name": "ZZTEST-DIAG-01" }</code></pre>
+    <p>Response:</p>
+    <pre><code>403 Forbidden
+{ "message": "Only admin or manager can create products", "error": "Forbidden", "statusCode": 403 }</code></pre>
+    <p>Frontend caller: <code>frontend/src/app/pages/pm-create/pm-create.component.ts</code> auto-creates a Product when the user types a Product ID that doesn't exist yet, gated only by the <code>pm.create.submit</code> permission — which Engineers already have. The 403 from the backend is swallowed into a generic <code>"Failed to create new product. Please try again."</code> toast, which is misleading since retrying never succeeds for an Engineer under the current backend rule.</p>
+  </div>
+
+  <h2 id="change">2. Required Change</h2>
+  <div class="card">
+    <table>
+      <tr><th>#</th><th>What</th><th>Detail</th></tr>
+      <tr><td>1</td><td>Relax role check <span class="tag post">POST</span> <code>/api/v1/products</code></td><td>Allow <code>admin</code>, <code>manager</code>, <strong>and <code>engineer</code></strong> (matching the frontend's existing <code>pm.create.submit</code> gate). Technicians still not allowed — they never have <code>pm.create.submit</code>.</td></tr>
+      <tr><td>2</td><td>Assign creator ownership row on create</td><td>Already a known gap (see <code>backend.instructions.md</code>) — when a product is created, insert an ownership row so the creating Engineer's <code>ownedProducts</code> includes the new product immediately. Without this, the Engineer can create the product but still can't use it (no access to it afterward).</td></tr>
+    </table>
+    <div class="good-box">
+      <strong>Why ownership assignment matters here specifically:</strong> the frontend's <code>createProduct()</code> flow (<code>pm.service.ts</code>) calls <code>authService.init()</code> right after a successful create, to refresh the user's profile so the new product shows up in their accessible/owned list. If ownership isn't assigned server-side, the refresh is a no-op and the very next step in the same Create PM flow (creating the Asset under that product) will likely fail permission checks too.
+    </div>
+  </div>
+
+  <h2 id="notes">3. Notes</h2>
+  <div class="card">
+    <ul>
+      <li>No schema change expected — this is a permission-check + ownership-row-insert fix only, assuming the ownership table/relation already exists (used elsewhere for existing seeded engineer/product ownership).</li>
+      <li>Manager/Admin behavior is unchanged.</li>
+      <li>Frontend needs no change once this ships — it already only requires <code>pm.create.submit</code>, which Engineers have.</li>
+    </ul>
+  </div>
+
+</div>
+</body>
+</html>

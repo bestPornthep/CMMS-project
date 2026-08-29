@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
@@ -23,22 +23,22 @@ export class LoginComponent {
     password: ['', Validators.required]
   });
 
-  errorMessage = '';
-  showPassword = false;
-  isLoading = false;
+  errorMessage = signal('');
+  showPassword = signal(false);
+  isLoading = signal(false);
 
   togglePassword(): void {
-    this.showPassword = !this.showPassword;
+    this.showPassword.update(v => !v);
   }
 
   async onSubmit(): Promise<void> {
-    if (this.loginForm.invalid || this.isLoading) {
-      if (this.loginForm.invalid) this.errorMessage = 'Please enter Employee ID and Password.';
+    if (this.loginForm.invalid || this.isLoading()) {
+      if (this.loginForm.invalid) this.errorMessage.set('Please enter Employee ID and Password.');
       return;
     }
 
-    this.isLoading = true;
-    this.errorMessage = '';
+    this.isLoading.set(true);
+    this.errorMessage.set('');
     const { employeeId, password } = this.loginForm.value;
 
     try {
@@ -46,12 +46,12 @@ export class LoginComponent {
         await this.pmService.loadData();
         this.router.navigate(['/dashboard']);
       } else {
-        this.errorMessage = 'Invalid credentials. Please try again.';
+        this.errorMessage.set('Invalid credentials. Please try again.');
       }
     } catch (e) {
-      this.errorMessage = 'Invalid credentials. Please try again.';
+      this.errorMessage.set('Invalid credentials. Please try again.');
     } finally {
-      this.isLoading = false;
+      this.isLoading.set(false);
     }
   }
 }
