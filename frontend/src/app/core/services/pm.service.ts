@@ -61,6 +61,31 @@ export class PmService {
     });
   }
 
+  // Custom durations numerically identical to a preset are treated as the same PM type for duplicate
+  // detection only (the label the user picked is still stored/displayed as-is) — otherwise picking
+  // "Custom: 1 month(s)" would silently bypass the block on an existing "Monthly" PM.
+  private static readonly FREQUENCY_ALIASES: Record<string, string> = {
+    '1 day(s)': 'Daily',
+    '7 day(s)': 'Weekly',
+    '1 month(s)': 'Monthly',
+    '3 month(s)': 'Quarterly',
+    '12 month(s)': 'Yearly',
+    '1 year(s)': 'Yearly',
+  };
+
+  private normalizeFrequency(frequency: string): string {
+    const cleaned = frequency.trim().toLowerCase();
+    const alias = PmService.FREQUENCY_ALIASES[cleaned];
+    // Lowercase non-aliased values too so e.g. "Monthly" vs "monthly" still match.
+    return (alias || frequency).trim().toLowerCase();
+  }
+
+  // Hard-block guard: an asset may only ever have one PM of a given frequency, regardless of status.
+  findExistingPmOfType(assetId: string, frequency: string): PMTask | undefined {
+    const target = this.normalizeFrequency(frequency);
+    return this.pmTasksSignal().find(t => t.assetId === assetId && this.normalizeFrequency(t.frequency) === target);
+  }
+
   async addPmTask(task: Partial<PMTask>): Promise<void> {
     const user = this.authService.currentUser();
     if (!user || !this.authService.hasPermission('pm.create.submit')) {
@@ -167,10 +192,28 @@ export class PmService {
     return false;
   }
 
-  // Reassign is only offered for tasks still actively in flight — never for a task
-  // already submitted for approval or already Done (approved history is immutable).
+  // Reassign is offered for every status except Done — approved history is immutable,
+  // but any not-yet-completed task (Pending, In Progress, Overdue, Pending Approval) can
+  // have its (and its not-Done series siblings') assignee swapped.
   canReassignTask(task: PMTask): boolean {
-    return (task.status === 'In Progress' || task.status === 'Overdue') && this.canManageTask(task);
+    return task.status !== 'Done' && this.canManageTask(task);
+  }
+
+  // Same rule as reassign: only recurring series (not standalone tasks), any status except Done.
+  canEditSeriesChecklist(task: PMTask): boolean {
+    return !!task.scheduleId && task.status !== 'Done' && this.canManageTask(task);
+  }
+
+  // Edits the checklist template for a recurring series. Backend cascades this to every
+  // not-Done occurrence (mirrors reassign's cascade rule) — Done tasks and PM reports pulled
+  // for already-completed work keep their original checklist untouched.
+  async updateSeriesChecklist(task: PMTask, checklist: { text: string; requiresPhoto?: boolean; requiresValue?: boolean }[]): Promise<void> {
+    if (!this.canEditSeriesChecklist(task)) {
+      throw new Error('You cannot manage or edit checklist for work owned by another Engineer or outside your responsibility.');
+    }
+    await this.api.updateSchedule(task.scheduleId!, { checklist });
+    const tasks = await this.api.getTasks();
+    this.pmTasksSignal.set(tasks);
   }
 
   getAssignableTechnicians(task: PMTask): User[] {

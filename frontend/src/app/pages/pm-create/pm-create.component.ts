@@ -24,7 +24,7 @@ export class PmCreateComponent {
   // Form Model
   pmType: PMTaskFrequency = 'Monthly';
   customDurationValue: number = 1;
-  customDurationUnit: string = 'month(s)';
+  customDurationUnit: string = 'Month(s)';
 
   // ISO yyyy-MM-dd, local-date (not UTC) so it matches the user's actual "today"
   // regardless of timezone offset — bound directly to the native date input.
@@ -143,6 +143,16 @@ export class PmCreateComponent {
     event.stopPropagation();
     this.pmType = t as PMTaskFrequency; 
     this.openDropdown = null;
+  }
+
+  private getEffectiveFrequency(): PMTaskFrequency {
+    return this.pmType === 'Custom' ? `${this.customDurationValue} ${this.customDurationUnit}` : this.pmType;
+  }
+
+  // Hard block: an asset may only ever have one PM of a given frequency, regardless of status.
+  getDuplicatePm() {
+    if (!this.assetId || !this.pmType) return null;
+    return this.pmService.findExistingPmOfType(this.assetId, this.getEffectiveFrequency());
   }
 
   togglePart(part: string, event: Event) {
@@ -324,6 +334,14 @@ export class PmCreateComponent {
       return;
     }
 
+    // Hard block: one PM per asset+frequency, ever — regardless of status.
+    const duplicate = this.getDuplicatePm();
+    if (duplicate) {
+      const freq = this.getEffectiveFrequency();
+      this.toast.error(`This asset already has a ${freq} PM. You cannot create another PM of the same type for this asset.`);
+      return;
+    }
+
     // Validate custom duration
     if (this.pmType === 'Custom' && (this.customDurationValue <= 0 || !Number.isFinite(this.customDurationValue))) {
       this.toast.error('Custom duration must be a positive number.');
@@ -352,12 +370,21 @@ export class PmCreateComponent {
       }
     }
 
+    // Lock the button before any async work so a rapid double-click can't
+    // slip a second submission past the duplicate check above.
+    this.isGenerating.set(true);
+
     // Create product first if new, then asset
     if (isNewProduct) {
       try {
         await this.pmService.createProduct({ id: this.productId, name: this.productId });
-      } catch (e) {
-        this.toast.error('Failed to create new product. Please try again.');
+      } catch (e: any) {
+        if (e?.status === 403) {
+          this.toast.error('You do not have permission to create new products. Contact an admin or manager.');
+        } else {
+          this.toast.error('Failed to create new product. Please try again.');
+        }
+        this.isGenerating.set(false);
         return;
       }
     }
@@ -371,6 +398,7 @@ export class PmCreateComponent {
         });
       } catch (e) {
         this.toast.error('Failed to create new asset. Please try again.');
+        this.isGenerating.set(false);
         return;
       }
     }
@@ -379,13 +407,7 @@ export class PmCreateComponent {
     // offset applied to it. Later occurrences (recurring only) are computed
     // by the backend as startDate + N×frequency.
     const nextDueDate = new Date(this.startDate);
-    let finalFrequency = this.pmType;
-
-    if (this.pmType === 'Custom') {
-      finalFrequency = `${this.customDurationValue} ${this.customDurationUnit}`;
-    }
-
-    this.isGenerating.set(true);
+    const finalFrequency = this.getEffectiveFrequency();
 
     try {
       if (this.isRecurring) {
