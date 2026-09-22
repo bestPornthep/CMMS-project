@@ -1,5 +1,6 @@
 import { Component, computed, inject, signal, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { RouterModule, Router, NavigationEnd, ActivatedRoute } from '@angular/router';
 import { AuthService } from '../core/services/auth.service';
 import { PmService } from '../core/services/pm.service';
@@ -14,7 +15,7 @@ import { filter, map, mergeMap } from 'rxjs/operators';
 @Component({
   selector: 'app-layout',
   standalone: true,
-  imports: [CommonModule, RouterModule, LiquidGlassToggleComponent, TranslatePipe],
+  imports: [CommonModule, FormsModule, RouterModule, LiquidGlassToggleComponent, TranslatePipe],
   templateUrl: './layout.component.html',
   styleUrls: ['./layout.component.scss']
 })
@@ -286,6 +287,7 @@ export class LayoutComponent {
     this.reassignConfirmPending.set(false);
     this.assignDropdownOpen = false;
     this.reassignDropdownOpen = false;
+    this.editChecklistMode.set(false);
   }
 
   // --- Assign (Pending tasks, shown inline in the modal instead of on the Assign PM page) ---
@@ -368,6 +370,65 @@ export class LayoutComponent {
       this.toast.error(err?.message || 'Failed to reassign task. Please check the server connection.');
     } finally {
       this.reassignConfirmPending.set(false);
+    }
+  }
+
+  // --- Edit Checklist (recurring series only) — applies to future/not-Done occurrences,
+  // leaves Done tasks and past PM reports untouched. ---
+  editChecklistMode = signal<boolean>(false);
+  editChecklistItems = signal<{ text: string; requiresPhoto?: boolean; requiresValue?: boolean }[]>([]);
+  newChecklistItem = '';
+
+  canEditSeriesChecklist(task: PMTask): boolean {
+    return this.pmService.canEditSeriesChecklist(task);
+  }
+
+  startEditChecklist(task: PMTask) {
+    this.editChecklistItems.set((task.checklist || []).map(i => ({ text: i.text, requiresPhoto: i.requiresPhoto, requiresValue: i.requiresValue })));
+    this.newChecklistItem = '';
+    this.editChecklistMode.set(true);
+  }
+
+  addEditChecklistItem() {
+    if (this.newChecklistItem.trim()) {
+      this.editChecklistItems.update(list => [...list, { text: this.newChecklistItem.trim(), requiresPhoto: false, requiresValue: false }]);
+      this.newChecklistItem = '';
+    }
+  }
+
+  removeEditChecklistItem(index: number) {
+    this.editChecklistItems.update(list => list.filter((_, i) => i !== index));
+  }
+
+  toggleEditChecklistPhoto(index: number) {
+    this.editChecklistItems.update(list => {
+      const newList = [...list];
+      newList[index] = { ...newList[index], requiresPhoto: !newList[index].requiresPhoto };
+      return newList;
+    });
+  }
+
+  toggleEditChecklistValue(index: number) {
+    this.editChecklistItems.update(list => {
+      const newList = [...list];
+      newList[index] = { ...newList[index], requiresValue: !newList[index].requiresValue };
+      return newList;
+    });
+  }
+
+  cancelEditChecklist() {
+    this.editChecklistMode.set(false);
+  }
+
+  async saveEditChecklist(task: PMTask) {
+    try {
+      await this.pmService.updateSeriesChecklist(task, this.editChecklistItems());
+      this.toast.success('Checklist updated for future occurrences.');
+      this.editChecklistMode.set(false);
+      const updated = this.pmService.pmTasks().find(t => t.id === task.id);
+      if (updated) this.pmService.viewedTaskGlobal.set(updated);
+    } catch (err: any) {
+      this.toast.error(err?.message || 'Failed to update checklist. Please try again.');
     }
   }
 

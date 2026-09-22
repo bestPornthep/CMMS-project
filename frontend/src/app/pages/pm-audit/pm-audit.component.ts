@@ -46,5 +46,19 @@ export class PmAuditComponent {
   updateSearch(event: Event) {
     this.searchQuery.set((event.target as HTMLInputElement).value);
   }
+
+  expandedLogId = signal<string | null>(null);
+
+  toggleExpanded(log: AuditLog) {
+    if (!log.changes?.length) return;
+    this.expandedLogId.set(this.expandedLogId() === log.id ? null : log.id);
+  }
+
+  changeTagClass(change: string): string {
+    if (change.includes('requirement')) return 'tag-flag';
+    if (change.startsWith('Added')) return 'tag-added';
+    if (change.startsWith('Removed')) return 'tag-removed';
+    return 'tag-flag';
+  }
 }
 

@@ -48,6 +48,13 @@ input[type="date"].filter-input {
 .ms-wrapper {
   position: relative;
   z-index: 11;
+
+  // Equal z-index siblings stack by DOM order, so a later field would otherwise
+  // paint over an earlier one's open menu in a vertically-stacked layout (e.g. the
+  // export modal). Lift whichever wrapper currently has its menu open above the rest.
+  &:has(.ms-menu.open) {
+    z-index: 50;
+  }
 }
 
 .ms-trigger {

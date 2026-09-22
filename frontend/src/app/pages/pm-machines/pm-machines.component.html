@@ -1,0 +1,184 @@
+<div class="machines-page">
+  <div class="page-header" data-enter>
+    <div>
+      <h1 class="page-title">{{ 'Manage Machines' | tr }}</h1>
+      <p class="page-sub">{{ 'Add new machines and manage existing ones' | tr }}</p>
+    </div>
+    <label class="mock-toggle" *ngIf="isDevBuild">
+      <input type="checkbox" [checked]="useMockData()" (change)="useMockData.set(!useMockData())" />
+      {{ 'Test with mock data (dev only, no real save)' | tr }}
+    </label>
+  </div>
+
+  <!-- Add Machine -->
+  <div class="card" data-enter>
+    <div class="card-header"><div class="card-title">{{ 'Add New Machine' | tr }}</div></div>
+    <div class="card-body add-form">
+      <div class="form-group">
+        <label class="form-label">{{ 'Customer' | tr | uppercase }}</label>
+        <div class="c-dropdown form-dropdown" [class.open]="openDropdown === 'product'" (click)="toggleDropdown('product', $event)">
+          <div class="c-dropdown-trigger">
+            <input type="text"
+              class="c-dropdown-input"
+              [(ngModel)]="productId" name="productId" [placeholder]="'Select or type new customer...' | tr"
+              (click)="openDropdown = 'product'; $event.stopPropagation()" />
+            <span class="material-symbols-outlined">expand_more</span>
+          </div>
+          <div class="c-dropdown-menu">
+            <div class="c-dropdown-item" *ngFor="let p of getFilteredProducts()" (click)="selectProduct(p, $event)">{{ p }}</div>
+            <div class="c-dropdown-item empty" *ngIf="getFilteredProducts().length === 0">{{ 'No matching customer \u2014 will be created as new' | tr }}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">{{ 'Department' | tr | uppercase }}</label>
+        <div class="c-dropdown form-dropdown" [class.open]="openDropdown === 'department'" (click)="toggleDropdown('department', $event)" *ngIf="canChangeDept">
+          <div class="c-dropdown-trigger">
+            <span>{{ (department | tr) || ('Select department...' | tr) }}</span>
+            <span class="material-symbols-outlined">expand_more</span>
+          </div>
+          <div class="c-dropdown-menu">
+            <div class="c-dropdown-item" *ngFor="let d of departments" (click)="selectDept(d, $event)">{{ d | tr }}</div>
+          </div>
+        </div>
+        <div *ngIf="!canChangeDept" class="fixed-field">{{ department }}</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">{{ 'Machine ID' | tr | uppercase }}</label>
+        <input type="text" class="text-input" [(ngModel)]="assetId" name="assetId" [placeholder]="'e.g. CNC-014' | tr" />
+        <div class="field-hint error" *ngIf="isDuplicateAssetId()">{{ 'A machine with this ID already exists.' | tr }}</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">{{ 'Machine Name' | tr | uppercase }}</label>
+        <input type="text" class="text-input" [(ngModel)]="assetName" name="assetName" [placeholder]="'e.g. CNC Mill #14' | tr" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">{{ 'Work Center' | tr | uppercase }}</label>
+        <input type="text" class="text-input" [(ngModel)]="workCenter" name="workCenter" [placeholder]="'e.g. WC-01' | tr" />
+      </div>
+
+      <div class="form-actions">
+        <button class="btn btn-primary" [disabled]="isSubmitting()" (click)="addMachine()">
+          <span class="material-symbols-outlined">add_circle</span> {{ 'Add Machine' | tr }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Machines list -->
+  <div class="card" data-enter>
+    <div class="card-header list-header">
+      <div class="card-title">{{ 'All Machines' | tr }}</div>
+      <div class="list-controls">
+        <input type="text" class="text-input search-input" [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)" name="searchQuery" [placeholder]="'Search ID, name, or customer...' | tr" />
+        <div class="status-filter">
+          <button [class.active]="statusFilter() === 'all'" (click)="setStatusFilter('all')">{{ 'All' | tr }}</button>
+          <button [class.active]="statusFilter() === 'active'" (click)="setStatusFilter('active')">{{ 'Active' | tr }}</button>
+          <button [class.active]="statusFilter() === 'inactive'" (click)="setStatusFilter('inactive')">{{ 'Inactive' | tr }}</button>
+        </div>
+      </div>
+    </div>
+    <div class="card-body" style="padding:0;">
+      <div class="empty-state" *ngIf="filteredMachines().length === 0">
+        <p>{{ 'No machines found.' | tr }}</p>
+      </div>
+      <div class="table-scroll" *ngIf="filteredMachines().length > 0">
+      <table class="machines-table">
+        <thead>
+          <tr>
+            <th>{{ 'Machine ID' | tr }}</th>
+            <th>{{ 'Name' | tr }}</th>
+            <th>{{ 'Customer' | tr }}</th>
+            <th>{{ 'Department' | tr }}</th>
+            <th>{{ 'Work Center' | tr }}</th>
+            <th>{{ 'Status' | tr }}</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <ng-container *ngFor="let a of filteredMachines()">
+            <tr [class.inactive-row]="a.isActive === false" *ngIf="editingId !== a.id">
+              <td>{{ a.id }}</td>
+              <td>{{ a.name }}</td>
+              <td>{{ a.location }}</td>
+              <td>{{ a.department | tr }}</td>
+              <td>{{ a.workCenter || '\u2014' }}</td>
+              <td>
+                <span class="status-badge" [class.active]="a.isActive !== false" [class.inactive]="a.isActive === false">
+                  {{ (a.isActive === false ? 'Inactive' : 'Active') | tr }}
+                </span>
+              </td>
+              <td class="row-actions">
+                <div class="row-actions-inner">
+                  <button class="btn btn-ghost" (click)="startEdit(a, $event)">{{ 'Edit' | tr }}</button>
+                  <button class="btn btn-ghost danger" *ngIf="a.isActive !== false" (click)="askDeactivate(a, $event)">{{ 'Deactivate' | tr }}</button>
+                  <button class="btn btn-ghost" *ngIf="a.isActive === false" (click)="askReactivate(a, $event)">{{ 'Reactivate' | tr }}</button>
+                </div>
+              </td>
+            </tr>
+            <tr class="edit-row" *ngIf="editingId === a.id">
+              <td>{{ a.id }}</td>
+              <td><input type="text" class="text-input" [(ngModel)]="editName" name="editName" /></td>
+              <td>
+                <div class="c-dropdown form-dropdown" [class.open]="editOpenDropdown === 'product'" (click)="toggleEditDropdown('product', $event)">
+                  <div class="c-dropdown-trigger">
+                    <span>{{ editProductId || ('Select customer...' | tr) }}</span>
+                    <span class="material-symbols-outlined">expand_more</span>
+                  </div>
+                  <div class="c-dropdown-menu">
+                    <div class="c-dropdown-item" *ngFor="let p of products()" (click)="selectEditProduct(p, $event)">{{ p }}</div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="c-dropdown form-dropdown" [class.open]="editOpenDropdown === 'department'" (click)="toggleEditDropdown('department', $event)" *ngIf="canChangeDept">
+                  <div class="c-dropdown-trigger">
+                    <span>{{ (editDepartment | tr) || ('Select department...' | tr) }}</span>
+                    <span class="material-symbols-outlined">expand_more</span>
+                  </div>
+                  <div class="c-dropdown-menu">
+                    <div class="c-dropdown-item" *ngFor="let d of departments" (click)="selectEditDept(d, $event)">{{ d | tr }}</div>
+                  </div>
+                </div>
+                <div *ngIf="!canChangeDept" class="fixed-field">{{ editDepartment | tr }}</div>
+              </td>
+              <td><input type="text" class="text-input" [(ngModel)]="editWorkCenter" name="editWorkCenter" /></td>
+              <td></td>
+              <td class="row-actions">
+                <div class="row-actions-inner">
+                  <button class="btn btn-primary" (click)="saveEdit(a)">{{ 'Save' | tr }}</button>
+                  <button class="btn btn-ghost" (click)="cancelEdit()">{{ 'Cancel' | tr }}</button>
+                </div>
+              </td>
+            </tr>
+          </ng-container>
+        </tbody>
+      </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Deactivate/Reactivate confirmation -->
+  <div class="modal-overlay" [class.open]="confirmTarget" (click)="closeConfirm()"></div>
+  <div class="confirm-modal" [class.open]="confirmTarget">
+    <ng-container *ngIf="confirmTarget as m">
+      <h2 class="modal-title">{{ (confirmAction === 'reactivate' ? 'Reactivate Machine?' : 'Deactivate Machine?') | tr }}</h2>
+      <p class="modal-sub" *ngIf="confirmAction === 'deactivate'">
+        {{ 'This will pause all PM plans for' | tr }} <strong>{{ m.name }}</strong> {{ 'and cancel any pending, in-progress, pending-approval, or overdue PM tasks for it. Completed history is kept and never deleted.' | tr }}
+      </p>
+      <p class="modal-sub" *ngIf="confirmAction === 'reactivate'">
+        {{ 'This will resume PM plans for' | tr }} <strong>{{ m.name }}</strong>. {{ 'Previously cancelled tasks stay cancelled.' | tr }}
+      </p>
+      <div class="modal-actions">
+        <button class="btn btn-primary" [class.danger]="confirmAction === 'deactivate'" (click)="confirmToggleActive()">
+          {{ (confirmAction === 'reactivate' ? 'Reactivate' : 'Deactivate') | tr }}
+        </button>
+        <button class="btn btn-ghost" (click)="closeConfirm()">{{ 'Cancel' | tr }}</button>
+      </div>
+    </ng-container>
+  </div>
+</div>

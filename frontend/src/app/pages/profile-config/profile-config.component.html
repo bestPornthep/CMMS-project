@@ -107,10 +107,24 @@
         <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:8px;">
           <button type="button" class="btn" *ngFor="let role of roleTemplates"
             [class.btn-primary]="formBaseRole === role" [class.btn-ghost]="formBaseRole !== role"
+            [disabled]="isRoleTemplateDisabled(role)" [title]="isRoleTemplateDisabled(role) ? ('All department is manager/admin only' | tr) : ''"
             (click)="selectRoleTemplate(role)" style="justify-content:center;">
             {{ roleLabels[role] | tr }}
           </button>
         </div>
+        <p class="modal-sub" style="margin-top:6px;" *ngIf="formDepartment === 'All'">{{ 'Only Manager and Admin can be assigned to All departments.' | tr }}</p>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">{{ 'PM Master Plan Approver' | tr | uppercase }}</label>
+        <button type="button" class="btn" [class.btn-primary]="isMasterPlanApprover()" [class.btn-ghost]="!isMasterPlanApprover()"
+          [disabled]="isMasterPlanApproverLocked()" (click)="toggleMasterPlanApprover()" style="justify-content:center; width:100%;">
+          <span class="material-symbols-outlined">{{ isMasterPlanApprover() ? 'check_circle' : 'radio_button_unchecked' }}</span>
+          {{ (isMasterPlanApprover() ? 'Can approve PM Master Plan changes' : 'Cannot approve PM Master Plan changes') | tr }}
+        </button>
+        <p class="modal-sub" style="margin-top:6px;">
+          {{ (isMasterPlanApproverLocked() ? 'Included automatically for Manager/Admin.' : 'Grant independently of role — e.g. a senior Engineer who can approve changes without being a Manager.') | tr }}
+        </p>
       </div>
 
       <div class="form-group" *ngIf="formBaseRole === 'engineer'">

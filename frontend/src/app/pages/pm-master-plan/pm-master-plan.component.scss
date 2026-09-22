@@ -1,0 +1,250 @@
+/* ── Page wrapper ────────────────────────────────── */
+.pm-master-plan-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ── Filter bar (copied pattern from pm-reports.component.scss) ──────────── */
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-end;
+  padding: 20px;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-width: 180px;
+  max-width: 280px;
+}
+
+.filter-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.filter-input {
+  width: 100%;
+}
+
+/* ── Multi-select dropdown (copied pattern from pm-reports.component.scss) ── */
+.ms-wrapper {
+  position: relative;
+  z-index: 11;
+
+  &:has(.ms-menu.open) {
+    z-index: 50;
+  }
+}
+
+.ms-trigger {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  padding-right: 10px;
+
+  .material-symbols-outlined {
+    font-size: 18px;
+    color: var(--color-text-muted);
+    flex-shrink: 0;
+  }
+}
+
+.ms-trigger-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  color: var(--color-text-primary);
+}
+
+.ms-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  min-width: 200px;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  opacity: 0;
+  transform: translateY(-8px);
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  z-index: 100;
+
+  &.open {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+}
+
+.ms-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--color-text-primary);
+  transition: background 0.15s ease;
+
+  &:hover { background: var(--color-bg-card-alt); }
+}
+
+.ms-list {
+  max-height: 220px;
+  overflow-y: auto;
+
+  &::-webkit-scrollbar { width: 4px; }
+  &::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 4px; }
+}
+
+.ms-checkbox {
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--color-border-strong);
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--color-bg-page);
+  transition: background 0.15s ease, border-color 0.15s ease;
+
+  .material-symbols-outlined {
+    font-size: 12px;
+    color: white;
+  }
+
+  &.checked {
+    background: var(--color-blue-DEFAULT);
+    border-color: var(--color-blue-DEFAULT);
+  }
+}
+
+.dropdown-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+}
+
+/* ── Master plan table ───────────────────────────── */
+.master-plan-card {
+  padding: 0;
+  overflow: hidden; // let the card's rounded corners clip the table's square edges
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+.master-plan-table {
+  width: 100%;
+  border-collapse: collapse;
+  white-space: nowrap;
+
+  th, td {
+    padding: 8px 10px;
+    text-align: center;
+    border-bottom: 1px solid #000;
+    border-right: 1px solid #000;
+    font-size: 12px;
+  }
+
+  th {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    background: var(--color-bg-card);
+  }
+
+  .month-header { background: var(--color-bg-card); }
+  .ww-header { min-width: 40px; }
+  .ww-cell { color: var(--color-text-secondary); font-variant-numeric: tabular-nums; padding: 0; }
+
+  // One highlight color per PM period unit, so overlaid plans on the same row (e.g. Monthly +
+  // Yearly) stay visually distinguishable. Text stays dark on every color for contrast.
+  .mark {
+    display: block;
+    padding: 8px 4px;
+    font-weight: 700;
+    color: #0f172a;
+
+    &.freq-daily    { background: #fde68a; }
+    &.freq-weekly   { background: #86efac; }
+    &.freq-monthly  { background: #67e8f9; }
+    &.freq-yearly   { background: #d1d5db; }
+    &.freq-hourly   { background: #fdba74; }
+    &.freq-other    { background: #e5e7eb; }
+  }
+
+  .machine-cell { text-align: left; font-weight: 600; }
+  .empty-cell { color: var(--color-text-muted); padding: 24px; text-align: center; }
+
+  tbody tr.inactive-row td { color: var(--color-text-muted); }
+
+  .inactive-badge {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 7px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 600;
+    background: var(--color-error-bg);
+    color: var(--color-error-text);
+  }
+
+  /* First two columns stay visible while scrolling through the year's WW columns. */
+  .sticky-col {
+    position: sticky;
+    background: var(--color-bg-card);
+  }
+  .sticky-col-1 { left: 0; min-width: 40px; }
+  .sticky-col-2 { left: 40px; min-width: 160px; text-align: left; box-shadow: 2px 0 4px rgba(0, 0, 0, 0.06); }
+}
+
+/* ── Print ───────────────────────────────────────── */
+@media print {
+  .no-print { display: none !important; }
+
+  .master-plan-card {
+    box-shadow: none;
+    border: none;
+  }
+
+  .table-scroll {
+    overflow: visible;
+  }
+
+  .master-plan-table {
+    font-size: 8px;
+
+    th, td { padding: 3px 4px; }
+
+    .sticky-col {
+      position: static;
+      box-shadow: none;
+    }
+  }
+
+  @page {
+    size: A3 landscape;
+    margin: 8mm;
+  }
+}

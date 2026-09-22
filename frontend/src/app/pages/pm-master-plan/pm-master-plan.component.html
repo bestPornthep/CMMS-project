@@ -1,0 +1,135 @@
+<div class="dropdown-backdrop" *ngIf="yearDropdownOpen() || deptDropdownOpen() || productDropdownOpen()" (click)="closeDropdowns()"></div>
+
+<div class="pm-master-plan-page" data-enter>
+  <div class="page-header no-print">
+    <div>
+      <h1 class="page-title">{{ 'PM Master Plan' | tr }}</h1>
+      <p class="page-sub">{{ 'Full-year preventive maintenance schedule for every machine \u2014 for audit reference.' | tr }}</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-outline" *ngIf="isDevBuild" (click)="loadMockPreviewData()">
+        <span class="material-symbols-outlined">science</span>
+        {{ (mockTasks().length > 0 ? 'Clear Mock Preview Data' : 'Load Mock Preview Data') | tr }}
+      </button>
+      <button class="btn btn-primary" (click)="printPlan()">
+        <span class="material-symbols-outlined">picture_as_pdf</span> {{ 'Export to PDF' | tr }}
+      </button>
+    </div>
+  </div>
+
+  <div class="filter-bar card no-print" data-enter>
+    <div class="filter-group">
+      <label class="filter-label">{{ 'Year' | tr }}</label>
+      <div class="ms-wrapper">
+        <div class="form-input ms-trigger" (click)="toggleYearDropdown()">
+          <span class="ms-trigger-text">{{ selectedYear() }}</span>
+          <span class="material-symbols-outlined">expand_more</span>
+        </div>
+        <div class="ms-menu" [class.open]="yearDropdownOpen()">
+          <div class="ms-list">
+            <div class="ms-item" *ngFor="let y of availableYears()" (click)="selectYear(y)">
+              <div class="ms-checkbox" [class.checked]="selectedYear() === y">
+                <span class="material-symbols-outlined" *ngIf="selectedYear() === y">check</span>
+              </div>
+              <span>{{ y }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="filter-group">
+      <label class="filter-label">{{ 'Department' | tr }}</label>
+      <div class="ms-wrapper">
+        <div class="form-input ms-trigger" (click)="toggleDeptDropdown()">
+          <span class="ms-trigger-text">
+            {{ selectedDepartments().length ? selectedDepartments().length + ' ' + ('selected' | tr) : ('All Departments' | tr) }}
+          </span>
+          <span class="material-symbols-outlined">expand_more</span>
+        </div>
+        <div class="ms-menu" [class.open]="deptDropdownOpen()">
+          <div class="ms-list">
+            <div class="ms-item" *ngFor="let d of departments" (click)="toggleDept(d)">
+              <div class="ms-checkbox" [class.checked]="selectedDepartments().includes(d)">
+                <span class="material-symbols-outlined" *ngIf="selectedDepartments().includes(d)">check</span>
+              </div>
+              <span>{{ d | tr }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="filter-group">
+      <label class="filter-label">{{ 'Product (Location)' | tr }}</label>
+      <div class="ms-wrapper">
+        <div class="form-input ms-trigger" (click)="toggleProductDropdown()">
+          <span class="ms-trigger-text">
+            {{ selectedProducts().length ? selectedProducts().length + ' ' + ('selected' | tr) : ('All products...' | tr) }}
+          </span>
+          <span class="material-symbols-outlined">expand_more</span>
+        </div>
+        <div class="ms-menu" [class.open]="productDropdownOpen()">
+          <div class="ms-list">
+            <div class="ms-item" *ngFor="let p of availableProducts()" (click)="toggleProduct(p)">
+              <div class="ms-checkbox" [class.checked]="selectedProducts().includes(p)">
+                <span class="material-symbols-outlined" *ngIf="selectedProducts().includes(p)">check</span>
+              </div>
+              <span>{{ p }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="filter-group">
+      <label class="filter-label">{{ 'Search' | tr }}</label>
+      <input type="text" class="form-input filter-input" [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)" [placeholder]="'Search ID, name, or customer...' | tr" />
+    </div>
+  </div>
+
+  <div class="card master-plan-card" data-enter>
+    <div class="table-scroll">
+      <table class="master-plan-table">
+        <thead>
+          <tr>
+            <th rowspan="2" class="sticky-col sticky-col-1">{{ 'No.' | tr }}</th>
+            <th rowspan="2" class="sticky-col sticky-col-2">{{ 'Machine' | tr }}</th>
+            <th rowspan="2">{{ 'Equipment ID' | tr }}</th>
+            <th rowspan="2">{{ 'Department' | tr }}</th>
+            <th rowspan="2">{{ 'Work Center' | tr }}</th>
+            <th rowspan="2">{{ 'PM FRQ' | tr }}</th>
+            <th *ngFor="let mg of monthGroups()" [attr.colspan]="mg.weeks.length" class="month-header">{{ mg.label }}</th>
+          </tr>
+          <tr>
+            <ng-container *ngFor="let mg of monthGroups()">
+              <th *ngFor="let ww of mg.weeks" class="ww-header">{{ 'WW' + pad(ww) }}</th>
+            </ng-container>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let r of rows(); let i = index" [class.inactive-row]="!r.isActive">
+            <td class="sticky-col sticky-col-1">{{ i + 1 }}</td>
+            <td class="sticky-col sticky-col-2 machine-cell">
+              {{ r.assetName }}
+              <span class="inactive-badge" *ngIf="!r.isActive">{{ 'Inactive' | tr }}</span>
+            </td>
+            <td>{{ r.assetId }}</td>
+            <td>{{ r.department | tr }}</td>
+            <td>{{ r.workCenter }}</td>
+            <td>{{ r.frequencyLabel || ('No PM plan yet' | tr) }}</td>
+            <td *ngFor="let ww of allWeeks()" class="ww-cell">
+              <ng-container *ngIf="r.marks[ww] as marksForWeek; else dash">
+                <span class="mark" *ngFor="let mk of marksForWeek" [ngClass]="mk.colorClass">{{ mk.code }}</span>
+              </ng-container>
+              <ng-template #dash>-</ng-template>
+            </td>
+          </tr>
+          <tr *ngIf="rows().length === 0">
+            <td [attr.colspan]="6 + allWeeks().length" class="empty-cell">{{ 'No machines found.' | tr }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

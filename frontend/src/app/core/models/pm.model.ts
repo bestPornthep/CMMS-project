@@ -3,9 +3,11 @@ export interface Asset {
   name: string;
   department: string; // renamed from 'type' — matches domain language and backend schema
   location: string;   // = productId (customer/site code)
+  workCenter?: string; // factory work center code — backend not yet sending/accepting this field
+  isActive?: boolean;  // defaults to true when absent (pre-existing assets, backend not yet sending this field)
 }
 
-export type PMTaskStatus = 'Pending' | 'In Progress' | 'Pending Approval' | 'Done' | 'Overdue';
+export type PMTaskStatus = 'Pending' | 'In Progress' | 'Pending Approval' | 'Done' | 'Overdue' | 'Cancelled';
 export type PMTaskFrequency = string; // 'Daily' | 'Weekly' | 'Monthly' | 'Quarterly' | 'Yearly' | custom
 
 export interface Template {
@@ -33,6 +35,7 @@ export interface PMSchedule {
   createdBy?: string;
   createdAt?: Date;
   updatedAt?: Date;
+  isActive?: boolean; // defaults to true when absent; false = paused (machine deactivated), no new tasks generated
 }
 
 export interface PMTask {
@@ -66,6 +69,10 @@ export interface PMTask {
   approvedAt?: Date;
   rejectedBy?: string;
   rejectedAt?: Date;
+
+  // Set when a task is auto-cancelled because its machine was deactivated — history is kept, not deleted.
+  cancelledReason?: string;
+  cancelledAt?: Date;
 
   createdBy?: string;
   createdAt?: Date;
@@ -115,6 +122,7 @@ export interface AuditLog {
   target: { name: string; id: string; isUser: boolean } | null;
   product: string;
   type: 'security' | 'system' | 'data';
+  changes?: string[]; // human-readable diff lines, e.g. checklist item add/remove — only present for actions that support it
 }
 
 // Backend migration helpers

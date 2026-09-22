@@ -1,5 +1,5 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
-import { Asset, PMTask, Template, User } from '../models/pm.model';
+import { Asset, PMTask, PMTaskStatus, Template, User } from '../models/pm.model';
 import { ApiService } from './api.service';
 import { AuthService } from './auth.service';
 
@@ -13,6 +13,9 @@ export class PmService {
   private templatesSignal = signal<Template[]>([]);
 
   readonly assets = computed(() => this.assetsSignal());
+  // Hides machines that have been deactivated — use for pickers (Create PM, etc.), not for
+  // history/reporting views, which must still show inactive machines' past data.
+  readonly activeAssets = computed(() => this.assetsSignal().filter(a => a.isActive !== false));
   readonly pmTasks = computed(() => this.pmTasksSignal());
   readonly templates = computed(() => this.templatesSignal());
 
@@ -230,8 +233,11 @@ export class PmService {
     return this.getAssignableTechnicians(task).filter(u => u.employeeId !== task.assignedTo);
   }
 
-  // Assigns a Pending task to a technician. For a recurring series, the earliest still-Pending
-  // occurrence is assigned (the clicked row may only be the series' display representative).
+  // Assigns a Pending task to a technician. For a recurring series, this is a one-time
+  // action: the earliest still-Pending occurrence starts now (-> In Progress), and every
+  // other not-Done Pending occurrence in the series is pre-assigned to the same technician
+  // (stays Pending until its own due date) so the series doesn't keep reappearing as
+  // "unassigned" every time the current occurrence is picked up.
   async assignTaskToTechnician(task: PMTask, techId: string): Promise<void> {
     if (!this.canManageTask(task)) {
       throw new Error('You cannot manage or reassign work owned by another Engineer or outside your responsibility.');
@@ -246,9 +252,9 @@ export class PmService {
     const seriesMatch = task.description?.match(/\[SeriesID:\s*([^\]]+)\]/);
     if (seriesMatch) {
       const seriesId = seriesMatch[1];
-      const nextTask = this.pmTasksSignal()
+      const [nextTask, ...futureTasks] = this.pmTasksSignal()
         .filter(t => t.status === 'Pending' && t.description?.includes(`[SeriesID: ${seriesId}]`))
-        .sort((a, b) => new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime())[0];
+        .sort((a, b) => new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime());
 
       if (!nextTask) {
         throw new Error('No pending task found in this series to assign.');
@@ -261,6 +267,15 @@ export class PmService {
         assignedAt: new Date(),
         assignedBy: user?.employeeId
       });
+
+      for (const futureTask of futureTasks) {
+        await this.updateTask({
+          ...futureTask,
+          assignedTo: techId,
+          assignedAt: new Date(),
+          assignedBy: user?.employeeId
+        });
+      }
     } else {
       await this.updateTask({
         ...task,
@@ -336,14 +351,48 @@ export class PmService {
     });
   }
 
-  createAsset(asset: { id: string, name: string, location: string, department: string }): Promise<void> {
+  // `mock: true` skips the real API call entirely (purely local signal update) — lets the
+  // Machines page be exercised end-to-end before the backend supports isActive/PATCH (see
+  // docs/backend_machine_active_status.html). Never used in production builds.
+  createAsset(asset: { id: string, name: string, location: string, department: string, workCenter?: string }, opts?: { mock?: boolean }): Promise<void> {
     const user = this.authService.currentUser();
     if (!user || !this.authService.hasPermission('pm.create.submit')) {
       return Promise.reject(new Error('Unauthorized to create assets.'));
     }
+    const newAsset: Asset = { ...asset, isActive: true };
+    if (opts?.mock) {
+      this.assetsSignal.update(assets => [...assets, newAsset]);
+      return Promise.resolve();
+    }
     return this.api.createAsset(asset).then(() => {
-      this.assetsSignal.update(assets => [...assets, asset as Asset]);
+      this.assetsSignal.update(assets => [...assets, newAsset]);
     });
+  }
+
+  // Edits a machine's own fields and/or its active status. Deactivating cascades locally to
+  // cancel that machine's not-yet-Done tasks so the UI reflects the effect immediately — the
+  // backend is the source of truth for actually pausing the recurring schedule (see
+  // docs/backend_machine_active_status.html); this local mirror is a best-effort UI preview.
+  updateAsset(id: string, patch: Partial<Pick<Asset, 'name' | 'department' | 'location' | 'workCenter' | 'isActive'>>, opts?: { mock?: boolean }): Promise<void> {
+    const user = this.authService.currentUser();
+    if (!user || !this.authService.hasPermission('pm.create.submit')) {
+      return Promise.reject(new Error('Unauthorized to update assets.'));
+    }
+    const applyLocally = () => {
+      this.assetsSignal.update(assets => assets.map(a => a.id === id ? { ...a, ...patch } : a));
+      if (patch.isActive === false) {
+        const now = new Date();
+        this.pmTasksSignal.update(tasks => tasks.map(t => {
+          if (t.assetId !== id || t.status === 'Done' || t.status === 'Cancelled') return t;
+          return { ...t, status: 'Cancelled' as PMTaskStatus, cancelledReason: 'Machine deactivated', cancelledAt: now };
+        }));
+      }
+    };
+    if (opts?.mock) {
+      applyLocally();
+      return Promise.resolve();
+    }
+    return this.api.updateAsset(id, patch).then(() => applyLocally());
   }
 
   createProduct(product: { id: string, name: string }): Promise<void> {

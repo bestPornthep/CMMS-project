@@ -39,6 +39,8 @@ applyTo: "backend/**"
 
 ## Known Gaps (do not silently fix without a spec)
 
+- Task ID format is being redesigned (`PM-{MachineID}-{PeriodCode}-{Seq}`, replacing `PM-XXX-0001`) — not yet implemented, see `docs/backend_pm_id_format.html`.
 - `PUT /templates/:id` endpoint is missing — required by frontend.
 - `POST /products` does not assign creator ownership rows — required by `docs/backend_assets_products_api.md`.
 - Dual schedule API: `pm-tasks` schedule endpoints + new `pm-schedules` resource coexist. Migration is in progress.
+- PM Master Plan change-approval workflow (add/remove machine, add/remove PM type submitted for Manager/`pm.masterplan.approve` approval) is being built frontend-first, client-side only (localStorage) — no backend persistence yet. Needs a real endpoint/table for pending change requests once the design settles.

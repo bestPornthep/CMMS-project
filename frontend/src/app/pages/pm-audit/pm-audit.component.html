@@ -27,35 +27,47 @@
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let log of filteredLogs()">
-                <td>
-                  <div style="font-weight:600; color:var(--color-text-primary); font-size:12.5px;">{{ log.timestamp | date:'MMM d, y, h:mm a' }}</div>
-                  <div style="font-size:11px; color:var(--color-text-muted);" class="mono">{{ log.id }}</div>
-                </td>
-                <td>
-                  <div style="display:flex; align-items:center; justify-content:center; gap: 8px;">
-                     <div class="badge" 
-                          [class.badge-error]="log.type === 'security'"
-                          [class.badge-blue]="log.type === 'system'"
-                          [class.badge-success]="log.type === 'data'">
-                          {{ log.type | uppercase }}
-                     </div>
-                     <span style="font-weight: 600; color: var(--color-text-primary);">{{ log.action }}</span>
-                  </div>
-                </td>
-                <td>
-                  <div style="font-weight:600;">{{ log.actor.name }}</div>
-                </td>
-                <td>
-                  <ng-container *ngIf="log.target">
-                    <div style="font-weight:600;">{{ log.target.name }}</div>
-                  </ng-container>
-                  <span *ngIf="!log.target" style="color:var(--color-text-muted);">—</span>
-                </td>
-                <td>
-                  <span style="font-weight: 500;">{{ log.product }}</span>
-                </td>
-              </tr>
+              <ng-container *ngFor="let log of filteredLogs()">
+                <tr (click)="toggleExpanded(log)">
+                  <td>
+                    <div style="font-weight:600; color:var(--color-text-primary); font-size:12.5px;">{{ log.timestamp | date:'MMM d, y, h:mm a' }}</div>
+                    <div style="font-size:11px; color:var(--color-text-muted);" class="mono">{{ log.id }}</div>
+                  </td>
+                  <td>
+                    <div style="display:flex; align-items:center; justify-content:center; gap: 8px;">
+                       <div class="badge" 
+                            [class.badge-error]="log.type === 'security'"
+                            [class.badge-blue]="log.type === 'system'"
+                            [class.badge-success]="log.type === 'data'">
+                            {{ log.type | uppercase }}
+                       </div>
+                       <span style="font-weight: 600; color: var(--color-text-primary);">{{ log.action }}</span>
+                       <span *ngIf="log.changes?.length" class="material-symbols-outlined" style="font-size:18px; color:var(--color-text-muted);">
+                         {{ expandedLogId() === log.id ? 'expand_less' : 'expand_more' }}
+                       </span>
+                    </div>
+                  </td>
+                  <td>
+                    <div style="font-weight:600;">{{ log.actor.name }}</div>
+                  </td>
+                  <td>
+                    <ng-container *ngIf="log.target">
+                      <div style="font-weight:600;">{{ log.target.name }}</div>
+                    </ng-container>
+                    <span *ngIf="!log.target" style="color:var(--color-text-muted);">—</span>
+                  </td>
+                  <td>
+                    <span style="font-weight: 500;">{{ log.product }}</span>
+                  </td>
+                </tr>
+                <tr *ngIf="expandedLogId() === log.id" class="changes-row">
+                  <td colspan="5" style="text-align:left; cursor:default;">
+                    <div class="changes-list">
+                      <span *ngFor="let change of log.changes" class="change-tag" [ngClass]="changeTagClass(change)">{{ change }}</span>
+                    </div>
+                  </td>
+                </tr>
+              </ng-container>
               <tr *ngIf="filteredLogs().length === 0">
                  <td colspan="5" style="text-align: center; padding: 40px; color: var(--color-text-primary);">
                     No audit logs found matching your search.

@@ -184,7 +184,9 @@ export class PmCreateComponent {
     const filterProd = this.productId?.toLowerCase() || '';
     const filterDept = this.department?.toLowerCase() || '';
 
-    return this.pmService.assets().filter(a => {
+    // Only active machines are offered here \u2014 deactivated machines must be reactivated
+    // from the Machines page before a new PM can be created for them.
+    return this.pmService.activeAssets().filter(a => {
       const aLoc = a.location?.toLowerCase() || '';
       const aDept = a.department?.toLowerCase() || '';
 
@@ -363,45 +365,20 @@ export class PmCreateComponent {
     const selectedAsset = this.pmService.assets().find(a => a.id === this.assetId);
     const isNewAsset = !selectedAsset;
 
-    if (selectedAsset) {
-      if (selectedAsset.location !== this.productId || selectedAsset.department !== this.department) {
-        this.toast.error('The selected asset does not match the chosen product or department. Action blocked.');
-        return;
-      }
+    // Machines are now created via the dedicated "Machines" page, not auto-created here.
+    if (isNewProduct || isNewAsset) {
+      this.toast.error('Unknown Product or Asset. Add the machine on the Machines page first, then create its PM here.');
+      return;
+    }
+
+    if (selectedAsset.location !== this.productId || selectedAsset.department !== this.department) {
+      this.toast.error('The selected asset does not match the chosen product or department. Action blocked.');
+      return;
     }
 
     // Lock the button before any async work so a rapid double-click can't
     // slip a second submission past the duplicate check above.
     this.isGenerating.set(true);
-
-    // Create product first if new, then asset
-    if (isNewProduct) {
-      try {
-        await this.pmService.createProduct({ id: this.productId, name: this.productId });
-      } catch (e: any) {
-        if (e?.status === 403) {
-          this.toast.error('You do not have permission to create new products. Contact an admin or manager.');
-        } else {
-          this.toast.error('Failed to create new product. Please try again.');
-        }
-        this.isGenerating.set(false);
-        return;
-      }
-    }
-    if (isNewAsset) {
-      try {
-        await this.pmService.createAsset({
-          id: this.assetId,
-          name: this.assetId,
-          location: this.productId,
-          department: this.department
-        });
-      } catch (e) {
-        this.toast.error('Failed to create new asset. Please try again.');
-        this.isGenerating.set(false);
-        return;
-      }
-    }
 
     // First occurrence is due exactly on the chosen start date — no interval
     // offset applied to it. Later occurrences (recurring only) are computed

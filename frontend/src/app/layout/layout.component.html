@@ -25,6 +25,11 @@
 
       <div class="nav-label">PM Work</div>
 
+      <a class="pm-subitem" routerLink="/pm-machines" routerLinkActive="active" *ngIf="hasPermission('pm.create.view')">
+        <span class="material-symbols-outlined">precision_manufacturing</span>
+        <span>Manage Machines</span>
+      </a>
+
       <a class="pm-subitem" routerLink="/pm-create" routerLinkActive="active" *ngIf="hasPermission('pm.create.view')">
         <span class="material-symbols-outlined">add_circle</span>
         <span>Create PM</span>
@@ -48,6 +53,11 @@
       <a class="pm-subitem" routerLink="/pm-reports" routerLinkActive="active" *ngIf="hasPermission('pm.reports.view')">
         <span class="material-symbols-outlined">bar_chart</span>
         <span>PM Reports</span>
+      </a>
+
+      <a class="pm-subitem" routerLink="/pm-master-plan" routerLinkActive="active" *ngIf="hasPermission('pm.reports.view')">
+        <span class="material-symbols-outlined">calendar_view_month</span>
+        <span>{{ 'PM Master Plan' | tr }}</span>
       </a>
 
       <div class="nav-divider"></div>
@@ -183,8 +193,8 @@
           <div *ngIf="viewedTask.assignedAt"><strong style="color:var(--color-text-primary);">{{ 'Assigned At' | tr }}:</strong> {{ viewedTask.assignedAt | date:'MMM d, y, h:mm a' }}</div>
         </div>
 
-        <!-- Assign (Pending tasks only, and only if the current user can manage this task) -->
-        <div *ngIf="viewedTask.status === 'Pending' && canManageTask(viewedTask)">
+        <!-- Assign (Pending, unassigned tasks only, and only if the current user can manage this task) -->
+        <div *ngIf="viewedTask.status === 'Pending' && !viewedTask.assignedTo && canManageTask(viewedTask)">
           <div style="font-size:12px;font-weight:700;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;">{{ 'Assign' | tr }}</div>
           <div style="display:flex; gap:8px; align-items:center;">
             <div class="c-dropdown" [class.open]="assignDropdownOpen" (click)="toggleAssignDropdown($event)">
@@ -200,8 +210,8 @@
           </div>
         </div>
 
-        <!-- Reassign (In Progress/Overdue tasks only, and only if the current user can manage this task) -->
-        <div *ngIf="(viewedTask.status === 'In Progress' || viewedTask.status === 'Overdue') && canReassignTask(viewedTask)">
+        <!-- Reassign (any status except Done, and only if the current user can manage this task) -->
+        <div *ngIf="canReassignTask(viewedTask)">
           <div style="font-size:12px;font-weight:700;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;">{{ 'Reassign' | tr }}</div>
           <div *ngIf="!reassignConfirmPending()" style="display:flex; gap:8px; align-items:center;">
             <div class="c-dropdown" [class.open]="reassignDropdownOpen" (click)="toggleReassignDropdown($event)">
@@ -224,6 +234,36 @@
             <div style="display:flex; gap:8px;">
               <button class="btn btn-primary" style="flex:1; justify-content:center; font-size:12.5px;" (click)="confirmReassignFromModal(viewedTask)">{{ 'Confirm' | tr }}</button>
               <button class="btn btn-ghost" style="flex:1; justify-content:center; font-size:12.5px;" (click)="cancelReassignFromModal()">{{ 'Cancel' | tr }}</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Edit Checklist (recurring series only, any status except Done) — applies to future occurrences, past/Done tasks and PM reports keep their original checklist -->
+        <div *ngIf="canEditSeriesChecklist(viewedTask)" style="margin-top:16px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+            <div style="font-size:12px;font-weight:700;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:0.6px;">{{ 'Edit Checklist' | tr }}</div>
+            <button *ngIf="!editChecklistMode()" class="btn btn-ghost" style="padding:4px 10px; font-size:11.5px;" (click)="startEditChecklist(viewedTask)">{{ 'Edit' | tr }}</button>
+          </div>
+          <div *ngIf="editChecklistMode()">
+            <div *ngFor="let item of editChecklistItems(); let i = index" style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+              <span style="flex:1; font-size:13px; color:var(--color-text-primary);">{{ item.text }}</span>
+              <button class="btn btn-ghost" style="padding:4px 6px; min-width:auto;" [style.color]="item.requiresValue ? 'var(--color-blue)' : 'var(--color-text-muted)'" (click)="toggleEditChecklistValue(i)" [title]="'Require Value Record' | tr">
+                <span class="material-symbols-outlined" style="font-size:16px;" [style.font-variation-settings]="item.requiresValue ? '\'FILL\' 1' : '\'FILL\' 0'">edit_note</span>
+              </button>
+              <button class="btn btn-ghost" style="padding:4px 6px; min-width:auto;" [style.color]="item.requiresPhoto ? 'var(--color-blue)' : 'var(--color-text-muted)'" (click)="toggleEditChecklistPhoto(i)" title="Require Photo Evidence">
+                <span class="material-symbols-outlined" style="font-size:16px;" [style.font-variation-settings]="item.requiresPhoto ? '\'FILL\' 1' : '\'FILL\' 0'">photo_camera</span>
+              </button>
+              <button class="btn btn-ghost" style="padding:2px 8px; font-size:11px;" (click)="removeEditChecklistItem(i)">{{ 'Remove' | tr }}</button>
+            </div>
+            <div *ngIf="editChecklistItems().length === 0" style="font-size:12.5px; color:var(--color-text-secondary); margin-bottom:8px;">{{ 'No checklist items — type below to add' | tr }}</div>
+            <div style="display:flex; gap:8px; margin:10px 0;">
+              <input type="text" class="form-input" style="flex:1;" [(ngModel)]="newChecklistItem" [placeholder]="'Type new item...' | tr" (keyup.enter)="addEditChecklistItem()" />
+              <button class="btn btn-ghost" style="padding:6px 14px; font-size:12px;" (click)="addEditChecklistItem()">{{ 'Add' | tr }}</button>
+            </div>
+            <p style="font-size:11.5px; color:var(--color-text-secondary); margin:0 0 10px 0;">{{ 'Past completed occurrences and PM reports keep their original checklist.' | tr }}</p>
+            <div style="display:flex; gap:8px;">
+              <button class="btn btn-primary" style="flex:1; justify-content:center; font-size:12.5px;" (click)="saveEditChecklist(viewedTask)">{{ 'Save' | tr }}</button>
+              <button class="btn btn-ghost" style="flex:1; justify-content:center; font-size:12.5px;" (click)="cancelEditChecklist()">{{ 'Cancel' | tr }}</button>
             </div>
           </div>
         </div>

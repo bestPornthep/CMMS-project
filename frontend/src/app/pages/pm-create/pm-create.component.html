@@ -18,7 +18,7 @@
                 <div class="c-dropdown-trigger">
                   <input type="text"
                     style="border:none; width:100%; box-shadow:none; background:transparent; outline:none; font-family:inherit; font-size:inherit; color:var(--color-text-primary); padding:0;"
-                    [(ngModel)]="productId" name="productId" [placeholder]="'Select or type product...' | tr"
+                    [(ngModel)]="productId" name="productId" [placeholder]="'Select or search product...' | tr"
                     (click)="openDropdown = 'product'; $event.stopPropagation()" />
                   <span class="material-symbols-outlined">expand_more</span>
                 </div>
@@ -53,7 +53,7 @@
                   <input type="text"
                     style="border:none; width:100%; box-shadow:none; background:transparent; outline:none; font-family:inherit; font-size:inherit; color:var(--color-text-primary); padding:0;"
                     [(ngModel)]="assetId" name="assetId" 
-                    [placeholder]="productId ? ('Select or type asset...' | tr) : ('Select product first...' | tr)"
+                    [placeholder]="productId ? ('Select or search asset...' | tr) : ('Select product first...' | tr)"
                     [disabled]="!productId"
                     (click)="openDropdown = 'asset'; $event.stopPropagation()" />
                   <span class="material-symbols-outlined">expand_more</span>

@@ -25,19 +25,46 @@ export class DashboardComponent implements OnInit {
     if (!user) return [];
     
     if (user.baseRole === 'admin' || user.baseRole === 'manager') {
-      return allTasks;
+      return this.dedupeSeriesActionable(allTasks);
     }
     
     if (user.baseRole === 'engineer') {
-      return allTasks.filter(t => t.department === user.department);
+      return this.dedupeSeriesActionable(allTasks.filter(t => t.department === user.department));
     }
     
     if (user.baseRole === 'technician') {
-      return allTasks.filter(t => t.assignedTo === user.employeeId);
+      const myTasks = allTasks.filter(t => t.assignedTo === user.employeeId);
+      return this.dedupeSeriesActionable(myTasks);
     }
     
     return [];
   });
+
+  // Assigning a recurring series pre-assigns every not-yet-due occurrence too (see
+  // pm.service.ts assignTaskToTechnician), so future months already carry an assignedTo/
+  // exist in the list well before they're due. Collapse those down to one representative
+  // per series — same rule as pm-record's actionable list — so KPIs (for every role, not
+  // just technician) don't count months that haven't happened yet. Completed/history tasks
+  // (Done, Pending Approval) are real distinct work orders and are left untouched.
+  private dedupeSeriesActionable(tasks: PMTask[]): PMTask[] {
+    const actionable = tasks.filter(t => t.status === 'Pending' || t.status === 'In Progress' || t.status === 'Overdue');
+    const history = tasks.filter(t => t.status !== 'Pending' && t.status !== 'In Progress' && t.status !== 'Overdue');
+
+    actionable.sort((a, b) => new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime());
+    const seenSeries = new Set<string>();
+    const dedupedActionable: PMTask[] = [];
+    for (const task of actionable) {
+      const seriesMatch = task.description?.match(/\[SeriesID:\s*([^\]]+)\]/);
+      if (seriesMatch) {
+        const seriesId = seriesMatch[1];
+        if (seenSeries.has(seriesId)) continue;
+        seenSeries.add(seriesId);
+      }
+      dedupedActionable.push(task);
+    }
+
+    return [...dedupedActionable, ...history];
+  }
   
   // Computed KPI Metrics from actual live data
   totalWorkOrders = computed(() => this.tasks().length);

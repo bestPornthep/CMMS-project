@@ -19,6 +19,11 @@ export class ApiService {
     return firstValueFrom(this.http.get<Asset[]>(url));
   }
 
+  // Requires backend support not yet deployed \u2014 see docs/backend_machine_active_status.html.
+  updateAsset(id: string, patch: Partial<Pick<Asset, 'name' | 'department' | 'location' | 'workCenter' | 'isActive'>>): Promise<Asset> {
+    return firstValueFrom(this.http.patch<Asset>(`${this.baseUrl}/assets/${id}`, patch));
+  }
+
   // ── PM Tasks ─────────────────────────────────────────────────────────────
   getTasks(status?: string, department?: string, productId?: string, assignedTo?: string, excludeStatus?: string): Promise<PMTask[]> {
     let url = `${this.baseUrl}/pm-tasks`;
@@ -119,7 +124,7 @@ export class ApiService {
     return firstValueFrom(this.http.post<void>(`${this.baseUrl}/products`, product));
   }
 
-  createAsset(asset: { id: string, name: string, location: string, department: string }): Promise<void> {
+  createAsset(asset: { id: string, name: string, location: string, department: string, workCenter?: string }): Promise<void> {
     return firstValueFrom(this.http.post<void>(`${this.baseUrl}/assets`, asset));
   }
 

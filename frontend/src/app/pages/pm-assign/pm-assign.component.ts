@@ -87,7 +87,7 @@ export class PmAssignComponent {
   });
 
   pendingTasks = computed(() => {
-    let tasks = this.pmService.pmTasks().filter(t => t.status === 'Pending' && this.canManageTask(t));
+    let tasks = this.pmService.pmTasks().filter(t => t.status === 'Pending' && !t.assignedTo && this.canManageTask(t));
     const dept = this.deptFilter();
     if (dept !== 'All') tasks = tasks.filter(t => t.department === dept);
     
@@ -353,7 +353,8 @@ export class PmAssignComponent {
     
     const allTasks = this.pmService.pmTasks();
     const seenSeries = new Set<string>();
-    const tasksToAssign: PMTask[] = [];
+    const tasksToAssign: PMTask[] = []; // earliest occurrence per series (or standalone) -> In Progress
+    const futureSeriesTasks: PMTask[] = []; // remaining not-Done Pending siblings -> pre-assigned, stay Pending
 
     for (const task of allTasks) {
       if (!taskIds.has(task.id)) continue;
@@ -364,12 +365,15 @@ export class PmAssignComponent {
         if (seenSeries.has(seriesId)) continue; // already handling this series
         seenSeries.add(seriesId);
 
-        // Only assign the NEXT (earliest) pending task in the series
-        const nextTask = allTasks
+        // Assigning is a one-time action per series: the earliest Pending occurrence
+        // starts now, every other Pending occurrence is pre-assigned to the same
+        // technician so the series doesn't reappear as "unassigned" later.
+        const [nextTask, ...futureTasks] = allTasks
           .filter(t => t.status === 'Pending' && t.description?.includes(`[SeriesID: ${seriesId}]`))
-          .sort((a, b) => new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime())[0];
+          .sort((a, b) => new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime());
 
         if (nextTask) tasksToAssign.push(nextTask);
+        futureSeriesTasks.push(...futureTasks);
       } else {
         tasksToAssign.push(task);
       }
@@ -384,15 +388,21 @@ export class PmAssignComponent {
       return;
     }
 
-    const results = await Promise.allSettled(
-      tasksToAssign.map(task => this.pmService.updateTask({
+    const results = await Promise.allSettled([
+      ...tasksToAssign.map(task => this.pmService.updateTask({
         ...task,
         assignedTo: tech.employeeId,
         status: 'In Progress',
         assignedAt: new Date(),
         assignedBy: this.currentUser?.employeeId
+      })),
+      ...futureSeriesTasks.map(task => this.pmService.updateTask({
+        ...task,
+        assignedTo: tech.employeeId,
+        assignedAt: new Date(),
+        assignedBy: this.currentUser?.employeeId
       }))
-    );
+    ]);
 
     const failures = results.filter(r => r.status === 'rejected');
     if (failures.length === 0) {

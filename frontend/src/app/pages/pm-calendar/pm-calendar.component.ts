@@ -1,5 +1,5 @@
 import { TranslatePipe } from '../../shared/pipes/translate.pipe';
-import { Component, computed, inject, signal, HostListener, OnDestroy, DestroyRef } from '@angular/core';
+import { Component, computed, inject, signal, HostListener, OnInit, OnDestroy, DestroyRef } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
@@ -16,7 +16,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
   templateUrl: './pm-calendar.component.html',
   styleUrl: './pm-calendar.component.scss'
 })
-export class PmCalendarComponent implements OnDestroy {
+export class PmCalendarComponent implements OnInit, OnDestroy {
   private pmService = inject(PmService);
   private authService = inject(AuthService);
   private datePipe = inject(DatePipe);
@@ -52,6 +52,12 @@ export class PmCalendarComponent implements OnDestroy {
         this.highlightedTaskId.set(null);
       }
     });
+  }
+
+  ngOnInit() {
+    // Lazy load historical data, same as pm-record/pm-reports, so Done tasks
+    // show on the calendar even without having visited those pages first.
+    this.pmService.loadHistoricalTasks().catch(console.error);
   }
 
   get currentUser() {

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AssetIntel CMMS — Backend Fixes Needed (Combined)</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #161923; --border: #2a2f3d; --text: #e6e8ef;
+    --muted: #9aa2b1; --accent: #5b8cff; --good: #3ddc97; --bad: #ff6b6b; --warn: #ffb84d;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 40px; line-height: 1.6; }
+  .wrap { max-width: 1100px; margin: 0 auto; }
+  h1 { font-size: 28px; margin-bottom: 4px; }
+  .subtitle { color: var(--muted); margin-bottom: 32px; }
+  h2 { border-bottom: 2px solid var(--border); padding-bottom: 8px; margin-top: 48px; color: var(--accent); }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin: 16px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  th, td { border: 1px solid var(--border); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: #1d212c; color: var(--muted); }
+  code { background: #1d212c; padding: 2px 6px; border-radius: 4px; font-size: 13px; color: #f0ad4e; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 700; text-transform: uppercase; padding: 3px 10px; border-radius: 999px; }
+  .tag.blocked { background: rgba(255,107,107,.15); color: var(--bad); border: 1px solid rgba(255,107,107,.4); }
+  .tag.ready { background: rgba(61,220,151,.15); color: var(--good); border: 1px solid rgba(61,220,151,.4); }
+  .note { color: var(--muted); font-size: 13px; }
+  .warn-box { background: rgba(255,184,77,.1); border: 1px solid var(--warn); border-radius: 10px; padding: 16px 20px; margin: 16px 0; }
+  .mermaid { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Backend Fixes Needed — Combined Overview</h1>
+  <div class="subtitle">2026-09-14. Three frontend-complete features waiting on backend work. This page is the single source for all three — the individual per-feature docs it was originally drafted from have been merged in and removed.</div>
+
+  <div class="note" style="margin-bottom:16px;">
+    The <code>PUT /pm-tasks/schedule/:seriesId</code> scoping bug that previously blocked the Checklist Change Audit Trail (via its series-checklist-edit prerequisite) is confirmed fixed as of 2026-09-14 — both features below are ready, no blockers remain.
+  </div>
+
+  <h2>Summary Table</h2>
+  <div class="card">
+    <table>
+      <tr><th>Feature</th><th>Status</th></tr>
+      <tr>
+        <td>Duplicate PM Type Hard Block</td>
+        <td><span class="tag ready">Ready</span></td>
+      </tr>
+      <tr>
+        <td>Checklist Change Audit Trail (incl. series-checklist-edit prerequisite)</td>
+        <td><span class="tag ready">Ready</span></td>
+      </tr>
+      <tr>
+        <td>Engineer Product-Create Permission</td>
+        <td><span class="tag ready">Ready</span></td>
+      </tr>
+    </table>
+  </div>
+
+  <h2>1. Duplicate PM Type Hard Block</h2>
+  <div class="card">
+    <p>An asset may only ever have one PM per frequency (status doesn't matter, even <code>Done</code> counts). Must be enforced server-side — frontend check is best-effort only and not race-safe.</p>
+    <table>
+      <tr><th>Endpoint(s)</th><td><code>POST /pm-tasks/schedule</code>, <code>POST /pm-tasks</code></td></tr>
+      <tr><th>Key requirement</th><td>DB-level <code>UNIQUE(assetId, normalizedFrequency)</code> constraint — not a check-then-insert (race condition between two users creating at once).</td></tr>
+      <tr><th>Response on conflict</th><td><code>409 Conflict</code> with the conflicting task's id/status/assignee.</td></tr>
+      <tr><th>Gotcha</th><td>Custom durations equivalent to a preset (e.g. <code>1 month(s)</code> = <code>Monthly</code>) must also collide — normalize with the same alias table + lowercase/trim as the frontend.</td></tr>
+      <tr><th>Race-condition safety (critical)</th><td>Two users submitting the same asset+frequency at once must not both succeed — the unique constraint (not an application-level check) is what actually guarantees this; catch the DB conflict and translate it to the <code>409</code> above.</td></tr>
+    </table>
+  </div>
+
+  <h2>2. Checklist Change Audit Trail</h2>
+  <div class="card">
+    <p>Adds a human-readable diff (<code>changes: string[]</code>) to the audit log entry written when a series checklist is edited. This requires the series-checklist-edit capability to exist first — treat it as step 0 of this same feature, not a separate deliverable.</p>
+    <table>
+      <tr><th>Step 0 — enable editing</th><td>Reuses existing <code>PUT /pm-tasks/schedule/:seriesId</code>, now correctly scoped (<code>where: scheduleId = seriesId AND status != 'Done'</code>) since the mass-corruption bug was fixed. Updates the <code>PmSchedule</code> template + every non-<code>Done</code> task in the series; <code>Done</code> tasks are never touched.</td></tr>
+      <tr><th>Diff basis</th><td>Bag-of-items match on exact <code>text</code> — reordering alone is not a change.</td></tr>
+      <tr><th>Output examples</th><td><code>Added: '...'</code>, <code>Removed: '...'</code>, <code>Added/Removed photo requirement: '...'</code>, same for value requirement.</td></tr>
+      <tr><th>No-op rule</th><td>If the diff is empty, don't write an audit entry at all.</td></tr>
+    </table>
+  </div>
+
+  <h2>3. Engineer Product-Create Permission</h2>
+  <div class="card">
+    <p><code>POST /api/v1/products</code> returns <code>403 Forbidden</code> for Engineers today. Product owner confirmed Engineers should be allowed (matches the frontend's Create PM inline product-creation flow, already gated on <code>pm.create.submit</code>, which Engineers have).</p>
+    <table>
+      <tr><th>Role check</th><td>Allow <code>admin</code>, <code>manager</code>, and <code>engineer</code>. Technicians still excluded (never have <code>pm.create.submit</code>).</td></tr>
+      <tr><th>Also required</th><td>Assign a creator-ownership row on create, so the new product immediately shows up in the creating Engineer's <code>ownedProducts</code> — otherwise they can create it but can't use it, and the next step (creating an Asset under it) fails too.</td></tr>
+      <tr><th>Scope</th><td>Permission + ownership-row-insert fix only — no schema change expected, no frontend change needed once shipped.</td></tr>
+    </table>
+  </div>
+
+</div>
+<script>mermaid.initialize({ startOnLoad: true, theme: 'dark' });</script>
+</body>
+</html>

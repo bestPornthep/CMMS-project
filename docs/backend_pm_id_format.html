@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AssetIntel CMMS — PM Task ID Format Redesign</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #161923; --border: #2a2f3d; --text: #e6e8ef;
+    --muted: #9aa2b1; --accent: #5b8cff; --good: #3ddc97; --bad: #ff6b6b; --warn: #ffb84d;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 40px; line-height: 1.6; }
+  .wrap { max-width: 1000px; margin: 0 auto; }
+  h1 { font-size: 28px; margin-bottom: 4px; }
+  .subtitle { color: var(--muted); margin-bottom: 32px; }
+  h2 { border-bottom: 2px solid var(--border); padding-bottom: 8px; margin-top: 48px; color: var(--accent); }
+  h4 { margin-top: 18px; color: var(--muted); font-size: 14px; text-transform: uppercase; letter-spacing: .03em; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin: 16px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  th, td { border: 1px solid var(--border); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: #1d212c; color: var(--muted); }
+  code { background: #1d212c; padding: 2px 6px; border-radius: 4px; font-size: 13px; color: #f0ad4e; }
+  pre { background: #1d212c; padding: 14px; border-radius: 8px; overflow-x: auto; border: 1px solid var(--border); font-size: 13px; }
+  pre code { background: none; padding: 0; color: #d7dce6; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 700; text-transform: uppercase; padding: 3px 10px; border-radius: 999px; margin-left: 6px; }
+  .tag.patch { background: rgba(255,184,77,.15); color: var(--warn); border: 1px solid rgba(255,184,77,.4); }
+  .warn-box { background: rgba(255,184,77,.1); border: 1px solid var(--warn); border-radius: 10px; padding: 16px 20px; margin: 16px 0; }
+  .good-box { background: rgba(61,220,151,.1); border: 1px solid var(--good); border-radius: 10px; padding: 16px 20px; margin: 16px 0; }
+  .breakdown { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; font-size: 15px; }
+  .seg { background: #1d212c; border: 1px solid var(--border); border-radius: 6px; padding: 6px 12px; }
+  .seg b { color: var(--accent); }
+  .arrow { color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>PM Task ID Format Redesign</h1>
+  <div class="subtitle">Replaces the current <code>PM-XXX-0001</code> pattern (<code>CmmsService.generateTaskId()</code>) with an ID that embeds the machine and PM period directly, and a sequence number that grows safely over a 10+ year system lifetime.</div>
+
+  <h2 id="format">1. New format</h2>
+  <div class="card">
+    <div class="breakdown">
+      <span class="seg"><b>PM</b></span><span class="arrow">-</span>
+      <span class="seg"><b>{MachineID}</b></span><span class="arrow">-</span>
+      <span class="seg"><b>{PeriodCode}</b></span><span class="arrow">-</span>
+      <span class="seg"><b>{Seq}</b></span>
+    </div>
+    <table>
+      <tr><th>Segment</th><th>Meaning</th><th>Example</th></tr>
+      <tr><td><code>PM</code></td><td>Fixed literal prefix</td><td><code>PM</code></td></tr>
+      <tr><td><code>{MachineID}</code></td><td>The asset's own ID, unchanged, dashes and all (already unique)</td><td><code>FCT-RN005-AR-A-001</code></td></tr>
+      <tr><td><code>{PeriodCode}</code></td><td>Short code for the PM's frequency — see table below</td><td><code>1m</code></td></tr>
+      <tr><td><code>{Seq}</code></td><td>Occurrence number of this machine+period series, never resets, digit width grows naturally</td><td><code>01</code></td></tr>
+    </table>
+    <p>Full example: <code>PM-FCT-RN005-AR-A-001-1m-01</code> → second monthly occurrence is <code>PM-FCT-RN005-AR-A-001-1m-02</code>, 13th is <code>...-1m-13</code>.</p>
+  </div>
+
+  <h2 id="period-codes">2. Period codes</h2>
+  <div class="card">
+    <p>Derived from <code>PMSchedule.frequency</code> (free text today — see <code>PMTaskFrequency</code> in the frontend model). Express everything in its smallest natural unit; no separate "quarterly"/"yearly" letter.</p>
+    <table>
+      <tr><th>Frequency value</th><th>Period code</th></tr>
+      <tr><td>Daily</td><td><code>1d</code></td></tr>
+      <tr><td>Weekly</td><td><code>1w</code></td></tr>
+      <tr><td>Monthly</td><td><code>1m</code></td></tr>
+      <tr><td>Quarterly</td><td><code>3m</code></td></tr>
+      <tr><td>Yearly</td><td><code>1y</code></td></tr>
+      <tr><td>Custom "N Hour(s)"</td><td><code>{N}h</code></td></tr>
+      <tr><td>Custom "N Day(s)"</td><td><code>{N}d</code></td></tr>
+      <tr><td>Custom "N Week(s)"</td><td><code>{N}w</code></td></tr>
+      <tr><td>Custom "N Month(s)"</td><td><code>{N}m</code></td></tr>
+      <tr><td>Custom "N Year(s)"</td><td><code>{N}y</code></td></tr>
+    </table>
+    <div class="warn-box">Reuse the existing <code>FREQUENCY_ALIASES</code> normalization already in <code>pm.service.ts</code> (e.g. "3 month(s)" ≡ Quarterly) so a custom duration numerically equal to a preset gets the same period code as the preset, not a different-looking ID for the same thing.</div>
+  </div>
+
+  <h2 id="sequence">3. Sequence number — the part that must survive 10 years</h2>
+  <div class="card">
+    <h4>Rules</h4>
+    <ol>
+      <li>Scope: one counter per <code>(assetId, periodCode)</code> pair — matches the existing invariant that an asset has at most one active PM per frequency.</li>
+      <li>Starts at <code>1</code>, formatted <code>String(n).padStart(2, '0')</code> — i.e. minimum width 2, but <strong>never truncated</strong>: 1→<code>01</code>, 12→<code>12</code>, 100→<code>100</code>, 4380→<code>4380</code>. No fixed digit count anywhere in code — this is what makes 3/4/5-digit growth automatic instead of a future migration.</li>
+      <li>Never resets — not per calendar year, not on machine deactivate/reactivate. A reactivated machine's next task continues from its last number (e.g. paused after 12, resumes at 13).</li>
+      <li>Only increments when a new task occurrence is actually generated (by the create flow or the nightly scheduler) — never pre-reserved in bulk.</li>
+    </ol>
+    <h4>Growth over time (illustrates why fixed-width padding would eventually break)</h4>
+    <table>
+      <tr><th>Frequency</th><th>Occurrences/year</th><th>After 1 year</th><th>After 10 years</th><th>Digits needed</th></tr>
+      <tr><td>Monthly (<code>1m</code>)</td><td>12</td><td>12</td><td>120</td><td>up to 3</td></tr>
+      <tr><td>Weekly (<code>1w</code>)</td><td>52</td><td>52</td><td>520</td><td>up to 3</td></tr>
+      <tr><td>Daily (<code>1d</code>)</td><td>365</td><td>365</td><td>3,650</td><td>up to 4</td></tr>
+      <tr><td>Custom 4h</td><td>~2,190</td><td>2,190</td><td>21,900</td><td>up to 5</td></tr>
+    </table>
+  </div>
+
+  <h2 id="storage">4. Counter storage &amp; concurrency</h2>
+  <div class="card">
+    <p>New table, e.g. <code>cmms_pm_id_sequences</code>:</p>
+    <pre><code>assetId     varchar   (FK -> cmms_assets.id)
+periodCode  varchar
+lastSeq     int       default 0
+PRIMARY KEY (assetId, periodCode)</code></pre>
+    <p>Generate the next number with a single atomic statement inside the same transaction that creates the task — do <strong>not</strong> read-then-write in two steps:</p>
+    <pre><code>UPDATE cmms_pm_id_sequences
+SET lastSeq = lastSeq + 1
+OUTPUT INSERTED.lastSeq
+WHERE assetId = @assetId AND periodCode = @periodCode;
+-- if no row matched, INSERT (assetId, periodCode, lastSeq=1) instead, then use 1</code></pre>
+    <div class="warn-box"><strong>This must be atomic.</strong> The nightly generator already has a known duplication bug (blind insert, no reconcile — see <code>docs/backend_nightly_task_duplication.html</code>). A non-atomic read-modify-write on this counter under concurrent nightly + manual-create runs would hand out duplicate sequence numbers. Fix that bug and this counter with the same transactional discipline.</div>
+  </div>
+
+  <h2 id="migration">5. Rollout — no migration needed</h2>
+  <div class="good-box">Confirmed with user: all PM task rows currently on the dev DB are mock/test data, not real production history. No backfill/rename of existing <code>PM-XXX-0001</code> IDs is required — the backend can simply start minting the new format for every task created after this change ships, and truncate/reset <code>cmms_pm_tasks</code> + the new sequence table if a clean slate is easier than mixed-format data during dev testing.</div>
+
+  <h2 id="frontend-status">6. Frontend status</h2>
+  <div class="card">
+    <p>No frontend change needed to <em>generate</em> IDs — task/schedule IDs are always server-assigned (frontend sends <code>id: ''</code> as a placeholder on create, see <code>pm-create.component.ts</code>). Frontend only <em>displays</em> whatever ID the backend returns, so once this ships server-side, the new format shows up automatically everywhere an ID is rendered (task lists, PDF exports, audit log).</p>
+  </div>
+
+</div>
+</body>
+</html>
