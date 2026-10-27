@@ -67,7 +67,7 @@
     </div>
 
     <div class="card-body" style="padding:0; display:flex; flex-direction:column; gap:16px;">
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+      <div class="form-grid-2">
         <div class="form-group">
           <label class="form-label">{{ 'Employee ID' | tr | uppercase }}</label>
           <input type="text" class="form-input" [(ngModel)]="formEmployeeId" [disabled]="isEditing()" placeholder="e.g. TECH-FAC-5" />
@@ -78,7 +78,7 @@
         </div>
       </div>
 
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+      <div class="form-grid-2">
         <div class="form-group">
           <label class="form-label">{{ 'Department' | tr | uppercase }}</label>
           <div class="c-dropdown form-dropdown" [class.open]="deptDropdownOpen" (click)="toggleDeptDropdown($event)">
@@ -104,7 +104,7 @@
 
       <div class="form-group">
         <label class="form-label">{{ 'Role Template' | tr | uppercase }}</label>
-        <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:8px;">
+        <div class="role-grid">
           <button type="button" class="btn" *ngFor="let role of roleTemplates"
             [class.btn-primary]="formBaseRole === role" [class.btn-ghost]="formBaseRole !== role"
             [disabled]="isRoleTemplateDisabled(role)" [title]="isRoleTemplateDisabled(role) ? ('All department is manager/admin only' | tr) : ''"
@@ -150,7 +150,7 @@
       <div class="form-group">
         <label class="form-label">{{ 'Permissions' | tr | uppercase }}</label>
         <div style="display:flex; flex-direction:column; gap:8px; max-height:220px; overflow-y:auto;">
-          <div style="display:flex; align-items:center; gap:8px;" *ngFor="let perm of permissionCatalog"
+          <div class="perm-row" style="display:flex; align-items:center; gap:8px;" *ngFor="let perm of permissionCatalog"
             [style.cursor]="isStandardPermission(perm.key) ? 'default' : 'pointer'"
             [style.opacity]="isStandardPermission(perm.key) ? '0.65' : '1'"
             (click)="togglePermission(perm.key)">

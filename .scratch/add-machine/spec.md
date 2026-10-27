@@ -18,7 +18,7 @@ with reactivation supported later.
 | Deactivate cascade | Stops future PM generation (schedule paused) **and** cancels any not-yet-`Done` tasks (`Pending`/`In Progress`/`Pending Approval`/`Overdue`) for that machine. `Done` tasks and all history are untouched — never deleted, always traceable. |
 | Reactivate | Machine + its PM schedules resume together (one action). Previously-cancelled tasks stay cancelled (history). |
 | Visibility of inactive machines | Hidden from active pickers (Create PM asset dropdown). Still shown (e.g. greyed/badge) in the new Machines manage list, and still appear in Reports/Audit for historical trace. |
-| Backend readiness | Backend likely doesn't support `isActive`/cascade yet. Spec it in `docs/backend_machine_active_status.html` for the backend team. Frontend built against the intended contract now. |
+| Backend readiness | Backend likely doesn't support `isActive`/cascade yet. Spec it in `docs/backend_fixes_needed_combined.html#machine` for the backend team. Frontend built against the intended contract now. |
 | Frontend testability before backend ships | Add a dev-only **mock data mode** (same pattern as `pm-reports.component.ts`'s `isDevBuild` mock preview) so "create machine" and "deactivate machine" can be exercised end-to-end locally without the live backend, gated behind `!environment.production`. |
 
 ## Data model changes
@@ -57,7 +57,7 @@ flowchart LR
 
 ## Backend spec doc
 
-`docs/backend_machine_active_status.html` (new) — documents required backend changes:
+`docs/backend_fixes_needed_combined.html#machine` (merged) — documents required backend changes:
 - `Asset.isActive` column (default `true`), returned by `GET /assets`.
 - `PMSchedule.isActive` column (default `true`).
 - `PMTaskStatus` gains `Cancelled` value + `cancelledReason`/`cancelledAt` columns.

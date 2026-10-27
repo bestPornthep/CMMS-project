@@ -66,7 +66,7 @@
           </div>
           <div class="form-group">
             <label class="form-label">{{ 'Schedule Type' | tr | uppercase }}</label>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            <div class="schedule-grid" style="display:grid; gap:10px;">
               <div
                 (click)="isRecurring = true"
                 style="
@@ -125,7 +125,7 @@
                 <div class="c-dropdown-item" (click)="selectType('Custom', $event)">{{ 'Custom' | tr }}</div>
               </div>
             </div>
-            <div *ngIf="getDuplicatePm()" style="margin-top:10px; display:flex; gap:10px; align-items:flex-start; padding:12px 14px; border-radius:var(--radius-md); background:var(--warning-bg); color:var(--warning-text); border:1px solid var(--warning);">
+            <div *ngIf="isDuplicatePm()" style="margin-top:10px; display:flex; gap:10px; align-items:flex-start; padding:12px 14px; border-radius:var(--radius-md); background:var(--warning-bg); color:var(--warning-text); border:1px solid var(--warning);">
               <span class="material-symbols-outlined" style="font-size:20px;">warning</span>
               <div style="font-size:12.5px; line-height:1.5;">
                 <strong>{{ 'This asset already has a PM of this type' | tr }}</strong><br>
@@ -174,15 +174,15 @@
         <div class="card-header">
           <div class="card-title">{{ 'Checklist' | tr }}</div>
         </div>
-        <div style="padding:14px 20px; background:var(--color-blue-light); border-bottom:1px solid var(--color-border-soft); display:flex; gap:14px; align-items:center;">
+        <div class="template-bar" style="padding:14px 20px; background:var(--color-blue-light); border-bottom:1px solid var(--color-border-soft); display:flex; gap:14px; align-items:center;">
           <div style="width:36px; height:36px; border-radius:50%; background:var(--color-bg-card); display:flex; align-items:center; justify-content:center; color:var(--color-blue); flex-shrink:0; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
             <span class="material-symbols-outlined" style="font-size:20px;">view_list</span>
           </div>
-          <div style="flex:1;">
+          <div class="template-text" style="flex:1;">
              <div style="font-size:12.5px; font-weight:700; color:var(--color-blue-text); letter-spacing:-0.2px;">{{ 'Department Templates' | tr }}</div>
              <div style="font-size:11.5px; color:var(--color-text-secondary); margin-top:2px;">{{ 'Load predefined tasks or save your current list.' | tr }}</div>
           </div>
-          <div style="display:flex; gap:8px;">
+          <div class="template-actions" style="display:flex; gap:8px;">
             <div class="c-dropdown" [class.open]="dropdownOpen" (click)="toggleDropdown($event)">
               <div class="c-dropdown-trigger">
                 <span>{{ 'Select template…' | tr }}</span>
@@ -237,7 +237,7 @@
 
           <div class="checklist-item" style="margin-top: 8px;">
             <input type="text" name="newChecklistItem" [placeholder]="'Type new item...' | tr" [(ngModel)]="newChecklistItem" (keyup.enter)="addChecklistItem()" style="background: var(--color-bg-card-alt); color: var(--color-text-primary); box-shadow: none; border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); padding: 8px 12px; outline: none; flex: 1;" />
-            <button (click)="addChecklistItem()" style="padding: 6px 12px; border:none; background:var(--color-blue-light); color:var(--color-blue-text); border-radius:var(--radius-md); display:flex; align-items:center; gap:4px; font-size:12.5px; font-weight:700; cursor:pointer; flex-shrink:0; transition: all 0.2s; box-shadow:0 1px 2px rgba(26,86,219,0.06);" onmouseover="this.style.background='var(--color-blue-DEFAULT)'; this.style.color='white'" onmouseout="this.style.background='var(--color-blue-light)'; this.style.color='var(--color-blue-text)'">
+            <button class="add-item-btn" (click)="addChecklistItem()" style="padding: 6px 12px; border:none; background:var(--color-blue-light); color:var(--color-blue-text); border-radius:var(--radius-md); display:flex; align-items:center; gap:4px; font-size:12.5px; font-weight:700; cursor:pointer; flex-shrink:0; transition: all 0.2s; box-shadow:0 1px 2px rgba(26,86,219,0.06);" onmouseover="this.style.background='var(--color-blue-DEFAULT)'; this.style.color='white'" onmouseout="this.style.background='var(--color-blue-light)'; this.style.color='var(--color-blue-text)'">
               {{ 'Add' | tr }}<span class="material-symbols-outlined" style="font-size:16px;">add</span>
             </button>
           </div>
@@ -300,7 +300,7 @@
         <div class="preview-row"><span class="preview-label">{{ 'EST. TIME' | tr }}</span><span class="preview-val">{{ estimatedHours }} {{ 'hrs' | tr }}</span></div>
         <div class="preview-row"><span class="preview-label">{{ 'Parts' | tr | uppercase }}</span><span class="preview-val">{{ parts().length }} {{ 'required' | tr }}</span></div>
         <div style="margin-top:20px;">
-          <button class="btn btn-primary" (click)="submitForm()" style="width:100%; position: relative;" [disabled]="isGenerating() || !!getDuplicatePm()">
+          <button class="btn btn-primary" (click)="submitForm()" style="width:100%; position: relative;" [disabled]="isGenerating() || isDuplicatePm()">
             <span class="material-symbols-outlined" *ngIf="!isGenerating()">add_circle</span>
             <span *ngIf="!isGenerating()">{{ isRecurring ? ('Create Schedule' | tr) : ('Create PM' | tr) }}</span>
             <span *ngIf="isGenerating()" style="display: flex; align-items: center; gap: 8px;">

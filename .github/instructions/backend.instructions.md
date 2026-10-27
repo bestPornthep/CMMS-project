@@ -39,7 +39,7 @@ applyTo: "backend/**"
 
 ## Known Gaps (do not silently fix without a spec)
 
-- Task ID format is being redesigned (`PM-{MachineID}-{PeriodCode}-{Seq}`, replacing `PM-XXX-0001`) — not yet implemented, see `docs/backend_pm_id_format.html`.
+- Task ID format is being redesigned (`PM-{MachineID}-{PeriodCode}-{Seq}`, replacing `PM-XXX-0001`) — not yet implemented, see `docs/backend_fixes_needed_combined.html#pm-id`.
 - `PUT /templates/:id` endpoint is missing — required by frontend.
 - `POST /products` does not assign creator ownership rows — required by `docs/backend_assets_products_api.md`.
 - Dual schedule API: `pm-tasks` schedule endpoints + new `pm-schedules` resource coexist. Migration is in progress.

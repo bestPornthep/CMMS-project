@@ -209,6 +209,14 @@ form {
   transform: scale(0.98);
 }
 
+@media (max-width: 1023px) {
+  .login-page { min-height: 100dvh; }
+  .form-input { height: 44px; font-size: 16px; }
+  .btn { height: 44px; font-size: 14px; }
+  .field-toggle { width: 40px; height: 40px; right: 4px; }
+  .field-wrap.has-toggle .form-input { padding-right: 48px; }
+}
+
 @media (max-width: 767px) {
   .login-page { padding: 16px; }
   .login-card { padding: 22px; width: min(100%, 100%); }

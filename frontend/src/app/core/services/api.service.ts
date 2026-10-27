@@ -19,7 +19,7 @@ export class ApiService {
     return firstValueFrom(this.http.get<Asset[]>(url));
   }
 
-  // Requires backend support not yet deployed \u2014 see docs/backend_machine_active_status.html.
+  // Requires backend support not yet deployed — see docs/backend_fixes_needed_combined.html#machine.
   updateAsset(id: string, patch: Partial<Pick<Asset, 'name' | 'department' | 'location' | 'workCenter' | 'isActive'>>): Promise<Asset> {
     return firstValueFrom(this.http.patch<Asset>(`${this.baseUrl}/assets/${id}`, patch));
   }

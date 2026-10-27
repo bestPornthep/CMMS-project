@@ -64,6 +64,11 @@ export const routes: Routes = [
         data: { permission: 'pm.reports.view', section: 'PM Work', title: 'PM Master Plan' }
       },
       {
+        path: 'pm-approvals',
+        loadComponent: () => import('./pages/pm-approvals/pm-approvals.component').then(m => m.PmApprovalsComponent),
+        data: { permission: 'pm.masterplan.approve', section: 'PM Work', title: 'PM Master Plan Approvals' }
+      },
+      {
         path: 'pm-audit',
         loadComponent: () => import('./pages/pm-audit/pm-audit.component').then(m => m.PmAuditComponent),
         data: { permission: 'pm.audit.view', section: 'Administration', title: 'Audit Log' }

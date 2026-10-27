@@ -1505,4 +1505,101 @@
       grid-template-columns: 1fr;
     }
   }
+
+  .value-input {
+    max-width: 240px;
+  }
+
+  /* Single-column work area below 1200px: the 400px detail column no longer fits beside the list */
+  @media (max-width: 1199px) {
+    .record-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .exec-card,
+    .exec-empty {
+      position: static !important;
+      max-height: none !important;
+      overflow: visible !important;
+      scroll-margin-top: 16px;
+    }
+
+    .exec-empty {
+      min-height: 160px !important;
+    }
+  }
+
+  @media (max-width: 1023px) {
+    .btn {
+      min-height: 40px;
+    }
+
+    .c-dropdown-trigger {
+      min-height: 40px;
+    }
+
+    .c-dropdown-item {
+      min-height: 40px;
+      display: flex;
+      align-items: center;
+    }
+
+    .tabs {
+      flex-wrap: wrap;
+      gap: 0 24px;
+    }
+
+    .tab {
+      padding-top: 10px;
+    }
+
+    .data-table td {
+      padding-top: 13px;
+      padding-bottom: 13px;
+    }
+
+    .checklist-row {
+      min-height: 44px;
+      flex-wrap: wrap;
+    }
+
+    .checklist-row .checkbox-box {
+      width: 24px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+
+    .photo-actions {
+      margin-left: auto;
+    }
+
+    .photo-btn {
+      min-height: 40px;
+    }
+
+    .history-scroll {
+      overflow-x: auto !important;
+    }
+
+    .history-table {
+      min-width: 640px;
+    }
+
+    .history-table th,
+    .history-table td {
+      padding-left: 8px;
+      padding-right: 8px;
+    }
+  }
+
+  @media (max-width: 767px) {
+    .card-header {
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .value-input {
+      max-width: none;
+    }
+  }
 }

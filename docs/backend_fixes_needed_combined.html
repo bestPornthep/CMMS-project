@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AssetIntel CMMS — Backend Fixes Needed (Combined)</title>
+<title>AssetIntel CMMS — Backend Work Needed (Single Source)</title>
 <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 <style>
   :root {
@@ -16,81 +16,305 @@
   h1 { font-size: 28px; margin-bottom: 4px; }
   .subtitle { color: var(--muted); margin-bottom: 32px; }
   h2 { border-bottom: 2px solid var(--border); padding-bottom: 8px; margin-top: 48px; color: var(--accent); }
+  h4 { margin-top: 18px; color: var(--muted); font-size: 14px; text-transform: uppercase; letter-spacing: .03em; }
   .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin: 16px 0; }
   table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
   th, td { border: 1px solid var(--border); padding: 8px 10px; text-align: left; vertical-align: top; }
   th { background: #1d212c; color: var(--muted); }
   code { background: #1d212c; padding: 2px 6px; border-radius: 4px; font-size: 13px; color: #f0ad4e; }
+  pre { background: #1d212c; padding: 14px; border-radius: 8px; overflow-x: auto; border: 1px solid var(--border); font-size: 13px; }
+  pre code { background: none; padding: 0; color: #d7dce6; }
   .tag { display: inline-block; font-size: 11px; font-weight: 700; text-transform: uppercase; padding: 3px 10px; border-radius: 999px; }
-  .tag.blocked { background: rgba(255,107,107,.15); color: var(--bad); border: 1px solid rgba(255,107,107,.4); }
+  .tag.p1 { background: rgba(255,107,107,.15); color: var(--bad); border: 1px solid rgba(255,107,107,.4); }
   .tag.ready { background: rgba(61,220,151,.15); color: var(--good); border: 1px solid rgba(61,220,151,.4); }
+  .tag.todo { background: rgba(255,184,77,.15); color: var(--warn); border: 1px solid rgba(255,184,77,.4); }
+  .tag.draft { background: rgba(91,140,255,.15); color: var(--accent); border: 1px solid rgba(91,140,255,.4); }
   .note { color: var(--muted); font-size: 13px; }
   .warn-box { background: rgba(255,184,77,.1); border: 1px solid var(--warn); border-radius: 10px; padding: 16px 20px; margin: 16px 0; }
+  .bad-box { background: rgba(255,107,107,.1); border: 1px solid var(--bad); border-radius: 10px; padding: 16px 20px; margin: 16px 0; }
+  .good-box { background: rgba(61,220,151,.1); border: 1px solid var(--good); border-radius: 10px; padding: 16px 20px; margin: 16px 0; }
   .mermaid { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+  .breakdown { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; font-size: 15px; }
+  .seg { background: #1d212c; border: 1px solid var(--border); border-radius: 6px; padding: 6px 12px; }
+  .seg b { color: var(--accent); }
+  .arrow { color: var(--muted); }
   a { color: var(--accent); }
 </style>
 </head>
 <body>
 <div class="wrap">
 
-  <h1>Backend Fixes Needed — Combined Overview</h1>
-  <div class="subtitle">2026-09-14. Three frontend-complete features waiting on backend work. This page is the single source for all three — the individual per-feature docs it was originally drafted from have been merged in and removed.</div>
+  <h1>Backend Work Needed — Single Source</h1>
+  <div class="subtitle">2026-10-26. Every backend requirement from the frontend lives on this page. The per-topic docs (machine status, nightly duplication, PM ID format) were merged in and removed.</div>
 
-  <div class="note" style="margin-bottom:16px;">
-    The <code>PUT /pm-tasks/schedule/:seriesId</code> scoping bug that previously blocked the Checklist Change Audit Trail (via its series-checklist-edit prerequisite) is confirmed fixed as of 2026-09-14 — both features below are ready, no blockers remain.
-  </div>
-
-  <h2>Summary Table</h2>
+  <h2>Summary</h2>
   <div class="card">
     <table>
-      <tr><th>Feature</th><th>Status</th></tr>
-      <tr>
-        <td>Duplicate PM Type Hard Block</td>
-        <td><span class="tag ready">Ready</span></td>
-      </tr>
-      <tr>
-        <td>Checklist Change Audit Trail (incl. series-checklist-edit prerequisite)</td>
-        <td><span class="tag ready">Ready</span></td>
-      </tr>
-      <tr>
-        <td>Engineer Product-Create Permission</td>
-        <td><span class="tag ready">Ready</span></td>
-      </tr>
+      <tr><th>#</th><th>Topic</th><th>Status</th><th>Frontend</th></tr>
+      <tr><td>1</td><td><a href="#nightly">Nightly PM task duplication</a></td><td><span class="tag p1">P1 — fix before prod</span></td><td>n/a (backend job bug)</td></tr>
+      <tr><td>2</td><td><a href="#dup-pm">Duplicate PM type hard block</a></td><td><span class="tag ready">Ready</span></td><td>Done (best-effort check only)</td></tr>
+      <tr><td>3</td><td><a href="#audit-diff">Checklist change audit trail</a></td><td><span class="tag ready">Ready</span></td><td>Done</td></tr>
+      <tr><td>4</td><td><a href="#eng-product">Engineer product-create permission</a></td><td><span class="tag ready">Ready</span></td><td>Done</td></tr>
+      <tr><td>5</td><td><a href="#machine">Machine active/inactive + cascade</a></td><td><span class="tag todo">Backend todo</span></td><td>Done + dev mock toggle</td></tr>
+      <tr><td>6</td><td><a href="#pm-id">PM task ID format</a></td><td><span class="tag todo">Backend todo</span></td><td>No change needed</td></tr>
+      <tr><td>7</td><td><a href="#masterplan">PM Master Plan approval workflow</a></td><td><span class="tag draft">Draft contract</span></td><td>Client-side only (in-memory)</td></tr>
+    </table>
+    <p class="note">The <code>PUT /pm-tasks/schedule/:seriesId</code> scoping bug that blocked #3 is confirmed fixed (2026-09-14). No blockers on #2–#4.</p>
+  </div>
+
+  <!-- ───────────── 1 ───────────── -->
+  <h2 id="nightly">1. Nightly PM Task Duplication <span class="tag p1">P1</span></h2>
+  <div class="bad-box"><strong>Must be fixed before prod.</strong> Confirmed live on <code>http://10.144.15.76:3000</code> on 2026-09-21 via <code>GET /pm-tasks</code>. A nightly job inserts a new batch of future occurrences for every active schedule without checking what already exists. Table growth is ~270 rows/day system-wide and unbounded.</div>
+
+  <div class="card">
+    <h4>Evidence</h4>
+    <table>
+      <tr><th>Created by</th><th>Total tasks</th><th>Schedules</th><th>New rows / night</th></tr>
+      <tr><td><code>ENG-TST-1</code></td><td>6,031</td><td>14</td><td>up to 52 per schedule, nightly since 2026-08-12 (37 nights)</td></tr>
+      <tr><td><code>MGR001</code></td><td>473</td><td>1</td><td>+11/night since 2026-09-14</td></tr>
+      <tr><td><code>ENG-FAC-1</code></td><td>419</td><td>1</td><td>+52/night since 2026-09-14</td></tr>
+      <tr><td><code>ENG-MEC-1</code></td><td>180</td><td>2</td><td>same pattern</td></tr>
+      <tr><td><strong>System-wide</strong></td><td>7,108</td><td>—</td><td>~270/day, still growing</td></tr>
+    </table>
+    <p>Worst schedule: <code>SCH-1786510329530-890</code> (Weekly, ENG-TST-1) has 1,924 rows. Exactly 52 new rows per night, zero gaps. The 52 <code>nextDueDate</code> values created 2026-08-12 and the 52 created 2026-08-13 have <strong>0 overlap</strong>, so this is a blind append of a fresh horizon, not an idempotent sync.</p>
+    <h4>Impact</h4>
+    <ul>
+      <li>Unbounded DB growth.</li>
+      <li>Ever-growing duplicate future <code>Pending</code> tasks per asset/frequency.</li>
+      <li>Slower, less accurate reports/exports/dashboards.</li>
+    </ul>
+    <h4>Likely root cause (backend to confirm)</h4>
+    <p>The generator (rolling N-occurrence horizon per <code>PMSchedule</code>) does not check existing future tasks before inserting.</p>
+  </div>
+
+  <div class="card">
+    <h4>Requested fix</h4>
+    <ol>
+      <li>Before inserting for a <code>scheduleId</code>, check existing tasks (<strong>any status, including <code>Cancelled</code></strong>). Only insert a due date that has <strong>no row at all</strong>.</li>
+      <li>One-time cleanup of existing duplicates. Keep the earliest row per due date per schedule, drop still-<code>Pending</code> duplicates. Needs DB-team judgment.</li>
+      <li>Regression check/alert: task count growing without a matching rise in distinct <code>nextDueDate</code>.</li>
+    </ol>
+    <div class="warn-box"><strong>Do not exclude <code>Cancelled</code> from the "already generated" check.</strong> The frontend lets an engineer cancel a task occurrence directly (<code>PmService.cancelPmTaskSeries()</code>, no approval). That cancels not-yet-done future occurrences in the series and leaves <code>PMSchedule.isActive</code> untouched. If the generator treats a <code>Cancelled</code> row as "missing" and inserts a fresh <code>Pending</code> row for the same <code>scheduleId</code> + <code>nextDueDate</code>, the next nightly run silently undoes the cancel.</div>
+    <h4>Repro (read-only, via API)</h4>
+    <pre><code>POST /api/v1/auth/login   { employeeId: "ENG-TST-1", password: "eng123" }
+GET  /api/v1/pm-tasks     (Bearer token)
+-> group by scheduleId, then each schedule's rows by createdAt date</code></pre>
+  </div>
+
+  <!-- ───────────── 2 ───────────── -->
+  <h2 id="dup-pm">2. Duplicate PM Type Hard Block <span class="tag ready">Ready</span></h2>
+  <div class="card">
+    <p>An asset may only ever have one PM per frequency (any status, even <code>Done</code>). Must be enforced server-side. The frontend check is best-effort and not race-safe.</p>
+    <table>
+      <tr><th>Endpoints</th><td><code>POST /pm-tasks/schedule</code>, <code>POST /pm-tasks</code></td></tr>
+      <tr><th>Requirement</th><td>DB-level <code>UNIQUE(assetId, normalizedFrequency)</code>. Not check-then-insert.</td></tr>
+      <tr><th>On conflict</th><td><code>409 Conflict</code> with the conflicting task's id/status/assignee. Catch the DB conflict and translate it.</td></tr>
+      <tr><th>Gotcha</th><td>Custom durations equal to a preset (<code>1 month(s)</code> = <code>Monthly</code>) must collide. Normalize with the same alias table + lowercase/trim as the frontend.</td></tr>
+      <tr><th>Race safety</th><td>Two users submitting the same asset+frequency at once must not both succeed. Only the unique constraint guarantees that.</td></tr>
     </table>
   </div>
 
-  <h2>1. Duplicate PM Type Hard Block</h2>
+  <!-- ───────────── 3 ───────────── -->
+  <h2 id="audit-diff">3. Checklist Change Audit Trail <span class="tag ready">Ready</span></h2>
   <div class="card">
-    <p>An asset may only ever have one PM per frequency (status doesn't matter, even <code>Done</code> counts). Must be enforced server-side — frontend check is best-effort only and not race-safe.</p>
+    <p>Adds a human-readable diff (<code>changes: string[]</code>) to the audit entry written when a series checklist is edited. Includes the series-checklist-edit capability as step 0.</p>
     <table>
-      <tr><th>Endpoint(s)</th><td><code>POST /pm-tasks/schedule</code>, <code>POST /pm-tasks</code></td></tr>
-      <tr><th>Key requirement</th><td>DB-level <code>UNIQUE(assetId, normalizedFrequency)</code> constraint — not a check-then-insert (race condition between two users creating at once).</td></tr>
-      <tr><th>Response on conflict</th><td><code>409 Conflict</code> with the conflicting task's id/status/assignee.</td></tr>
-      <tr><th>Gotcha</th><td>Custom durations equivalent to a preset (e.g. <code>1 month(s)</code> = <code>Monthly</code>) must also collide — normalize with the same alias table + lowercase/trim as the frontend.</td></tr>
-      <tr><th>Race-condition safety (critical)</th><td>Two users submitting the same asset+frequency at once must not both succeed — the unique constraint (not an application-level check) is what actually guarantees this; catch the DB conflict and translate it to the <code>409</code> above.</td></tr>
+      <tr><th>Step 0 — enable editing</th><td>Reuse <code>PUT /pm-tasks/schedule/:seriesId</code>, scoped to <code>scheduleId = seriesId AND status != 'Done'</code>. Updates the <code>PmSchedule</code> template and every non-<code>Done</code> task. <code>Done</code> tasks are never touched.</td></tr>
+      <tr><th>Diff basis</th><td>Bag-of-items match on exact <code>text</code>. Reorder alone is not a change.</td></tr>
+      <tr><th>Output</th><td><code>Added: '...'</code>, <code>Removed: '...'</code>, <code>Added/Removed photo requirement: '...'</code>, same for value requirement.</td></tr>
+      <tr><th>No-op</th><td>Empty diff means no audit entry.</td></tr>
     </table>
   </div>
 
-  <h2>2. Checklist Change Audit Trail</h2>
+  <!-- ───────────── 4 ───────────── -->
+  <h2 id="eng-product">4. Engineer Product-Create Permission <span class="tag ready">Ready</span></h2>
   <div class="card">
-    <p>Adds a human-readable diff (<code>changes: string[]</code>) to the audit log entry written when a series checklist is edited. This requires the series-checklist-edit capability to exist first — treat it as step 0 of this same feature, not a separate deliverable.</p>
+    <p><code>POST /api/v1/products</code> returns <code>403</code> for Engineers. Product owner confirmed they should be allowed (Create PM inline product creation is gated on <code>pm.create.submit</code>, which Engineers have).</p>
     <table>
-      <tr><th>Step 0 — enable editing</th><td>Reuses existing <code>PUT /pm-tasks/schedule/:seriesId</code>, now correctly scoped (<code>where: scheduleId = seriesId AND status != 'Done'</code>) since the mass-corruption bug was fixed. Updates the <code>PmSchedule</code> template + every non-<code>Done</code> task in the series; <code>Done</code> tasks are never touched.</td></tr>
-      <tr><th>Diff basis</th><td>Bag-of-items match on exact <code>text</code> — reordering alone is not a change.</td></tr>
-      <tr><th>Output examples</th><td><code>Added: '...'</code>, <code>Removed: '...'</code>, <code>Added/Removed photo requirement: '...'</code>, same for value requirement.</td></tr>
-      <tr><th>No-op rule</th><td>If the diff is empty, don't write an audit entry at all.</td></tr>
+      <tr><th>Role check</th><td>Allow <code>admin</code>, <code>manager</code>, <code>engineer</code>. Technicians stay excluded.</td></tr>
+      <tr><th>Also required</th><td>Insert a creator-ownership row on create, so the product appears in the creator's <code>ownedProducts</code>. Without it they cannot create an Asset under it either.</td></tr>
+      <tr><th>Scope</th><td>Permission + ownership-row insert only. No schema change, no frontend change.</td></tr>
     </table>
   </div>
 
-  <h2>3. Engineer Product-Create Permission</h2>
+  <!-- ───────────── 5 ───────────── -->
+  <h2 id="machine">5. Machine Active/Inactive + Cascade <span class="tag todo">Backend todo</span></h2>
   <div class="card">
-    <p><code>POST /api/v1/products</code> returns <code>403 Forbidden</code> for Engineers today. Product owner confirmed Engineers should be allowed (matches the frontend's Create PM inline product-creation flow, already gated on <code>pm.create.submit</code>, which Engineers have).</p>
+    <p>Frontend page <code>frontend/src/app/pages/pm-machines/</code> adds machines and deactivates unused ones. Needs new fields and one new endpoint.</p>
+    <h4>New fields</h4>
     <table>
-      <tr><th>Role check</th><td>Allow <code>admin</code>, <code>manager</code>, and <code>engineer</code>. Technicians still excluded (never have <code>pm.create.submit</code>).</td></tr>
-      <tr><th>Also required</th><td>Assign a creator-ownership row on create, so the new product immediately shows up in the creating Engineer's <code>ownedProducts</code> — otherwise they can create it but can't use it, and the next step (creating an Asset under it) fails too.</td></tr>
-      <tr><th>Scope</th><td>Permission + ownership-row-insert fix only — no schema change expected, no frontend change needed once shipped.</td></tr>
+      <tr><th>Entity</th><th>Field</th><th>Type</th><th>Default</th><th>Notes</th></tr>
+      <tr><td><code>Asset</code></td><td><code>isActive</code></td><td>boolean</td><td><code>true</code></td><td>Same convention as <code>User.isActive</code>. Absent is treated as <code>true</code>.</td></tr>
+      <tr><td><code>Asset</code></td><td><code>workCenter</code></td><td>string, nullable</td><td><code>null</code></td><td>Required in the UI form (e.g. <code>WC-01</code>). Existing rows show blank until supported.</td></tr>
+      <tr><td><code>Asset</code></td><td><code>deactivatedAt</code></td><td>datetime, nullable</td><td><code>null</code></td><td>Set on deactivate, cleared on reactivate. PM Master Plan uses it to tell "deactivated this year" (show with cutoff) from "a past year" (exclude).</td></tr>
+      <tr><td><code>PMSchedule</code></td><td><code>isActive</code></td><td>boolean</td><td><code>true</code></td><td><code>false</code> = paused. Scheduler must not generate new occurrences.</td></tr>
+      <tr><td><code>PMTask.status</code></td><td>enum <code>Cancelled</code></td><td>—</td><td>—</td><td>Added next to <code>Pending / In Progress / Pending Approval / Done / Overdue</code>.</td></tr>
+      <tr><td><code>PMTask</code></td><td><code>cancelledReason</code>, <code>cancelledAt</code></td><td>string / datetime, nullable</td><td><code>null</code></td><td>Set only when auto-cancelled by a cascade.</td></tr>
+    </table>
+    <p><code>GET /assets</code> returns <code>isActive</code>, <code>workCenter</code>, <code>deactivatedAt</code> on every row. <code>POST /assets</code> accepts <code>workCenter</code>.</p>
+  </div>
+
+  <div class="card">
+    <h4><code>PATCH /assets/:id</code></h4>
+    <p>Body: <code>{ name?, department?, location?, workCenter?, isActive? }</code>. Same gate as asset creation (<code>pm.create.submit</code>). Machine <code>id</code> is immutable.</p>
+    <pre><code>PATCH /api/v1/assets/CNC-014
+{ "isActive": false }</code></pre>
+    <div class="mermaid">
+flowchart LR
+  A[PATCH isActive] --> B{value}
+  B -- false --> D1[Asset.isActive=false]
+  D1 --> D2[All PMSchedule.isActive=false]
+  D2 --> D3[Pending / In Progress / Pending Approval / Overdue tasks -> Cancelled<br/>reason 'Machine deactivated', cancelledAt=now]
+  B -- true --> R1[Asset.isActive=true]
+  R1 --> R2[All PMSchedule.isActive=true]
+  R2 --> R3[Cancelled tasks stay Cancelled]
+    </div>
+    <table>
+      <tr><th>Rule</th><th>Detail</th></tr>
+      <tr><td>Transaction</td><td>Whole cascade in one transaction.</td></tr>
+      <tr><td>Never touch</td><td><code>Done</code> tasks. Completed history is used for audit/trace-back.</td></tr>
+      <tr><td>Reactivate</td><td>Resumes generation from the schedule's own cadence. Previously <code>Cancelled</code> tasks stay <code>Cancelled</code> forever.</td></tr>
+      <tr><td>Name/department/location edit</td><td>Plain update, no cascade.</td></tr>
+      <tr><td>Audit</td><td>Write an <code>AuditLog</code> row for create/edit/deactivate/reactivate (<code>Machine Updated</code>, <code>Machine Deactivated</code>, <code>Machine Reactivated</code>; target = the asset).</td></tr>
+    </table>
+    <p class="note">Frontend (<code>pm.service.ts</code> <code>updateAsset()</code>) is built to this contract and mirrors the cascade locally for instant UI feedback. The backend cascade is the source of truth. In dev (<code>!environment.production</code>) the Machines page has a mock toggle that never calls the backend.</p>
+  </div>
+
+  <!-- ───────────── 6 ───────────── -->
+  <h2 id="pm-id">6. PM Task ID Format <span class="tag todo">Backend todo</span></h2>
+  <div class="card">
+    <p>Replaces <code>PM-XXX-0001</code> (<code>CmmsService.generateTaskId()</code>) with an ID that embeds machine and period, with a sequence that stays valid for 10+ years.</p>
+    <div class="breakdown">
+      <span class="seg"><b>PM</b></span><span class="arrow">-</span>
+      <span class="seg"><b>{MachineID}</b></span><span class="arrow">-</span>
+      <span class="seg"><b>{PeriodCode}</b></span><span class="arrow">-</span>
+      <span class="seg"><b>{Seq}</b></span>
+    </div>
+    <p>Example: <code>PM-FCT-RN005-AR-A-001-1m-01</code>, next <code>...-1m-02</code>, 13th <code>...-1m-13</code>.</p>
+    <h4>Period codes (from <code>PMSchedule.frequency</code>)</h4>
+    <table>
+      <tr><th>Frequency</th><th>Code</th><th>Frequency</th><th>Code</th></tr>
+      <tr><td>Daily</td><td><code>1d</code></td><td>Custom N Hour(s)</td><td><code>{N}h</code></td></tr>
+      <tr><td>Weekly</td><td><code>1w</code></td><td>Custom N Day(s)</td><td><code>{N}d</code></td></tr>
+      <tr><td>Monthly</td><td><code>1m</code></td><td>Custom N Week(s)</td><td><code>{N}w</code></td></tr>
+      <tr><td>Quarterly</td><td><code>3m</code></td><td>Custom N Month(s)</td><td><code>{N}m</code></td></tr>
+      <tr><td>Yearly</td><td><code>1y</code></td><td>Custom N Year(s)</td><td><code>{N}y</code></td></tr>
+    </table>
+    <div class="warn-box">Reuse the <code>FREQUENCY_ALIASES</code> normalization from <code>pm.service.ts</code> so "3 month(s)" and Quarterly get the same code.</div>
+  </div>
+
+  <div class="card">
+    <h4>Sequence rules</h4>
+    <ol>
+      <li>One counter per <code>(assetId, periodCode)</code>.</li>
+      <li>Starts at 1, <code>String(n).padStart(2,'0')</code>. Minimum width 2, <strong>never truncated</strong> (1→<code>01</code>, 100→<code>100</code>, 4380→<code>4380</code>). No fixed digit count in code.</li>
+      <li>Never resets: not per year, not on deactivate/reactivate (paused at 12, resumes at 13).</li>
+      <li>Increments only when an occurrence is actually generated. Never pre-reserved in bulk.</li>
+    </ol>
+    <table>
+      <tr><th>Frequency</th><th>Per year</th><th>After 10 years</th><th>Digits</th></tr>
+      <tr><td>Monthly</td><td>12</td><td>120</td><td>up to 3</td></tr>
+      <tr><td>Weekly</td><td>52</td><td>520</td><td>up to 3</td></tr>
+      <tr><td>Daily</td><td>365</td><td>3,650</td><td>up to 4</td></tr>
+      <tr><td>Custom 4h</td><td>~2,190</td><td>21,900</td><td>up to 5</td></tr>
+    </table>
+    <h4>Counter storage and concurrency</h4>
+    <pre><code>cmms_pm_id_sequences
+  assetId     varchar  (FK -> cmms_assets.id)
+  periodCode  varchar
+  lastSeq     int      default 0
+  PRIMARY KEY (assetId, periodCode)
+
+UPDATE cmms_pm_id_sequences
+SET lastSeq = lastSeq + 1
+OUTPUT INSERTED.lastSeq
+WHERE assetId = @assetId AND periodCode = @periodCode;
+-- no row matched -> INSERT (assetId, periodCode, lastSeq=1), use 1</code></pre>
+    <div class="warn-box"><strong>Must be atomic</strong>, in the same transaction that creates the task. Never read-then-write. A non-atomic counter under concurrent nightly + manual create hands out duplicate numbers. Fix <a href="#nightly">#1</a> with the same transactional discipline.</div>
+    <div class="good-box"><strong>No migration.</strong> All current PM task rows on the dev DB are mock data (confirmed with user). Start minting the new format for new tasks. Truncating <code>cmms_pm_tasks</code> + the new sequence table is fine for a clean dev slate.</div>
+    <p class="note">Frontend: no change. IDs are server-assigned (create sends <code>id: ''</code>) and displayed as returned, so the new format appears everywhere (lists, PDFs, audit log).</p>
+  </div>
+
+  <!-- ───────────── 7 ───────────── -->
+  <h2 id="masterplan">7. PM Master Plan Approval Workflow <span class="tag draft">Draft contract</span></h2>
+  <div class="warn-box"><strong>Status.</strong> Derived from the frontend (<code>pm.model.ts</code>, <code>pm.service.ts</code>), not agreed with backend. State is in-memory signals today and is lost on reload. Endpoint names and table shape below are proposals. Treat as a starting point.</div>
+
+  <div class="card">
+    <div class="mermaid">
+flowchart LR
+  E[Engineer / Manager<br/>pm.create.submit] -->|submit net desired state| P[(Pending change<br/>1 per asset)]
+  P -->|re-submit| P
+  M[Approver<br/>pm.masterplan.approve] -->|approve batch| R{Reconcile vs<br/>ACTUAL state}
+  M -->|reject + reason| X[Rejected]
+  R --> A[Apply delta only]
+  A --> V[One version snapshot per batch]
+  A --> L[Audit: Approved PM Master Plan]
+  X --> L2[Audit: Rejected PM Master Plan]
+    </div>
+    <h4>Rules the frontend already follows</h4>
+    <table>
+      <tr><th>Rule</th><th>Detail</th></tr>
+      <tr><td>Net state, not a log</td><td>A pending card is the merged desired end-state for one machine (<code>ProposedMasterPlanState</code>). Re-submitting merges into the existing card and appends a history entry. If the merge reduces to "no change", the card is dropped.</td></tr>
+      <tr><td>Reconcile, never replay</td><td>On approve, diff <code>proposedState</code> against <strong>current</strong> asset/schedule state and apply only the delta.</td></tr>
+      <tr><td>Idempotent</td><td>Approving an already-resolved id is a no-op error (<code>Already resolved</code>). Two approvers racing must not double-apply.</td></tr>
+      <tr><td>One revision per batch</td><td>Bulk approve reserves one version label (A, B, C…) up front and saves one snapshot at the end. Also one shared <code>batchTime</code> for audit rows.</td></tr>
+      <tr><td>Empty diff</td><td>Resolved as approved, but no audit row and no snapshot.</td></tr>
+      <tr><td>Reject</td><td>Reason required (non-blank).</td></tr>
+      <tr><td>Permissions</td><td>Submit: <code>canProposeMasterPlanChange()</code>. Approve/reject: <code>pm.masterplan.approve</code> (manager/admin only). The Approvals page and sidebar link are gated on the same permission.</td></tr>
     </table>
   </div>
+
+  <div class="card">
+    <h4>Send to Master Plan (new machines)</h4>
+    <div class="warn-box"><strong>Status.</strong> Frontend-derived proposal, not agreed with backend. The startup rule that decides which machines begin "In plan" is a demo seed (a machine with any open task counts as in plan), not a real rule.</div>
+    <table>
+      <tr><th>Item</th><th>Proposal</th></tr>
+      <tr><td>Plan status per machine</td><td>Add a plan-status field on the asset (frontend: <code>isInMasterPlan</code>). A new machine starts <strong>Not in plan</strong>. Not-in-plan machines are edited directly (no approval) and generate no real PM tasks.</td></tr>
+      <tr><td>Draft PM types</td><td>Create PM on a Not-in-plan machine saves a <strong>draft</strong> instead of an approval request. Store drafts server-side per asset: <code>assetId, frequency, title, description?, estimatedHours?, partsRequired?, checklist?, startDate?, isRecurring?</code>. Drafts create no PMSchedule and no PMTask, so they must not appear in Assign PM, Record PM, Calendar, Dashboard or Reports.</td></tr>
+      <tr><td>Send</td><td>Creates one pending change for the asset with <code>proposedState.addToPlan = true</code> and a snapshot of its drafts. Requires at least one draft. While a Send is open the machine is locked: edit, activate/deactivate, add or remove draft PM types are refused ("This machine is waiting for approval. Withdraw the request to change it.").</td></tr>
+      <tr><td>Withdraw</td><td>Sender or an approver may withdraw an open Send. The request is closed, the machine unlocks and its drafts are unchanged.</td></tr>
+      <tr><td>Approve</td><td>In one transaction: set the plan-status to In plan, create the PMSchedule/PMTask for each snapshot item (unique <code>(assetId, normalizedFrequency)</code> rule applies, <code>409</code> per item), delete the drafts, write audit lines <code>Added machine to Master Plan</code> and <code>Added &lt;freq&gt; PM</code>, and save one revision per batch. A missing machine fails the item and the request stays pending. A machine already in plan resolves with no revision and no audit row. A failed item must roll back for that machine only.</td></tr>
+      <tr><td>Reject</td><td>Reason required. The machine unlocks, drafts stay, and the last rejection reason is shown on the machine until a newer Send replaces it.</td></tr>
+      <tr><td>After approval</td><td>The machine is In plan: every later change (edit, deactivate, add or remove PM type) goes through the normal approval card flow above.</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h4>Proposed data</h4>
+    <table>
+      <tr><th>Object</th><th>Fields</th></tr>
+      <tr><td>PendingMasterPlanChange</td><td><code>id, assetId, assetName, department, proposedState, submittedBy, submittedAt, note, history[], status('pending'|'approved'|'rejected'), resolvedBy?, resolvedAt?, rejectReason?</code></td></tr>
+      <tr><td>ProposedMasterPlanState</td><td><code>addToPlan?, setActive?, editFields?{name,department,location,workCenter}, addPmTypes?[], removePmTypes?[], newPmTypeDetails?{[freq]: {title, description?, estimatedHours?, partsRequired?, checklist?, startDate?, isRecurring?}}</code>. <code>newPmTypeDetails</code> is filled by the Create PM page and is everything needed to create the PM on approval (<code>isRecurring:false</code> = one-off task, otherwise a recurring schedule starting at <code>startDate</code>).</td></tr>
+      <tr><td>History entry</td><td><code>timestamp, by (employeeId), note</code></td></tr>
+      <tr><td>MasterPlanVersionSnapshot</td><td><code>id, label, createdAt, assets[]</code>. Frontend snapshots Asset active state only. It has no PMSchedule store, so per-machine active PM types are not captured.</td></tr>
+    </table>
+    <h4>Proposed endpoints</h4>
+    <table>
+      <tr><th>Endpoint</th><th>Purpose</th></tr>
+      <tr><td><code>GET /pm-masterplan/changes?status=</code></td><td>List pending/resolved cards.</td></tr>
+      <tr><td><code>POST /pm-masterplan/changes</code></td><td>Submit or merge-resubmit for one asset.</td></tr>
+      <tr><td><code>POST /pm-masterplan/changes/approve</code></td><td>Body <code>{ ids: [] }</code>. Batch, per-id result <code>{id, ok, error?}</code>.</td></tr>
+      <tr><td><code>POST /pm-masterplan/changes/:id/reject</code></td><td>Body <code>{ reason }</code>.</td></tr>
+      <tr><td><code>GET /pm-masterplan/versions</code></td><td>Version snapshots (browse past revisions).</td></tr>
+    </table>
+    <h4>Audit log</h4>
+    <p>Actions <code>Approved PM Master Plan</code> (target <code>Rev {label} · {assetId}</code>, <code>changes[]</code> lines like <code>Added machine</code>, <code>Deactivated machine</code>, <code>Renamed to "…"</code>, <code>Added Monthly PM</code>, <code>Removed Weekly PM</code>) and <code>Rejected PM Master Plan</code> (<code>changes: ['Rejected: &lt;reason&gt;']</code>). Type <code>data</code>.</p>
+  </div>
+
+  <div class="card">
+    <h4>Open gaps</h4>
+    <table>
+      <tr><th>Gap</th><th>Detail</th></tr>
+      <tr><td>Cross-user persistence (blocker)</td><td>Create PM (for an in-plan machine), Remove PM Type, Send to Master Plan and edits of in-plan machines all submit to the in-memory queue. Not-in-plan machines and their draft PM types are also frontend-only today. A different user (or a reload) cannot see or approve them. Until the endpoints above exist, nothing submitted survives a reload and an engineer's request can never reach a manager on another browser.</td></tr>
+      <tr><td>Approve creates the PM</td><td>On approving an add-PM-type card that has <code>newPmTypeDetails</code>, the frontend currently calls <code>createSchedule</code> / <code>createTask</code> itself as the approver, using the submitter as <code>createdBy</code>. Backend should do this server-side in the same transaction as the approval, enforce the unique <code>(assetId, normalizedFrequency)</code> rule (section 2), and return <code>409</code> per item if it now conflicts. Cards without details (dev seed only) create a local mock PM.</td></tr>
+      <tr><td>Pending duplicate rule</td><td>Frontend blocks a second Create PM for an asset+frequency that already has a pending add card. Backend should enforce the same at submit time.</td></tr>
+      <tr><td>Remove-PM-type</td><td>Manage Machines now has a Remove PM Type action. Approval applies <code>removePmScheduleType()</code>: <code>PUT schedule { isActive:false }</code> then cancels not-<code>Done</code>/<code>Cancelled</code> tasks of that frequency (<code>cancelledReason: 'PM type removed'</code>). Whether the backend accepts <code>isActive</code> on a schedule update is unconfirmed. Depends on #5 <code>PMSchedule.isActive</code>.</td></tr>
+      <tr><td>Version snapshots</td><td>PM Master Plan has a Version dropdown. A snapshot holds only <code>Asset[]</code>, so the page labels it "Machine list as of Rev X. PM marks are live and are not versioned." A real version history needs per-machine active PM types (schedules) stored in each revision.</td></tr>
+      <tr><td>Persistence</td><td>Pending changes, versions and client-only audit entries are in-memory. Backend table(s) needed once the design settles.</td></tr>
+    </table>
+  </div>
+
+  <p class="note">Other known backend gaps live in <code>.github/instructions/backend.instructions.md</code> (Known Gaps): missing <code>PUT /templates/:id</code>, dual schedule API migration.</p>
 
 </div>
 <script>mermaid.initialize({ startOnLoad: true, theme: 'dark' });</script>

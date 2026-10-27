@@ -59,3 +59,16 @@
   background: var(--color-blue-light);
   color: var(--color-blue-text);
 }
+
+@media (max-width: 1023px) {
+  .data-table { min-width: 720px; }
+  .data-table th { white-space: nowrap; }
+  .data-table td { padding: 12px 14px; }
+  .data-table td:nth-child(2) > div { flex-wrap: wrap; }
+  .changes-row td { white-space: normal; }
+  .change-tag { overflow-wrap: anywhere; }
+}
+
+@media (max-width: 767px) {
+  .data-table { min-width: 640px; }
+}

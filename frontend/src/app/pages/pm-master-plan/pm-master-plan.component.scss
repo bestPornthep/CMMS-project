@@ -142,6 +142,15 @@
   z-index: 10;
 }
 
+.version-note {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  background: var(--color-warning-bg);
+  color: var(--color-warning-text);
+}
+
 /* ── Master plan table ───────────────────────────── */
 .master-plan-card {
   padding: 0;
@@ -217,6 +226,34 @@
   }
   .sticky-col-1 { left: 0; min-width: 40px; }
   .sticky-col-2 { left: 40px; min-width: 160px; text-align: left; box-shadow: 2px 0 4px rgba(0, 0, 0, 0.06); }
+}
+
+/* ── Responsive ──────────────────────────────────── */
+.pm-master-plan-page,
+.master-plan-card { min-width: 0; max-width: 100%; }
+
+.table-scroll { overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
+
+/* Tablet (<=1023px): filters wrap, dropdowns stay inside the card, 40px touch targets */
+@media (max-width: 1023px) {
+  .filter-bar { padding: 16px; gap: 12px; }
+  .filter-group { min-width: min(180px, 100%); }
+
+  .ms-trigger { min-height: 40px; }
+  .ms-menu { min-width: 0; width: 100%; max-width: calc(100vw - 32px); }
+  .ms-item { min-height: 40px; white-space: normal; overflow-wrap: anywhere; }
+  .ms-checkbox { width: 20px; height: 20px; }
+
+  .version-note { overflow-wrap: anywhere; }
+}
+
+/* Phone (<=767px): filters go full-width, narrower pinned machine column leaves room for the WW grid */
+@media (max-width: 767px) {
+  .filter-group { flex: 1 1 100%; max-width: none; }
+
+  .master-plan-table {
+    .sticky-col-2 { min-width: 120px; white-space: normal; }
+  }
 }
 
 /* ── Print ───────────────────────────────────────── */

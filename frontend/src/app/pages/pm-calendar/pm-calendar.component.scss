@@ -1056,6 +1056,40 @@
   .cal-layout {
     grid-template-columns: 1fr;
   }
+
+  .cal-nav {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .cal-nav label {
+    min-height: 40px;
+  }
+
+  .cal-nav input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+  }
+
+  .dropdown-trigger {
+    height: 40px;
+  }
+
+  .topbar-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .dropdown-item {
+    min-height: 40px;
+  }
+
+  .dropdown-menu {
+    left: auto;
+    right: 0;
+    max-width: calc(100vw - 32px);
+    transform-origin: top right;
+  }
 }
 
 @media(max-width:767px) {

@@ -327,4 +327,102 @@
     .ms-item:hover { background: var(--bg-card-alt); }
     .ms-checkbox { width: 16px; height: 16px; border: 1px solid #94A3B8; border-radius: 3px; display: flex; align-items: center; justify-content: center; background: var(--bg-card); transition: background 0.2s, border-color 0.2s, box-shadow 0.2s; }
     .ms-checkbox.checked { background: var(--blue); border-color: var(--blue); }
+
+    /* Responsive layout: header, filters, work-order tables, modals */
+    .tabs-bar{display:flex;align-items:flex-end;justify-content:space-between;border-bottom:1px solid var(--border-soft);margin-bottom:20px;flex-wrap:wrap;gap:16px;}
+    .dept-filter{display:flex;align-items:center;gap:12px;margin-bottom:12px;}
+    .c-dropdown-trigger.dept-trigger{width:180px;}
+    .c-dropdown-trigger.bulk-dd-trigger{height:32px;width:180px;}
+    .bulk-assign-btn{height:32px;}
+    .dd-label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left;display:inline-block;}
+    .dd-label-bulk{max-width:130px;}
+    .dd-label-assign{max-width:100px;}
+    .dd-label-reassign{max-width:85px;font-size:11px;}
+    .assign-cell{display:flex;align-items:center;justify-content:center;gap:6px;}
+    .c-dropdown.form-dropdown.assign-dd{width:140px;}
+    .c-dropdown.form-dropdown.assign-dd .c-dropdown-trigger.assign-dd-trigger{height:32px;width:100%;display:flex;align-items:center;padding:6px 10px;}
+    .assign-btn{padding:4px 8px;font-size:11px;height:32px;}
+    .reassign-cell{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:6px;}
+    .c-dropdown.form-dropdown.reassign-dd{width:120px;}
+    .c-dropdown.form-dropdown.reassign-dd .c-dropdown-trigger.reassign-dd-trigger{height:28px;width:100%;display:flex;align-items:center;padding:4px 8px;}
+    .reassign-btn{padding:2px 8px;font-size:11px;height:28px;}
+    .delegation-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;}
+    .chk-hit{display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;}
+    .chk-label{display:none;}
+    .template-modal{max-width:min(420px,calc(100vw - 32px));max-height:calc(100vh - 32px);overflow-y:auto;}
+
+    /* Work-order tables collapse to stacked rows when the content area is too narrow for 8 columns */
+    @media(max-width:1199px){
+      .wo-table,.wo-table thead,.wo-table tbody{display:block;width:100%;}
+      .wo-table thead tr{display:flex;}
+      .wo-table thead th{display:none;}
+      .wo-table thead th.col-chk{display:block;width:100% !important;padding:6px 16px;text-align:left;border-bottom:1px solid var(--border-soft);}
+      .wo-table thead .chk-label{display:inline;font-size:12px;font-weight:600;color:var(--text-secondary);text-transform:none;letter-spacing:0;}
+      .wo-table tbody tr.empty-row{display:block;}
+      .wo-table tbody tr.empty-row td{display:block;}
+      .wo-table tbody tr.wo-row{display:grid;gap:10px 16px;align-items:start;padding:14px 16px;border-bottom:1px solid var(--border-soft);}
+      .wo-table tbody tr.wo-row:last-child{border-bottom:none;}
+      .wo-table tbody tr.wo-row td{display:block;min-width:0;padding:0;border:none;text-align:left;overflow-wrap:anywhere;}
+      .wo-table tbody tr.wo-row td[data-label]::before{content:attr(data-label);display:block;margin-bottom:2px;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;}
+      .wo-table tbody tr.wo-row:hover{background:var(--bg-card-alt);}
+      .wo-table tbody tr.wo-row:hover td,
+      .wo-table tbody tr.wo-row.selected-row td{background:transparent !important;}
+      .wo-table tbody tr.wo-row.selected-row{background:var(--blue-light);}
+      .wo-row-unassigned{grid-template-columns:40px repeat(3,minmax(0,1fr));grid-template-areas:"chk id prod asset" ". type creator due" ". act act act";}
+      .wo-row-assigned{grid-template-columns:repeat(3,minmax(0,1fr));grid-template-areas:"id prod asset" "type creator ts" "assignee assignee badge";}
+      .wo-row .col-chk{grid-area:chk;}
+      .wo-row .col-id{grid-area:id;}
+      .wo-row .col-prod{grid-area:prod;}
+      .wo-row .col-asset{grid-area:asset;}
+      .wo-row .col-type{grid-area:type;}
+      .wo-row .col-creator{grid-area:creator;}
+      .wo-row .col-due{grid-area:due;}
+      .wo-row .col-action{grid-area:act;}
+      .wo-row .col-assignee{grid-area:assignee;}
+      .wo-row .col-ts{grid-area:ts;}
+      .wo-row .col-badge{grid-area:badge;}
+      .wo-row .pm-id-link{display:inline-flex;align-items:center;min-height:40px;}
+      .assign-cell{justify-content:stretch;gap:8px;}
+      .c-dropdown.form-dropdown.assign-dd{flex:1;width:auto;min-width:0;}
+      .c-dropdown.form-dropdown.assign-dd .c-dropdown-trigger.assign-dd-trigger{height:40px;padding:6px 12px;font-size:13px;}
+      .dd-label-assign,.dd-label-reassign{flex:1;min-width:0;max-width:none;}
+      .assign-btn{height:40px;padding:0 20px;font-size:13px;}
+      .reassign-cell{justify-content:flex-start;gap:8px;}
+      .c-dropdown.form-dropdown.reassign-dd{flex:1;width:auto;min-width:0;max-width:260px;}
+      .c-dropdown.form-dropdown.reassign-dd .c-dropdown-trigger.reassign-dd-trigger{height:40px;padding:6px 12px;}
+      .dd-label-reassign{font-size:12px;}
+      .reassign-btn{height:40px;padding:0 16px;font-size:12px;}
+    }
+
+    /* Touch targets for tablet and below */
+    @media(max-width:1023px){
+      .btn{min-height:40px;}
+      .c-dropdown-trigger{min-height:40px;}
+      .c-dropdown-item{min-height:40px;display:flex;align-items:center;}
+      .ms-item{min-height:40px;display:flex;align-items:center;}
+      .ms-item > div{flex:1;}
+      .tab-btn{min-height:44px;padding-top:10px;}
+      .chk-hit{min-width:40px;min-height:40px;}
+      .dept-static{min-height:40px;display:flex;align-items:center;}
+      .tag-remove{min-width:40px;min-height:40px;justify-content:center;margin:-12px -10px -12px -4px;}
+      .delegation-grid{grid-template-columns:minmax(0,1fr);gap:16px;}
+    }
+
+    @media(max-width:767px){
+      .tabs{gap:8px 20px;}
+      .dept-filter{width:100%;}
+      .dept-filter .c-dropdown{flex:1;}
+      .c-dropdown-trigger.dept-trigger{width:100%;}
+      .assign-toolbar > div{width:100%;}
+      .assign-toolbar .bulk-bar{flex-wrap:wrap;width:100%;}
+      .bulk-dd{flex:1 1 180px;}
+      .c-dropdown-trigger.bulk-dd-trigger{width:100%;}
+      .dd-label-bulk{max-width:none;}
+      .template-modal{padding:20px;}
+    }
+
+    @media(max-width:599px){
+      .wo-row-unassigned{grid-template-columns:40px repeat(2,minmax(0,1fr));grid-template-areas:"chk id id" ". prod asset" ". type due" ". creator creator" ". act act";}
+      .wo-row-assigned{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-areas:"id id" "prod asset" "type creator" "assignee assignee" "ts badge";}
+    }
 }

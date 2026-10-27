@@ -285,6 +285,7 @@ export class LayoutComponent {
     this.selectedAssignTech.set('');
     this.selectedReassignTech.set('');
     this.reassignConfirmPending.set(false);
+    this.cancelTaskConfirmPending.set(false);
     this.assignDropdownOpen = false;
     this.reassignDropdownOpen = false;
     this.editChecklistMode.set(false);
@@ -370,6 +371,33 @@ export class LayoutComponent {
       this.toast.error(err?.message || 'Failed to reassign task. Please check the server connection.');
     } finally {
       this.reassignConfirmPending.set(false);
+    }
+  }
+
+  // --- Cancel (Pending/In Progress/Overdue only) — operational, no approval needed. Cancels
+  // this task and its not-yet-Done future series siblings, leaves the schedule itself active. ---
+  cancelTaskConfirmPending = signal<boolean>(false);
+
+  canCancelTask(task: PMTask): boolean {
+    return this.pmService.canCancelTask(task);
+  }
+
+  requestCancelTask() {
+    this.cancelTaskConfirmPending.set(true);
+  }
+
+  cancelCancelTask() {
+    this.cancelTaskConfirmPending.set(false);
+  }
+
+  async confirmCancelTask(task: PMTask) {
+    try {
+      await this.pmService.cancelPmTaskSeries(task.id);
+      this.toast.success('PM task cancelled.');
+      this.closeTaskDetails();
+    } catch (err: any) {
+      this.toast.error(err?.message || 'Failed to cancel task. Please try again.');
+      this.cancelTaskConfirmPending.set(false);
     }
   }
 

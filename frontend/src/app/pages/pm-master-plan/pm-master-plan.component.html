@@ -1,4 +1,4 @@
-<div class="dropdown-backdrop" *ngIf="yearDropdownOpen() || deptDropdownOpen() || productDropdownOpen()" (click)="closeDropdowns()"></div>
+<div class="dropdown-backdrop" *ngIf="yearDropdownOpen() || deptDropdownOpen() || productDropdownOpen() || versionDropdownOpen()" (click)="closeDropdowns()"></div>
 
 <div class="pm-master-plan-page" data-enter>
   <div class="page-header no-print">
@@ -82,11 +82,41 @@
       </div>
     </div>
 
+    <div class="filter-group" *ngIf="versions().length > 0">
+      <label class="filter-label">{{ 'Version' | tr }}</label>
+      <div class="ms-wrapper">
+        <div class="form-input ms-trigger" (click)="toggleVersionDropdown()">
+          <span class="ms-trigger-text">{{ selectedVersion() ? ('Rev ' + selectedVersion()!.label) : ('Current' | tr) }}</span>
+          <span class="material-symbols-outlined">expand_more</span>
+        </div>
+        <div class="ms-menu" [class.open]="versionDropdownOpen()">
+          <div class="ms-list">
+            <div class="ms-item" (click)="selectVersion('')">
+              <div class="ms-checkbox" [class.checked]="!selectedVersion()">
+                <span class="material-symbols-outlined" *ngIf="!selectedVersion()">check</span>
+              </div>
+              <span>{{ 'Current' | tr }}</span>
+            </div>
+            <div class="ms-item" *ngFor="let v of versions()" (click)="selectVersion(v.id)">
+              <div class="ms-checkbox" [class.checked]="selectedVersionId() === v.id">
+                <span class="material-symbols-outlined" *ngIf="selectedVersionId() === v.id">check</span>
+              </div>
+              <span>Rev {{ v.label }} · {{ v.createdAt | date:'medium' }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="filter-group">
       <label class="filter-label">{{ 'Search' | tr }}</label>
       <input type="text" class="form-input filter-input" [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)" [placeholder]="'Search ID, name, or customer...' | tr" />
     </div>
   </div>
+
+  <p class="version-note no-print" *ngIf="selectedVersion() as v">
+    {{ 'Machine list as of' | tr }} Rev {{ v.label }} ({{ v.createdAt | date:'medium' }}). {{ 'PM marks are live and are not versioned.' | tr }}
+  </p>
 
   <div class="card master-plan-card" data-enter>
     <div class="table-scroll">

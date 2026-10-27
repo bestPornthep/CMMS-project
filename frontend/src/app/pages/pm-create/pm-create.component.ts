@@ -1,11 +1,11 @@
 import { Component, computed, inject, signal, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { PmService } from '../../core/services/pm.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
-import { PMTaskFrequency, PMTaskStatus, Template } from '../../core/models/pm.model';
+import { NewPmTypeDetail, PMTaskFrequency, Template } from '../../core/models/pm.model';
 import { TranslatePipe } from '../../shared/pipes/translate.pipe';
 
 @Component({
@@ -19,6 +19,7 @@ export class PmCreateComponent {
   private pmService = inject(PmService);
   private authService = inject(AuthService);
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
   private toast = inject(ToastService);
 
   // Form Model
@@ -52,6 +53,33 @@ export class PmCreateComponent {
     if (!this.canChangeDept && this.currentUser?.department) {
       this.department = this.currentUser.department;
     }
+
+    // A link such as /pm-create?machine=CNC-014 (used by the machine detail window) preselects that machine.
+    const machineId = this.route.snapshot.queryParamMap.get('machine');
+    if (machineId) this.preselectMachine(machineId);
+  }
+
+  // Fills customer, department and machine from a link. An unknown, inactive or inaccessible machine is
+  // ignored with a message and the form stays as it was: a link must never pick a machine the picker would not offer.
+  private preselectMachine(id: string) {
+    const machine = this.pmService.assets().find(a => a.id === id);
+    if (!machine) {
+      this.toast.error('Machine not found.');
+      return;
+    }
+    const customerOk = this.products().some(p => p.toLowerCase() === (machine.location || '').toLowerCase());
+    const departmentOk = this.canChangeDept || (machine.department || '').toLowerCase() === (this.currentUser?.department || '').toLowerCase();
+    if (!customerOk || !departmentOk) {
+      this.toast.error('You cannot create PM types for this machine.');
+      return;
+    }
+    if (machine.isActive === false) {
+      this.toast.error('Reactivate this machine before adding PM types.');
+      return;
+    }
+    this.productId = machine.location;
+    this.department = machine.department;
+    this.assetId = machine.id;
   }
 
   private toIsoDate(d: Date): string {
@@ -150,9 +178,10 @@ export class PmCreateComponent {
   }
 
   // Hard block: an asset may only ever have one PM of a given frequency, regardless of status.
-  getDuplicatePm() {
-    if (!this.assetId || !this.pmType) return null;
-    return this.pmService.findExistingPmOfType(this.assetId, this.getEffectiveFrequency());
+  // Drafts and preview tasks count too.
+  isDuplicatePm(): boolean {
+    if (!this.assetId || !this.pmType) return false;
+    return this.pmService.hasPmType(this.assetId, this.getEffectiveFrequency());
   }
 
   togglePart(part: string, event: Event) {
@@ -184,7 +213,7 @@ export class PmCreateComponent {
     const filterProd = this.productId?.toLowerCase() || '';
     const filterDept = this.department?.toLowerCase() || '';
 
-    // Only active machines are offered here \u2014 deactivated machines must be reactivated
+    // Only active machines are offered here — deactivated machines must be reactivated
     // from the Machines page before a new PM can be created for them.
     return this.pmService.activeAssets().filter(a => {
       const aLoc = a.location?.toLowerCase() || '';
@@ -337,10 +366,14 @@ export class PmCreateComponent {
     }
 
     // Hard block: one PM per asset+frequency, ever — regardless of status.
-    const duplicate = this.getDuplicatePm();
-    if (duplicate) {
+    if (this.isDuplicatePm()) {
       const freq = this.getEffectiveFrequency();
       this.toast.error(`This asset already has a ${freq} PM. You cannot create another PM of the same type for this asset.`);
+      return;
+    }
+
+    if (this.pmService.findPendingPmAdd(this.assetId, this.getEffectiveFrequency())) {
+      this.toast.error(`A ${this.getEffectiveFrequency()} PM for this asset is already waiting for approval.`);
       return;
     }
 
@@ -387,48 +420,38 @@ export class PmCreateComponent {
     const finalFrequency = this.getEffectiveFrequency();
 
     try {
-      if (this.isRecurring) {
-        await this.pmService.addPmSchedule({
-          id: '', // Will be ignored by shim
-          title: selectedAsset?.name || this.assetId,
-          description: this.description,
-          frequency: finalFrequency,
-          assetId: this.assetId,
-          productId: this.productId,
-          department: this.department,
-          startDate: nextDueDate,
-          estimatedHours: this.estimatedHours,
-          checklist: this.checklist().map(item => ({ text: item.text, requiresPhoto: item.requiresPhoto, requiresValue: item.requiresValue })),
-          partsRequired: [...this.parts()],
-          assignedTo: undefined,
-          createdBy: this.authService.currentUser()?.employeeId
-        });
-      } else {
-        try {
-          await this.pmService.addPmTask({
-            productId: this.productId,
-            department: this.department,
-            assetId: this.assetId,
-            title: selectedAsset?.name || this.assetId,
-            description: this.description,
-            frequency: finalFrequency,
-            nextDueDate: nextDueDate,
-            estimatedHours: this.estimatedHours,
-            status: 'Pending' as PMTaskStatus,
-            createdBy: this.authService.currentUser()?.employeeId,
-            checklist: this.checklist().map(item => ({ text: item.text, done: false, requiresPhoto: item.requiresPhoto, requiresValue: item.requiresValue })),
-            partsRequired: [...this.parts()]
-          });
-        } catch (inner) {
-          this.isGenerating.set(false);
-          this.toast.error('Failed to create PM task. Check your access and try again.');
-          return;
-        }
+      const detail: NewPmTypeDetail = {
+        title: selectedAsset.name || this.assetId,
+        description: this.description,
+        estimatedHours: this.estimatedHours,
+        partsRequired: [...this.parts()],
+        checklist: this.checklist().map(item => ({ text: item.text, requiresPhoto: item.requiresPhoto, requiresValue: item.requiresValue })),
+        startDate: nextDueDate,
+        isRecurring: this.isRecurring
+      };
+
+      // A machine that is not in the Master Plan keeps its PM types as drafts: no approval, no tasks.
+      if (!this.pmService.isInMasterPlan(this.assetId)) {
+        this.pmService.addDraftPmType(this.assetId, finalFrequency, detail);
+        this.toast.success('PM type saved as a draft. Send the machine to the Master Plan when it is ready.');
+        this.router.navigate(['/pm-machines'], { queryParams: { machine: this.assetId } });
+        return;
       }
-      // Only navigate on actual success
-      this.router.navigate(['/pm-assign']);
-    } catch (e) {
-      this.toast.error('Failed to generate PM schedule. Please try again.');
+
+      this.pmService.submitMasterPlanChange({
+        assetId: this.assetId,
+        assetName: selectedAsset.name,
+        department: this.department,
+        changes: {
+          addPmTypes: [finalFrequency],
+          newPmTypeDetails: { [finalFrequency]: detail }
+        },
+        note: this.description.trim() || `New ${finalFrequency} PM via Create PM`
+      });
+      this.toast.success(`${finalFrequency} PM for "${selectedAsset.name}" submitted for approval.`);
+      this.router.navigate([this.pmService.canApproveMasterPlanChange() ? '/pm-approvals' : '/dashboard']);
+    } catch (e: any) {
+      this.toast.error(e?.message || 'Failed to save the PM. Please try again.');
     } finally {
       this.isGenerating.set(false);
     }

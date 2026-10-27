@@ -45,6 +45,25 @@ Run these to verify work before marking a ticket done:
 7. **User review** — present, fix, iterate until satisfied.
 8. **Merge & handoff** — merge to `main`, **overwrite** `.scratch/handoff.md` with current state so the next session knows exactly where things stand.
 
+## Delegation (sub-agents)
+
+If a job is too big for one agent (long context, or several independent pieces), delegate with the `task` tool instead of doing it all serially. Keep it direct when it takes 5 tool calls or fewer, or is one continuous investigation.
+
+Match the model to the difficulty and set `model` explicitly. These IDs are the current defaults; edit this table to change them.
+
+| Job | Agent type | `model` |
+|-----|-----------|---------|
+| **Easy / mechanical** — run tests, `tsc` or builds and report; find-and-replace; Thai translation keys; doc edits from a precise outline; boilerplate that copies an existing pattern | `task` or `general-purpose` | `claude-haiku-4.5` |
+| **Medium** — a well-specified feature slice; template/SCSS work; writing specs from a written test list | `general-purpose` | `claude-sonnet-5.5` |
+| **Hard / risky** — state machines, approval or permission logic, tricky bugs, design decisions, final `/code-review` | `general-purpose`, `code-review` or `rubber-duck` | `claude-opus-5.5` |
+
+Rules:
+- Write a self-contained prompt: goal, exact files, the rules from this file that apply, acceptance criteria, the commands that prove it works, and what **not** to touch.
+- One owner per file. Never run two agents that edit the same file at once. Parallelize only independent files; otherwise run them in sequence.
+- The parent stays responsible: read each result, run `npx tsc --noEmit`, and reject "done" without evidence (test output).
+- Sub-agents must not commit, push, edit `.scratch/handoff.md`, or spawn further agents.
+- Leave `reasoning_effort` and `context_tier` unset. If a model is rejected as unavailable, retry once without `model`.
+
 ## Language
 
 User writes in Thai or English. Always respond in English.

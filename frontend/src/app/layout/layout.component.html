@@ -50,6 +50,10 @@
         <span>PM Calendar</span>
       </a>
 
+      <div class="nav-divider"></div>
+
+      <div class="nav-label">{{ 'PM Document' | tr }}</div>
+
       <a class="pm-subitem" routerLink="/pm-reports" routerLinkActive="active" *ngIf="hasPermission('pm.reports.view')">
         <span class="material-symbols-outlined">bar_chart</span>
         <span>PM Reports</span>
@@ -58,6 +62,11 @@
       <a class="pm-subitem" routerLink="/pm-master-plan" routerLinkActive="active" *ngIf="hasPermission('pm.reports.view')">
         <span class="material-symbols-outlined">calendar_view_month</span>
         <span>{{ 'PM Master Plan' | tr }}</span>
+      </a>
+
+      <a class="pm-subitem" routerLink="/pm-approvals" routerLinkActive="active" *ngIf="hasPermission('pm.masterplan.approve')">
+        <span class="material-symbols-outlined">rule</span>
+        <span>{{ 'Master Plan Approvals' | tr }}</span>
       </a>
 
       <div class="nav-divider"></div>
@@ -234,6 +243,22 @@
             <div style="display:flex; gap:8px;">
               <button class="btn btn-primary" style="flex:1; justify-content:center; font-size:12.5px;" (click)="confirmReassignFromModal(viewedTask)">{{ 'Confirm' | tr }}</button>
               <button class="btn btn-ghost" style="flex:1; justify-content:center; font-size:12.5px;" (click)="cancelReassignFromModal()">{{ 'Cancel' | tr }}</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cancel (Pending/In Progress only, and only if the current user can manage this task) — operational, no approval needed -->
+        <div *ngIf="canCancelTask(viewedTask)" style="margin-top:16px;">
+          <div style="font-size:12px;font-weight:700;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;">{{ 'Remove' | tr }}</div>
+          <button *ngIf="!cancelTaskConfirmPending()" class="btn btn-ghost" style="padding:7px 16px; font-size:12.5px; color:var(--color-error-mid); white-space:nowrap;" (click)="requestCancelTask()">{{ 'Cancel this PM task' | tr }}</button>
+          <div *ngIf="cancelTaskConfirmPending()" style="background:var(--color-bg-card-alt); border:1px solid var(--color-border-soft); border-radius:var(--radius-md); padding:12px;">
+            <p style="margin:0 0 10px 0; font-size:13px; color:var(--color-text-secondary);">
+              {{ 'Remove PM task for' | tr }} <strong style="color:var(--color-text-primary);">{{ viewedTask.assetId }}</strong> — {{ viewedTask.nextDueDate | date:'MMM yyyy' }}?
+              {{ 'This cancels this occurrence and any not-yet-done future occurrences in the same series. The recurring schedule itself stays active — only these already-generated tasks are removed.' | tr }}
+            </p>
+            <div style="display:flex; gap:8px;">
+              <button class="btn btn-primary" style="flex:1; justify-content:center; font-size:12.5px; background:var(--color-error-mid); border-color:var(--color-error-mid);" (click)="confirmCancelTask(viewedTask)">{{ 'Confirm' | tr }}</button>
+              <button class="btn btn-ghost" style="flex:1; justify-content:center; font-size:12.5px;" (click)="cancelCancelTask()">{{ 'Cancel' | tr }}</button>
             </div>
           </div>
         </div>

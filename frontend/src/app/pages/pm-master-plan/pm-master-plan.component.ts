@@ -2,10 +2,12 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PmService } from '../../core/services/pm.service';
+import { isAssetInMasterPlan } from '../../core/services/pm-plan.util';
 import { AuthService } from '../../core/services/auth.service';
 import { TranslationService } from '../../core/services/translation.service';
+import { ToastService } from '../../core/services/toast.service';
 import { TranslatePipe } from '../../shared/pipes/translate.pipe';
-import { PMTask } from '../../core/models/pm.model';
+import { Asset, PMTask } from '../../core/models/pm.model';
 import { environment } from '../../../environments/environment';
 
 interface MasterPlanMark {
@@ -53,7 +55,7 @@ export class PmMasterPlanComponent implements OnInit {
   // every type. Purely client-side (mockTasks signal) — never sent to the API.
   isDevBuild = !environment.production;
   mockTasks = signal<PMTask[]>([]);
-  tasks = computed(() => [...this.pmService.pmTasks(), ...this.mockTasks()]);
+  tasks = computed(() => [...this.pmService.planTasks(), ...this.mockTasks()]);
 
   loadMockPreviewData() {
     if (this.mockTasks().length > 0) {
@@ -104,6 +106,21 @@ export class PmMasterPlanComponent implements OnInit {
   yearDropdownOpen = signal(false);
   deptDropdownOpen = signal(false);
   productDropdownOpen = signal(false);
+  versionDropdownOpen = signal(false);
+
+  // Snapshots only hold the machine list (Asset[]); PM marks always come from live tasks.
+  versions = computed(() => [...this.pmService.masterPlanVersions()].reverse());
+  selectedVersionId = signal('');
+  selectedVersion = computed(() => this.versions().find(v => v.id === this.selectedVersionId()));
+
+  toggleVersionDropdown() {
+    this.versionDropdownOpen.set(!this.versionDropdownOpen());
+  }
+
+  selectVersion(id: string) {
+    this.selectedVersionId.set(id);
+    this.versionDropdownOpen.set(false);
+  }
 
   toggleYearDropdown() {
     this.yearDropdownOpen.set(!this.yearDropdownOpen());
@@ -127,6 +144,7 @@ export class PmMasterPlanComponent implements OnInit {
     this.yearDropdownOpen.set(false);
     this.deptDropdownOpen.set(false);
     this.productDropdownOpen.set(false);
+    this.versionDropdownOpen.set(false);
   }
 
   selectYear(y: number) {
@@ -161,7 +179,8 @@ export class PmMasterPlanComponent implements OnInit {
     const role = this.currentUser?.baseRole;
     const showAll = role === 'admin' || role === 'manager';
     const userDept = (this.currentUser?.department || '').toLowerCase();
-    return this.pmService.assets().filter(a => showAll || a.department?.toLowerCase() === userDept);
+    const source = this.selectedVersion()?.assets ?? this.pmService.assets();
+    return source.filter(a => isAssetInMasterPlan(a) && (showAll || a.department?.toLowerCase() === userDept));
   });
 
   filteredAssets = computed(() => {
@@ -256,7 +275,7 @@ export class PmMasterPlanComponent implements OnInit {
   }
 
   // Short grid legend code, e.g. Monthly -> "1M", "4 Hour(s)" -> "4H" (same style as the
-  // period codes in docs/backend_pm_id_format.html).
+  // period codes in docs/backend_fixes_needed_combined.html#pm-id).
   private periodCode(frequency: string): string {
     const norm = frequency.trim().toLowerCase();
     const presets: Record<string, string> = { daily: '1D', weekly: '1W', monthly: '1M', quarterly: '3M', yearly: '1Y' };

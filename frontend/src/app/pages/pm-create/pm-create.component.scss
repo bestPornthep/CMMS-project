@@ -319,7 +319,36 @@
     .ms-checkbox { width: 16px; height: 16px; border: 1px solid #94A3B8; border-radius: 3px; display: flex; align-items: center; justify-content: center; background: var(--bg-card); transition: background 0.2s, border-color 0.2s, box-shadow 0.2s; }
     .ms-checkbox.checked { background: var(--blue); border-color: var(--blue); }
     
-    @media(max-width:1023px){.create-grid{grid-template-columns:1fr;}}
+    @media(max-width:1023px){.create-grid{grid-template-columns:minmax(0,1fr);}}
+
+    .schedule-grid{grid-template-columns:1fr 1fr;}
+    .template-modal{max-width:min(420px,calc(100vw - 32px));max-height:calc(100vh - 32px);overflow-y:auto;}
+
+    /* Tablet and below: wrap template bar, 40px+ touch targets */
+    @media(max-width:1023px){
+      .btn{min-height:40px;}
+      .c-dropdown-trigger{min-height:40px;}
+      .c-dropdown-item{min-height:40px;display:flex;align-items:center;}
+      .ms-item{min-height:40px;display:flex;align-items:center;}
+      .ms-item > div{flex:1;}
+      .template-bar{flex-wrap:wrap;}
+      .template-text{flex:1 1 220px;}
+      .template-actions{flex-wrap:wrap;}
+      .checklist-item input{min-height:40px;}
+      .remove-item-btn,.photo-req-btn,.value-req-btn{width:40px;height:40px;}
+      .add-item-btn{min-height:40px;padding:6px 16px !important;}
+      .part-tag button{min-width:40px;min-height:40px;justify-content:center;margin:-12px -8px -12px -4px;}
+    }
+
+    @media(max-width:767px){
+      .template-modal{padding:20px;}
+    }
+
+    @media(max-width:599px){
+      .schedule-grid{grid-template-columns:1fr;}
+      .template-actions{width:100%;}
+      .template-actions .c-dropdown{flex:1 1 160px;width:auto;}
+    }
 }
 
 .c-dropdown-trigger input::placeholder { color: var(--text-muted); }

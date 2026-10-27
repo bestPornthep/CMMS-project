@@ -80,6 +80,11 @@
           <button [class.active]="statusFilter() === 'active'" (click)="setStatusFilter('active')">{{ 'Active' | tr }}</button>
           <button [class.active]="statusFilter() === 'inactive'" (click)="setStatusFilter('inactive')">{{ 'Inactive' | tr }}</button>
         </div>
+        <div class="status-filter" role="group" [attr.aria-label]="'Master Plan status' | tr">
+          <button [class.active]="planFilter() === 'all'" (click)="setPlanFilter('all')">{{ 'Any plan status' | tr }}</button>
+          <button [class.active]="planFilter() === 'in'" (click)="setPlanFilter('in')">{{ 'In plan' | tr }}</button>
+          <button [class.active]="planFilter() === 'out'" (click)="setPlanFilter('out')">{{ 'Not in plan' | tr }}</button>
+        </div>
       </div>
     </div>
     <div class="card-body" style="padding:0;">
@@ -101,22 +106,32 @@
         </thead>
         <tbody>
           <ng-container *ngFor="let a of filteredMachines()">
-            <tr [class.inactive-row]="a.isActive === false" *ngIf="editingId !== a.id">
+            <tr class="machine-row" tabindex="0" [class.inactive-row]="a.isActive === false" *ngIf="editingId !== a.id"
+              (click)="onRowClick(a, $event)" (keydown.enter)="onRowKey(a, $event)">
               <td>{{ a.id }}</td>
               <td>{{ a.name }}</td>
               <td>{{ a.location }}</td>
               <td>{{ a.department | tr }}</td>
               <td>{{ a.workCenter || '\u2014' }}</td>
               <td>
-                <span class="status-badge" [class.active]="a.isActive !== false" [class.inactive]="a.isActive === false">
-                  {{ (a.isActive === false ? 'Inactive' : 'Active') | tr }}
-                </span>
+                <div class="status-badges">
+                  <span class="status-badge" [class.active]="a.isActive !== false" [class.inactive]="a.isActive === false">
+                    {{ (a.isActive === false ? 'Inactive' : 'Active') | tr }}
+                  </span>
+                  <span class="status-badge" [class.plan-in]="isInPlan(a)" [class.plan-out]="!isInPlan(a)">{{ (isInPlan(a) ? 'In plan' : 'Not in plan') | tr }}</span>
+                  <span class="status-badge pending" *ngIf="pendingAssetIds().has(a.id)">{{ 'Pending approval' | tr }}</span>
+                </div>
               </td>
               <td class="row-actions">
                 <div class="row-actions-inner">
-                  <button class="btn btn-ghost" (click)="startEdit(a, $event)">{{ 'Edit' | tr }}</button>
-                  <button class="btn btn-ghost danger" *ngIf="a.isActive !== false" (click)="askDeactivate(a, $event)">{{ 'Deactivate' | tr }}</button>
-                  <button class="btn btn-ghost" *ngIf="a.isActive === false" (click)="askReactivate(a, $event)">{{ 'Reactivate' | tr }}</button>
+                  <button class="btn btn-ghost" [disabled]="isLocked(a.id)" [attr.title]="isLocked(a.id) ? (lockMessage | tr) : null"
+                    (click)="startEdit(a, $event)">{{ 'Edit' | tr }}</button>
+                  <button class="btn btn-ghost" *ngIf="a.isActive !== false" [disabled]="isLocked(a.id)"
+                    [attr.title]="isLocked(a.id) ? (lockMessage | tr) : null" (click)="askRemovePm(a, $event)">{{ 'Remove PM Type' | tr }}</button>
+                  <button class="btn btn-ghost danger" *ngIf="a.isActive !== false" [disabled]="isLocked(a.id)"
+                    [attr.title]="isLocked(a.id) ? (lockMessage | tr) : null" (click)="askDeactivate(a, $event)">{{ 'Deactivate' | tr }}</button>
+                  <button class="btn btn-ghost" *ngIf="a.isActive === false" [disabled]="isLocked(a.id)"
+                    [attr.title]="isLocked(a.id) ? (lockMessage | tr) : null" (click)="askReactivate(a, $event)">{{ 'Reactivate' | tr }}</button>
                 </div>
               </td>
             </tr>
@@ -150,7 +165,8 @@
               <td></td>
               <td class="row-actions">
                 <div class="row-actions-inner">
-                  <button class="btn btn-primary" (click)="saveEdit(a)">{{ 'Save' | tr }}</button>
+                  <button class="btn btn-primary" [disabled]="isLocked(a.id)" [attr.title]="isLocked(a.id) ? (lockMessage | tr) : null"
+                    (click)="saveEdit(a)">{{ 'Save' | tr }}</button>
                   <button class="btn btn-ghost" (click)="cancelEdit()">{{ 'Cancel' | tr }}</button>
                 </div>
               </td>
@@ -167,17 +183,138 @@
   <div class="confirm-modal" [class.open]="confirmTarget">
     <ng-container *ngIf="confirmTarget as m">
       <h2 class="modal-title">{{ (confirmAction === 'reactivate' ? 'Reactivate Machine?' : 'Deactivate Machine?') | tr }}</h2>
-      <p class="modal-sub" *ngIf="confirmAction === 'deactivate'">
-        {{ 'This will pause all PM plans for' | tr }} <strong>{{ m.name }}</strong> {{ 'and cancel any pending, in-progress, pending-approval, or overdue PM tasks for it. Completed history is kept and never deleted.' | tr }}
+      <p class="modal-sub" *ngIf="confirmAction === 'deactivate' && isInPlan(m)">
+        {{ 'This will be submitted for Master Plan approval. Once approved, it will pause all PM plans for' | tr }} <strong>{{ m.name }}</strong> {{ 'and cancel any pending, in-progress, pending-approval, or overdue PM tasks for it. Completed history is kept and never deleted.' | tr }}
       </p>
-      <p class="modal-sub" *ngIf="confirmAction === 'reactivate'">
-        {{ 'This will resume PM plans for' | tr }} <strong>{{ m.name }}</strong>. {{ 'Previously cancelled tasks stay cancelled.' | tr }}
+      <p class="modal-sub" *ngIf="confirmAction === 'deactivate' && !isInPlan(m)">
+        {{ 'This machine is not in the Master Plan, so no approval is needed. It will pause all PM plans for' | tr }} <strong>{{ m.name }}</strong> {{ 'and cancel any pending, in-progress, pending-approval, or overdue PM tasks for it. Completed history is kept and never deleted.' | tr }}
+      </p>
+      <p class="modal-sub" *ngIf="confirmAction === 'reactivate' && isInPlan(m)">
+        {{ 'This will be submitted for Master Plan approval. Once approved, it will resume PM plans for' | tr }} <strong>{{ m.name }}</strong>. {{ 'Previously cancelled tasks stay cancelled.' | tr }}
+      </p>
+      <p class="modal-sub" *ngIf="confirmAction === 'reactivate' && !isInPlan(m)">
+        {{ 'This machine is not in the Master Plan, so no approval is needed. It will resume PM plans for' | tr }} <strong>{{ m.name }}</strong>. {{ 'Previously cancelled tasks stay cancelled.' | tr }}
       </p>
       <div class="modal-actions">
         <button class="btn btn-primary" [class.danger]="confirmAction === 'deactivate'" (click)="confirmToggleActive()">
           {{ (confirmAction === 'reactivate' ? 'Reactivate' : 'Deactivate') | tr }}
         </button>
         <button class="btn btn-ghost" (click)="closeConfirm()">{{ 'Cancel' | tr }}</button>
+      </div>
+    </ng-container>
+  </div>
+
+  <!-- Remove PM Type -->
+  <div class="modal-overlay" [class.open]="removePmTarget" (click)="closeRemovePm()"></div>
+  <div class="confirm-modal" [class.open]="removePmTarget">
+    <ng-container *ngIf="removePmTarget as m">
+      <h2 class="modal-title">{{ 'Remove PM Type?' | tr }}</h2>
+      <p class="modal-sub" *ngIf="isInPlan(m)">
+        {{ 'This will be submitted for Master Plan approval. Once approved, the selected PM type for' | tr }} <strong>{{ m.name }}</strong> {{ 'is paused and its pending, in-progress, pending-approval, or overdue tasks are cancelled. Completed history is kept.' | tr }}
+      </p>
+      <p class="modal-sub" *ngIf="!isInPlan(m)">
+        {{ 'This machine is not in the Master Plan, so no approval is needed. The selected draft PM type for' | tr }} <strong>{{ m.name }}</strong> {{ 'is deleted at once.' | tr }}
+      </p>
+      <div class="pm-type-options" *ngIf="removablePmTypes().length > 0; else noPmTypes">
+        <label *ngFor="let f of removablePmTypes()">
+          <input type="radio" name="removePmType" [value]="f" [(ngModel)]="removePmType" />
+          {{ f }}
+        </label>
+      </div>
+      <ng-template #noPmTypes>
+        <p class="modal-sub">{{ (isInPlan(m) ? 'This machine has no active PM types.' : 'This machine has no draft PM types.') | tr }}</p>
+      </ng-template>
+      <div class="modal-actions">
+        <button class="btn btn-primary danger" [disabled]="!removePmType" (click)="confirmRemovePm()">{{ 'Remove PM Type' | tr }}</button>
+        <button class="btn btn-ghost" (click)="closeRemovePm()">{{ 'Cancel' | tr }}</button>
+      </div>
+    </ng-container>
+  </div>
+
+  <!-- Machine detail window -->
+  <div class="modal-overlay" [class.open]="detailMachine()" (click)="closeDetail()"></div>
+  <div #detailDialog class="detail-modal" [class.open]="detailMachine()" role="dialog" aria-modal="true"
+    aria-labelledby="machine-detail-title" tabindex="-1">
+    <ng-container *ngIf="detailMachine() as m">
+      <div class="detail-modal-header">
+        <div>
+          <h2 id="machine-detail-title" class="modal-title">{{ m.name }}</h2>
+          <div class="detail-modal-subid">{{ m.id }} &middot; {{ m.location }} &middot; {{ m.department | tr }} &middot; {{ m.workCenter || '\u2014' }}</div>
+        </div>
+        <button class="btn-icon-close" [attr.aria-label]="'Close' | tr" (click)="closeDetail()">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <div class="detail-modal-body">
+        <div class="status-badges detail-badges">
+          <span class="status-badge" [class.active]="m.isActive !== false" [class.inactive]="m.isActive === false">{{ (m.isActive === false ? 'Inactive' : 'Active') | tr }}</span>
+          <span class="status-badge" [class.plan-in]="isInPlan(m)" [class.plan-out]="!isInPlan(m)">{{ (isInPlan(m) ? 'In plan' : 'Not in plan') | tr }}</span>
+          <span class="status-badge pending" *ngIf="pendingAssetIds().has(m.id)">{{ 'Pending approval' | tr }}</span>
+        </div>
+
+        <div class="detail-banner waiting" role="status" *ngIf="detailWaitingRequest() as req">
+          <span class="material-symbols-outlined" aria-hidden="true">hourglass_top</span>
+          <div class="detail-banner-text">{{ 'Waiting for approval \u2014 sent by' | tr }} <strong>{{ resolveName(req.submittedBy) }}</strong>
+            {{ 'on' | tr }} {{ req.submittedAt | date:'mediumDate' }}. {{ 'Editing, PM types and activation are locked until a manager decides.' | tr }}</div>
+          <button type="button" class="btn btn-ghost" *ngIf="canWithdraw(req)" (click)="withdrawRequest(m)">{{ 'Withdraw' | tr }}</button>
+        </div>
+
+        <div class="detail-banner rejected" role="status" *ngIf="detailRejection() as rej">
+          <span class="material-symbols-outlined" aria-hidden="true">block</span>
+          <div class="detail-banner-text">{{ 'Rejected by' | tr }} <strong>{{ rej.byName }}</strong>
+            {{ 'on' | tr }} {{ rej.at | date:'mediumDate' }}: {{ rej.reason }}</div>
+        </div>
+
+        <div class="detail-section">
+          <h3>{{ 'PM Types' | tr }} ({{ detailPmTypes().length }})</h3>
+          <p class="pm-type-note-muted" *ngIf="detailPmTypes().length === 0">
+            {{ (isInPlan(m) ? 'This machine has no PM types.' : 'No PM types yet. Add one, then send this machine to the Master Plan.') | tr }}
+          </p>
+          <div class="pm-type-block" *ngFor="let t of detailPmTypes()">
+            <div class="pm-type-block-heading">
+              <span class="freq-tag">{{ t.frequency | tr }}</span>
+              <strong class="pm-type-title">{{ t.title }}</strong>
+              <span class="change-tag tag-draft" *ngIf="t.state === 'draft'">{{ 'Draft' | tr }}</span>
+              <span class="change-tag tag-added" *ngIf="t.state === 'waiting-add'">{{ 'Waiting for approval: add' | tr }}</span>
+              <span class="change-tag tag-removed" *ngIf="t.state === 'waiting-remove'">{{ 'Waiting for approval: remove' | tr }}</span>
+            </div>
+            <table class="diff-table" *ngIf="t.isRecurring !== undefined || t.firstDue || t.estimatedHours !== undefined || t.description || t.parts.length">
+              <tr *ngIf="t.isRecurring !== undefined"><td>{{ 'Recurrence' | tr }}</td><td>{{ (t.isRecurring ? 'Recurring' : 'One-time') | tr }}</td></tr>
+              <tr *ngIf="t.firstDue"><td>{{ 'First / next due' | tr }}</td><td>{{ t.firstDue | date:'mediumDate' }}</td></tr>
+              <tr *ngIf="t.estimatedHours !== undefined"><td>{{ 'Est. Hours' | tr }}</td><td>{{ t.estimatedHours }}</td></tr>
+              <tr *ngIf="t.description"><td>{{ 'Description' | tr }}</td><td>{{ t.description }}</td></tr>
+              <tr *ngIf="t.parts.length"><td>{{ 'Parts' | tr }}</td><td>{{ t.parts.join(', ') }}</td></tr>
+            </table>
+            <ng-container *ngIf="t.checklist.length">
+              <button type="button" class="checklist-toggle" [attr.aria-expanded]="isChecklistOpen(t)" (click)="toggleChecklist(t)">
+                <span class="material-symbols-outlined">{{ isChecklistOpen(t) ? 'expand_less' : 'expand_more' }}</span>
+                {{ 'Checklist' | tr }} ({{ t.checklist.length }} {{ 'items' | tr }})
+              </button>
+              <ol class="checklist-list" *ngIf="isChecklistOpen(t)">
+                <li *ngFor="let item of t.checklist">
+                  {{ item.text }}
+                  <span class="pm-req-tag" *ngIf="item.requiresPhoto"><span class="material-symbols-outlined">photo_camera</span>{{ 'Photo required' | tr }}</span>
+                  <span class="pm-req-tag" *ngIf="item.requiresValue"><span class="material-symbols-outlined">numbers</span>{{ 'Value required' | tr }}</span>
+                </li>
+              </ol>
+            </ng-container>
+          </div>
+        </div>
+      </div>
+
+      <div class="detail-modal-actions">
+        @let hint = detailHint(m);
+        @let locked = isLocked(m.id);
+        @let sendReason = sendDisabledReason(m.id);
+        <span class="detail-action-hint" *ngIf="hint">{{ hint | tr }}</span>
+        <button class="btn btn-ghost" [disabled]="m.isActive === false || locked" [attr.title]="locked ? (lockMessage | tr) : null" (click)="addPmType(m)">
+          <span class="material-symbols-outlined">add</span> {{ 'Add PM type' | tr }}
+        </button>
+        <button class="btn btn-primary" [disabled]="sendReason !== null" [attr.title]="sendReason ? (sendReason | tr) : null" (click)="sendToMasterPlan(m)">
+          <span class="material-symbols-outlined">send</span> {{ 'Send to Master Plan' | tr }}
+        </button>
+        <button class="btn btn-ghost" (click)="closeDetail()">{{ 'Close' | tr }}</button>
       </div>
     </ng-container>
   </div>

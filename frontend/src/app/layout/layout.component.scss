@@ -34,3 +34,9 @@
   transition: background 0.15s ease;
 }
 .c-dropdown-item:hover { background: var(--color-blue-light); color: var(--color-blue-text); font-weight: 600; }
+
+@media (max-width: 1023px) {
+  .icon-btn { min-width: 40px; min-height: 40px; display: inline-flex; align-items: center; justify-content: center; }
+  .c-dropdown-trigger { height: 40px; }
+  .c-dropdown-item { min-height: 40px; display: flex; align-items: center; }
+}

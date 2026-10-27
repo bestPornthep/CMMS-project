@@ -1,4 +1,4 @@
-<div class="pm-record-page overflow-y-auto h-full" style="min-width: 900px;">
+﻿<div class="pm-record-page overflow-y-auto overflow-x-hidden h-full">
   <div class="page-header" data-enter>
     <div>
       <h1 class="page-title">{{ 'Record PM' | tr }}</h1>
@@ -26,7 +26,7 @@
         <div class="card-header">
           <div class="card-title">{{ isApprover ? 'Pending Approvals' : 'Available PM Tasks' }}</div>
         </div>
-        <div style="overflow-y:auto;max-height:calc(100vh - 220px);border-radius:0 0 var(--radius-xl) var(--radius-xl);">
+        <div class="task-list-scroll" style="overflow-y:auto;max-height:calc(100vh - 220px);border-radius:0 0 var(--radius-xl) var(--radius-xl);">
           <table class="data-table">
             <thead>
               <tr>
@@ -37,7 +37,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let t of availableTasks()" (click)="selectTask(t)"
+              <tr *ngFor="let t of availableTasks()" (click)="selectTask(t); scrollToDetail()"
                 [class.active-row]="selectedTask?.id === t.id" [id]="'row-' + t.id">
                 <td class="mono" style="color:var(--color-blue); font-weight:600;">{{ t.id }}</td>
                 <td>{{ t.assetId }}</td>
@@ -58,14 +58,14 @@
       </div>
 
       <!-- Right: Execution details -->
-      <div class="card" data-enter *ngIf="selectedTask" style="position:sticky;top:16px; align-self:start; max-height: calc(100vh - 32px); overflow-y: auto;">
+      <div class="card exec-card" id="pm-exec-card" data-enter *ngIf="selectedTask" style="position:sticky;top:16px; align-self:start; max-height: calc(100vh - 32px); overflow-y: auto;">
         <div class="card-header">
           <div class="card-title">{{ isApprover ? 'Approve:' : 'Execute:' }} {{ selectedTask.title }}</div>
         </div>
 
         <div class="card-body" style="display:flex;flex-direction:column;gap:20px;">
 
-          <div style="display:flex; gap: 20px; font-size:13px; color:var(--color-text-secondary);">
+          <div style="display:flex; flex-wrap:wrap; gap: 8px 20px; font-size:13px; color:var(--color-text-secondary);">
             <div><strong style="color:var(--color-text-primary);">Asset:</strong> {{ selectedTask.assetId }}</div>
             <div><strong style="color:var(--color-text-primary);">Product:</strong> {{ selectedTask.productId || '—' }}</div>
             <div><strong style="color:var(--color-text-primary);">Est. Time:</strong> {{ selectedTask.estimatedHours }} hrs
@@ -117,9 +117,9 @@
             <div
               style="display:flex;flex-direction:column;gap:12px; background:var(--color-bg-card-alt); padding:16px; border-radius:var(--radius-lg); border:1px solid var(--color-border-soft); max-height:400px; overflow-y:auto;">
               <ng-container *ngFor="let item of getDisplayChecklist(selectedTask); let i = index; trackBy: trackByIndex">
-              <div class="checkbox-row"
+              <div class="checkbox-row checklist-row"
                 (click)="toggleChecklist(i)">
-                <div style="display:flex; align-items:center; gap:12px; flex:1;">
+                <div style="display:flex; align-items:center; gap:12px; flex:1; min-width:0;">
                   <div class="checkbox-box" [class.checked]="item.done">
                     <span class="material-symbols-outlined" *ngIf="item.done">check</span>
                   </div>
@@ -129,9 +129,9 @@
                       title="Requires Photo Evidence">*</span>
                   </span>
                 </div>
-                <div *ngIf="item.requiresPhoto" style="display:flex; align-items:center; gap:8px;"
+                <div *ngIf="item.requiresPhoto" class="photo-actions" style="display:flex; align-items:center; gap:8px;"
                   (click)="$event.stopPropagation()">
-                  <button *ngIf="!item.photoUrl" class="btn btn-ghost" (click)="startPhotoCapture(i, $event)"
+                  <button *ngIf="!item.photoUrl" class="btn btn-ghost photo-btn" (click)="startPhotoCapture(i, $event)"
                     style="padding:4px 8px; font-size:11px; height:28px; border: 1px solid var(--color-border-strong);" [disabled]="isApprover">
                     <span class="material-symbols-outlined" style="font-size:14px;">photo_camera</span> {{ 'Take Photo' | tr }}
                   </button>
@@ -140,14 +140,14 @@
                     <img [src]="item.photoUrl" alt="Evidence" style="width:24px; height:24px; border-radius:3px; object-fit:cover;" />
                     {{ 'Photo Captured' | tr }}
                   </div>
-                  <button *ngIf="item.photoUrl && !isApprover" class="btn btn-ghost" (click)="startPhotoCapture(i, $event)"
+                  <button *ngIf="item.photoUrl && !isApprover" class="btn btn-ghost photo-btn" (click)="startPhotoCapture(i, $event)"
                     style="padding:4px 6px; font-size:11px; height:28px; border: 1px solid var(--color-border-strong);" [title]="'Retake' | tr">
                     <span class="material-symbols-outlined" style="font-size:14px;">replay</span>
                   </button>
                 </div>
               </div>
               <div *ngIf="item.requiresValue" style="padding: 0 12px 4px 44px;" (click)="$event.stopPropagation()">
-                <input type="text" class="form-input" style="width:100%; max-width:240px;"
+                <input type="text" class="form-input value-input" style="width:100%;"
                   name="value_{{i}}" [ngModel]="item.value" (ngModelChange)="updateChecklistValue(i, $event)"
                   [placeholder]="'Enter value...' | tr" [disabled]="isApprover" />
               </div>
@@ -160,7 +160,7 @@
           </div>
 
           <!-- Time Entry -->
-          <div class="form-group" style="display:flex; align-items:center; gap:16px;">
+          <div class="form-group time-entry" style="display:flex; align-items:center; flex-wrap:wrap; gap:8px 16px;">
             <label class="form-label" style="margin:0; width:140px;">Actual Time (hrs) <span
                 style="color:red;">*</span></label>
             <input type="number" class="form-input" style="width:120px;" [(ngModel)]="actualHours"
@@ -175,14 +175,14 @@
           </div>
 
           <!-- Submit Button -->
-          <div style="margin-top: 10px; display: flex; gap: 10px;">
+          <div class="submit-row" style="margin-top: 10px; display: flex; flex-wrap: wrap; gap: 10px;">
             <button class="btn btn-primary" (click)="submitRecord()"
-              style="flex: 1; justify-content:center; padding:12px; font-size:14px;">
+              style="flex: 1 1 140px; justify-content:center; padding:12px; font-size:14px;">
               <span class="material-symbols-outlined">{{ isApprover ? 'verified' : 'check_circle' }}</span> {{
               isApprover ? 'Approve PM Record' : 'Submit PM Record' }}
             </button>
             <button *ngIf="isApprover" class="btn btn-ghost" (click)="rejectRecord()"
-              style="flex: 1; justify-content:center; padding:12px; font-size:14px; border-color: var(--color-error-mid); color: var(--color-error-mid);">
+              style="flex: 1 1 140px; justify-content:center; padding:12px; font-size:14px; border-color: var(--color-error-mid); color: var(--color-error-mid);">
               <span class="material-symbols-outlined">cancel</span> Reject PM Record
             </button>
           </div>
@@ -190,7 +190,7 @@
       </div>
 
       <!-- Right: Empty State -->
-      <div class="card" data-enter *ngIf="!selectedTask"
+      <div class="card exec-empty" data-enter *ngIf="!selectedTask"
         style="position:sticky;top:16px; display:flex; align-items:center; justify-content:center; min-height: 300px;">
         <div class="empty-state">
           <span class="material-symbols-outlined" style="font-size:48px;">touch_app</span>
@@ -204,7 +204,7 @@
     <div class="card" data-enter>
       <div class="card-header">
         <div class="card-title">{{ isApprover ? 'Approved & Rejected PM Records' : 'My Completed PMs' }}</div>
-        <div class="c-dropdown form-dropdown" [class.open]="filterDropdownOpen" style="width: 160px;">
+        <div class="c-dropdown form-dropdown history-filter" [class.open]="filterDropdownOpen" style="width: 160px;">
           <div class="c-dropdown-trigger" (click)="filterDropdownOpen = !filterDropdownOpen">
             <span>{{
               historyFilter() === 'All' ? ('All Records') :
@@ -232,8 +232,8 @@
           </div>
         </div>
       </div>
-      <div style="overflow:hidden;border-radius:0 0 var(--radius-xl) var(--radius-xl);">
-        <table class="data-table">
+      <div class="history-scroll" style="overflow:hidden;border-radius:0 0 var(--radius-xl) var(--radius-xl);">
+        <table class="data-table history-table">
           <thead>
             <tr>
               <th>{{ 'PM ID' }}</th>

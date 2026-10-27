@@ -348,6 +348,14 @@ export class PmRecordComponent implements OnInit, OnDestroy {
     this.actualHours = task.actualHours || task.estimatedHours || 0;
   }
 
+  // In the single-column layout the detail card sits below the list, so bring it into view
+  scrollToDetail() {
+    if (!window.matchMedia('(max-width: 1199px)').matches) return;
+    setTimeout(() => {
+      document.getElementById('pm-exec-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
+  }
+
   toggleChecklist(index: number) {
     if (this.isApprover) return;
     if (this.selectedTask && this.selectedTask.checklist) {

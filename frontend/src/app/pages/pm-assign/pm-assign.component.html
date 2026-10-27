@@ -1,4 +1,4 @@
-<div class="pm-assign-page overflow-y-auto h-full" style="min-width: 900px;">
+<div class="pm-assign-page overflow-y-auto overflow-x-hidden h-full">
 
   <div class="page-header" data-enter>
     <div>
@@ -7,7 +7,7 @@
     </div>
   </div>
 
-  <div style="display:flex; align-items:flex-end; justify-content:space-between; border-bottom:1px solid var(--border-soft); margin-bottom:20px; flex-wrap:wrap; gap: 16px;" data-enter>
+  <div class="tabs-bar" data-enter>
     <div class="tabs" style="border-bottom:none; margin-bottom:0;">
       <button class="tab-btn" [class.active]="activeTab === 'unassigned'" (click)="activeTab = 'unassigned'">{{ 'Unassigned PMs' | tr }}</button>
       <button class="tab-btn" [class.active]="activeTab === 'assigned'" (click)="activeTab = 'assigned'">{{ 'Assigned PMs' | tr }}</button>
@@ -15,10 +15,10 @@
     </div>
     
     <!-- Show filter only on assignment tabs -->
-    <div *ngIf="activeTab === 'unassigned' || activeTab === 'assigned'" style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+    <div class="dept-filter" *ngIf="activeTab === 'unassigned' || activeTab === 'assigned'">
       <div style="font-size:13px; font-weight:600; color:var(--text-secondary); white-space:nowrap;">{{ 'Department Filter:' }}</div>
       <div class="c-dropdown" [class.open]="deptDropdownOpen" (click)="toggleDropdown('dept', $event)" style="flex-shrink:0;" *ngIf="canChangeDept">
-        <div class="c-dropdown-trigger" style="width:180px;">
+        <div class="c-dropdown-trigger dept-trigger">
           <span>{{ deptFilter() }}</span>
           <span class="material-symbols-outlined">expand_more</span>
         </div>
@@ -31,7 +31,7 @@
           <div class="c-dropdown-item" (click)="deptFilter.set('Test')">Test</div>
         </div>
       </div>
-      <div *ngIf="!canChangeDept" style="padding: 6px 14px; background: var(--color-bg-page); border: 1px solid var(--color-border-soft); border-radius: var(--radius-md); color: var(--color-text-primary); font-weight: 600; font-size: 13px;">
+      <div *ngIf="!canChangeDept" class="dept-static" style="padding: 6px 14px; background: var(--color-bg-page); border: 1px solid var(--color-border-soft); border-radius: var(--radius-md); color: var(--color-text-primary); font-weight: 600; font-size: 13px;">
         {{ deptFilter() }}
       </div>
     </div>
@@ -40,13 +40,13 @@
   <!-- TAB: UNASSIGNED PMS -->
   <div class="tab-content" [class.active]="activeTab === 'unassigned'">
     <div class="assign-toolbar" *ngIf="selectedTasks().size > 0" style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
-      <div style="display:flex; align-items:center; gap:16px;">
-        <div class="bulk-bar" style="display:flex; align-items:center; gap:12px; background:var(--blue-light); padding:8px 16px; border-radius:var(--radius-lg); border:1px solid rgba(26,86,219,0.2); flex-wrap:nowrap;">
+      <div style="display:flex; align-items:center; gap:16px; max-width:100%;">
+        <div class="bulk-bar" style="display:flex; align-items:center; gap:12px; background:var(--blue-light); padding:8px 16px; border-radius:var(--radius-lg); border:1px solid rgba(26,86,219,0.2);">
           <span class="material-symbols-outlined" style="color:var(--blue); flex-shrink:0;">checklist</span>
           <span style="font-weight:600; color:var(--blue-text); font-size:13px; white-space:nowrap; flex-shrink:0;">{{ selectedTasks().size }} {{ 'selected' | tr }}</span>
-          <div class="c-dropdown" [class.open]="bulkDropdownOpen && getBulkTechnicians().length > 0" (click)="toggleDropdown('bulk', $event)" style="flex-shrink:0;" [style.opacity]="getBulkTechnicians().length === 0 ? '0.5' : '1'" [style.pointer-events]="getBulkTechnicians().length === 0 ? 'none' : 'auto'">
-            <div class="c-dropdown-trigger" style="height:32px; width:180px; flex-shrink:0; display:flex; align-items:center;">
-              <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:left; max-width:130px; display:inline-block;">
+          <div class="c-dropdown bulk-dd" [class.open]="bulkDropdownOpen && getBulkTechnicians().length > 0" (click)="toggleDropdown('bulk', $event)" style="flex-shrink:0;" [style.opacity]="getBulkTechnicians().length === 0 ? '0.5' : '1'" [style.pointer-events]="getBulkTechnicians().length === 0 ? 'none' : 'auto'">
+            <div class="c-dropdown-trigger bulk-dd-trigger" style="flex-shrink:0; display:flex; align-items:center;">
+              <span class="dd-label dd-label-bulk">
                 {{ getBulkTechnicians().length === 0 ? 'Cross-dept not allowed' : (bulkAssignee() ? getTechNameWithWorkload(bulkAssignee()!.employeeId) : 'Assign all to...') }}
               </span>
               <span class="material-symbols-outlined" style="flex-shrink:0; margin-left:auto;">expand_more</span>
@@ -56,7 +56,7 @@
               <div class="c-dropdown-item" *ngFor="let t of getBulkTechnicians()" (click)="bulkAssignee.set(t)">{{ getTechNameWithWorkload(t.employeeId) }}</div>
             </div>
           </div>
-          <button class="btn btn-primary" style="padding:0 16px; height:32px; white-space:nowrap; flex-shrink:0; display:inline-flex; align-items:center; justify-content:center; gap:6px;" (click)="openBulkAssignModal()" [disabled]="getBulkTechnicians().length === 0 || !bulkAssignee()">
+          <button class="btn btn-primary bulk-assign-btn" style="padding:0 16px; white-space:nowrap; flex-shrink:0; display:inline-flex; align-items:center; justify-content:center; gap:6px;" (click)="openBulkAssignModal()" [disabled]="getBulkTechnicians().length === 0 || !bulkAssignee()">
             <span class="material-symbols-outlined" style="font-size:18px; line-height:1;">person_add</span>
             <span style="font-size:13px; font-weight:600; line-height:1;">Assign Selected</span>
           </button>
@@ -69,10 +69,10 @@
         <div class="card-title">{{ 'Unassigned PM Work Orders' }}</div>
       </div>
       <div style="overflow:visible; border-radius:0 0 var(--radius-xl) var(--radius-xl);">
-        <table class="data-table">
+        <table class="data-table wo-table">
           <thead>
             <tr>
-              <th style="width:40px;"><input type="checkbox" class="assign-checkbox" (change)="toggleAllSelection($event)" [checked]="selectedTasks().size > 0 && selectedTasks().size === pendingTasks().filter(t => canManageTask(t)).length && pendingTasks().filter(t => canManageTask(t)).length > 0"/></th>
+              <th class="col-chk" style="width:40px;"><label class="chk-hit"><input type="checkbox" class="assign-checkbox" (change)="toggleAllSelection($event)" [checked]="selectedTasks().size > 0 && selectedTasks().size === pendingTasks().filter(t => canManageTask(t)).length && pendingTasks().filter(t => canManageTask(t)).length > 0"/><span class="chk-label">{{ 'Select All' | tr }}</span></label></th>
               <th>{{ 'PM ID' }}</th>
               <th>{{ 'Product & Dept' }}</th>
               <th>{{ 'Asset' }}</th>
@@ -83,31 +83,31 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let task of pendingTasks()"
+            <tr *ngFor="let task of pendingTasks()" class="wo-row wo-row-unassigned"
               [class.selected-row]="selectedTasks().has(task.id)">
-              <td><input type="checkbox" class="assign-checkbox" [checked]="selectedTasks().has(task.id)" (change)="toggleSelection(task.id)"/></td>
-              <td><span class="mono" style="color:var(--blue);font-weight:600; cursor:pointer;" (click)="viewTaskDetails(task)">{{ task.id }}</span></td>
-              <td>
+              <td class="col-chk"><label class="chk-hit"><input type="checkbox" class="assign-checkbox" [checked]="selectedTasks().has(task.id)" (change)="toggleSelection(task.id)"/></label></td>
+              <td class="col-id"><span class="mono pm-id-link" style="color:var(--blue);font-weight:600; cursor:pointer;" (click)="viewTaskDetails(task)">{{ task.id }}</span></td>
+              <td class="col-prod" data-label="Product & Dept">
                 <div style="font-weight:600;color:var(--text-primary);">{{ task.productId }}</div>
                 <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;">{{ task.department }}</div>
               </td>
-              <td>
+              <td class="col-asset" data-label="Asset">
                 <div style="font-weight:500;">{{ task.title }}</div>
                 <div style="font-size:11px;color:var(--text-muted);">{{ task.assetId }}</div>
               </td>
-              <td>
+              <td class="col-type" data-label="Type">
                 <span class="badge badge-info" style="display: inline-flex; align-items: center; gap: 4px;">
                   <span class="material-symbols-outlined" *ngIf="task.description && task.description.includes('[SeriesID:')" style="font-size: 14px;">repeat</span>
                   {{ task.frequency }}
                 </span>
               </td>
-              <td style="color:var(--text-secondary);font-weight:500;font-size:12px;">{{ getCreatorName(task.createdBy) }}</td>
-              <td style="color:var(--error-mid);font-weight:600;font-size:12px;">{{ task.nextDueDate | date: (task.frequency.includes('hour') ? 'MMM d, yyyy, h:mm a' : 'MMM d, yyyy') }}</td>
-              <td>
-                <div style="display:flex;align-items:center;justify-content:center;gap:6px;">
-                  <div class="c-dropdown form-dropdown" [class.open]="techDropdownOpen[task.id]" (click)="toggleTechDropdown(task.id, $event)" style="width:140px;">
-                    <div class="c-dropdown-trigger" style="height:32px; width:100%; display:flex; align-items:center; padding:6px 10px;">
-                      <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100px; display:inline-block; text-align:left;">{{ selectedTech[task.id] ? getTechNameWithWorkload(selectedTech[task.id], getWindowDays(task.frequency)) : 'Select Tech...' }}</span>
+              <td class="col-creator" data-label="Created By" style="color:var(--text-secondary);font-weight:500;font-size:12px;">{{ getCreatorName(task.createdBy) }}</td>
+              <td class="col-due" data-label="Due Date" style="color:var(--error-mid);font-weight:600;font-size:12px;">{{ task.nextDueDate | date: (task.frequency.includes('hour') ? 'MMM d, yyyy, h:mm a' : 'MMM d, yyyy') }}</td>
+              <td class="col-action">
+                <div class="assign-cell">
+                  <div class="c-dropdown form-dropdown assign-dd" [class.open]="techDropdownOpen[task.id]" (click)="toggleTechDropdown(task.id, $event)">
+                    <div class="c-dropdown-trigger assign-dd-trigger">
+                      <span class="dd-label dd-label-assign">{{ selectedTech[task.id] ? getTechNameWithWorkload(selectedTech[task.id], getWindowDays(task.frequency)) : 'Select Tech...' }}</span>
                       <span class="material-symbols-outlined" style="margin-left:auto; flex-shrink:0;">expand_more</span>
                     </div>
                     <div class="c-dropdown-menu" *ngIf="techDropdownOpen[task.id]">
@@ -115,11 +115,11 @@
                       <div class="c-dropdown-item" *ngFor="let tech of getTaskTechnicians(task)" (click)="selectedTech[task.id] = tech.employeeId!">{{ getTechNameWithWorkload(tech.employeeId, getWindowDays(task.frequency)) }}</div>
                     </div>
                   </div>
-                  <button class="btn btn-primary" style="padding:4px 8px;font-size:11px; height:32px;" (click)="assignTask(task)">Assign</button>
+                  <button class="btn btn-primary assign-btn" (click)="assignTask(task)">Assign</button>
                 </div>
               </td>
             </tr>
-            <tr *ngIf="pendingTasks().length === 0">
+            <tr *ngIf="pendingTasks().length === 0" class="empty-row">
               <td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted);">
                 <div class="empty-state">
                   <span class="material-symbols-outlined">assignment_turned_in</span>
@@ -141,7 +141,7 @@
         <div class="card-title">{{ 'Assigned PM Work Orders' }}</div>
       </div>
       <div style="overflow:visible; border-radius:0 0 var(--radius-xl) var(--radius-xl);">
-        <table class="data-table">
+        <table class="data-table wo-table">
           <thead>
             <tr>
               <th>{{ 'PM ID' }}</th>
@@ -155,29 +155,29 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let task of assignedTasks()">
-              <td><span class="mono" style="color:var(--blue);font-weight:600; cursor:pointer;" (click)="viewTaskDetails(task)">{{ task.id }}</span></td>
-              <td>
+            <tr *ngFor="let task of assignedTasks()" class="wo-row wo-row-assigned">
+              <td class="col-id"><span class="mono pm-id-link" style="color:var(--blue);font-weight:600; cursor:pointer;" (click)="viewTaskDetails(task)">{{ task.id }}</span></td>
+              <td class="col-prod" data-label="Product & Dept">
                 <div style="font-weight:600;color:var(--text-primary);">{{ task.productId }}</div>
                 <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;">{{ task.department }}</div>
               </td>
-              <td>
+              <td class="col-asset" data-label="Asset">
                 <div style="font-weight:500;">{{ task.title }}</div>
                 <div style="font-size:11px;color:var(--text-muted);">{{ task.assetId }}</div>
               </td>
-              <td>
+              <td class="col-type" data-label="Type">
                 <span class="badge badge-info" style="display: inline-flex; align-items: center; gap: 4px;">
                   <span class="material-symbols-outlined" *ngIf="task.description && task.description.includes('[SeriesID:')" style="font-size: 14px;">repeat</span>
                   {{ task.frequency }}
                 </span>
               </td>
-              <td style="color:var(--text-secondary);font-weight:500;font-size:12px;">{{ getCreatorName(task.createdBy) }}</td>
-              <td>
+              <td class="col-creator" data-label="Created By" style="color:var(--text-secondary);font-weight:500;font-size:12px;">{{ getCreatorName(task.createdBy) }}</td>
+              <td class="col-assignee" data-label="Assigned To">
                 <div style="font-weight:600;color:var(--text-primary);">{{ getTechName(task.assignedTo) }}</div>
-                <div *ngIf="canReassign(task)" style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:6px;">
-                  <div class="c-dropdown form-dropdown" [class.open]="reassignDropdownOpen[task.id]" (click)="toggleReassignDropdown(task.id, $event)" style="width:120px;">
-                    <div class="c-dropdown-trigger" style="height:28px; width:100%; display:flex; align-items:center; padding:4px 8px;">
-                      <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:85px; display:inline-block; text-align:left; font-size:11px;">{{ reassignSelectedTech[task.id] ? getTechName(reassignSelectedTech[task.id]) : ('Reassign...' | tr) }}</span>
+                <div *ngIf="canReassign(task)" class="reassign-cell">
+                  <div class="c-dropdown form-dropdown reassign-dd" [class.open]="reassignDropdownOpen[task.id]" (click)="toggleReassignDropdown(task.id, $event)">
+                    <div class="c-dropdown-trigger reassign-dd-trigger">
+                      <span class="dd-label dd-label-reassign">{{ reassignSelectedTech[task.id] ? getTechName(reassignSelectedTech[task.id]) : ('Reassign...' | tr) }}</span>
                       <span class="material-symbols-outlined" style="margin-left:auto; flex-shrink:0; font-size:16px;">expand_more</span>
                     </div>
                     <div class="c-dropdown-menu" *ngIf="reassignDropdownOpen[task.id]">
@@ -185,16 +185,16 @@
                       <div class="c-dropdown-item" *ngFor="let tech of getReassignTechnicians(task)" (click)="reassignSelectedTech[task.id] = tech.employeeId!">{{ getTechNameWithWorkload(tech.employeeId, getWindowDays(task.frequency)) }}</div>
                     </div>
                   </div>
-                  <button class="btn btn-ghost" style="padding:2px 8px;font-size:11px; height:28px;" (click)="openReassignModal(task)">{{ 'Confirm' | tr }}</button>
+                  <button class="btn btn-ghost reassign-btn" (click)="openReassignModal(task)">{{ 'Confirm' | tr }}</button>
                 </div>
               </td>
-              <td style="color:var(--text-muted);font-size:12px;">{{ (task.assignedAt || task.createdAt) | date:'MMM d, y, h:mm a' }}</td>
-              <td>
+              <td class="col-ts" data-label="Time Stamp" style="color:var(--text-muted);font-size:12px;">{{ (task.assignedAt || task.createdAt) | date:'MMM d, y, h:mm a' }}</td>
+              <td class="col-badge">
                 <span *ngIf="task.reassignCount" class="badge badge-info">{{ 'Reassign' | tr }} #{{ task.reassignCount }}</span>
                 <span *ngIf="!task.reassignCount" style="color:var(--text-muted);">&mdash;</span>
               </td>
             </tr>
-            <tr *ngIf="assignedTasks().length === 0">
+            <tr *ngIf="assignedTasks().length === 0" class="empty-row">
               <td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted);">
                 <div class="empty-state">
                   <span class="material-symbols-outlined">inbox</span>
@@ -210,7 +210,7 @@
 
   <!-- TAB: TEMPORARY PERMISSIONS -->
   <div class="tab-content" [class.active]="activeTab === 'delegation'">
-    <div class="create-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+    <div class="create-grid delegation-grid">
       
       <!-- Left: Form -->
       <div class="card" data-enter>
@@ -247,7 +247,7 @@
             </div>
             <div class="tag-list" style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;" *ngIf="newDelegationUsers().length > 0">
               <span class="part-tag" style="display:inline-flex; align-items:center; gap:4px; padding:4px 10px; background:var(--blue-light); color:var(--blue-text); border-radius:20px; font-size:12px; font-weight:600;" *ngFor="let u of newDelegationUsers(); let i = index">
-                {{ getTechName(u) }} <button style="background:none; border:none; cursor:pointer; color:var(--blue-text); display:flex; align-items:center; padding:0; font-size:14px; line-height:1;" (click)="removeDelegationUser(i)"><span class="material-symbols-outlined" style="font-size: 14px; font-weight: bold;">close</span></button>
+                {{ getTechName(u) }} <button class="tag-remove" style="background:none; border:none; cursor:pointer; color:var(--blue-text); display:flex; align-items:center; padding:0; font-size:14px; line-height:1;" (click)="removeDelegationUser(i)"><span class="material-symbols-outlined" style="font-size: 14px; font-weight: bold;">close</span></button>
               </span>
             </div>
           </div>
@@ -282,7 +282,7 @@
             </div>
             <div class="tag-list" style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;" *ngIf="newDelegationProducts().length > 0">
               <span class="part-tag" style="display:inline-flex; align-items:center; gap:4px; padding:4px 10px; background:var(--blue-light); color:var(--blue-text); border-radius:20px; font-size:12px; font-weight:600;" *ngFor="let p of newDelegationProducts(); let i = index">
-                {{ p }} <button style="background:none; border:none; cursor:pointer; color:var(--blue-text); display:flex; align-items:center; padding:0; font-size:14px; line-height:1;" (click)="removeDelegationProduct(i)"><span class="material-symbols-outlined" style="font-size: 14px; font-weight: bold;">close</span></button>
+                {{ p }} <button class="tag-remove" style="background:none; border:none; cursor:pointer; color:var(--blue-text); display:flex; align-items:center; padding:0; font-size:14px; line-height:1;" (click)="removeDelegationProduct(i)"><span class="material-symbols-outlined" style="font-size: 14px; font-weight: bold;">close</span></button>
               </span>
             </div>
           </div>
@@ -322,7 +322,7 @@
             </td>
                 <td style="color:var(--text-secondary);font-size:12px;">{{ del.validUntil | date:'MMM d, yyyy' }}</td>
                 <td>
-                  <button class="btn btn-ghost" style="color:var(--error-mid); padding:4px 8px; font-size:11px;" (click)="revokeDelegation(del.id)">{{ 'Revoke' }}</button>
+                  <button class="btn btn-ghost revoke-btn" style="color:var(--error-mid); padding:4px 8px; font-size:11px;" (click)="revokeDelegation(del.id)">{{ 'Revoke' }}</button>
                 </td>
               </tr>
               <tr *ngIf="delegations().length === 0">
@@ -349,7 +349,7 @@
         <p class="modal-sub">You are assigning {{ selectedTasks().size }} tasks to <strong style="color:var(--text-primary);">{{ bulkAssignee()?.name }}</strong>.</p>
       </div>
     </div>
-    <div style="display:flex;gap:8px; margin-top:24px;">
+    <div style="display:flex;gap:8px; margin-top:24px;" class="modal-actions">
       <button class="btn btn-primary" style="flex:1; justify-content:center;" (click)="confirmBulkAssign()">{{ 'Confirm' }}</button>
       <button class="btn btn-ghost" style="flex:1; justify-content:center;" (click)="showBulkModal.set(false)">{{ 'Cancel' }}</button>
     </div>
@@ -368,7 +368,7 @@
         </p>
       </div>
     </div>
-    <div style="display:flex;gap:8px; margin-top:24px;">
+    <div style="display:flex;gap:8px; margin-top:24px;" class="modal-actions">
       <button class="btn btn-primary" style="flex:1; justify-content:center;" (click)="confirmReassign()">{{ 'Confirm' | tr }}</button>
       <button class="btn btn-ghost" style="flex:1; justify-content:center;" (click)="cancelReassign()">{{ 'Cancel' | tr }}</button>
     </div>

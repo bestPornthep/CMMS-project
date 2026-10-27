@@ -28,6 +28,9 @@ import { ToastService } from '../../../core/services/toast.service';
       gap: 10px;
       max-width: 380px;
     }
+    @media (max-width: 767px) {
+      .toast-container { left: 16px; right: 16px; bottom: 16px; max-width: none; }
+    }
     .toast {
       display: flex;
       align-items: center;
@@ -39,6 +42,7 @@ import { ToastService } from '../../../core/services/toast.service';
       color: #fff;
       box-shadow: 0 4px 20px rgba(0,0,0,0.25);
       animation: slideIn 0.25s ease;
+      overflow-wrap: anywhere;
     }
     @keyframes slideIn {
       from { opacity: 0; transform: translateY(12px); }
@@ -58,6 +62,9 @@ import { ToastService } from '../../../core/services/toast.service';
       font-size: 0.85rem;
       padding: 0;
       flex-shrink: 0;
+    }
+    @media (max-width: 1023px) {
+      .toast__close { min-width: 40px; min-height: 40px; }
     }
     .toast__close:hover { color: #fff; }
   `]
