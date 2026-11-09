@@ -20,6 +20,25 @@ export function parseFrequency(label: string): { count: number; unit: FrequencyU
   return { count, unit: m[2] as FrequencyUnit };
 }
 
+// Custom durations numerically identical to a preset are treated as the same PM type for duplicate
+// detection only (the label the user picked is still stored/displayed as-is) — otherwise picking
+// "Custom: 1 month(s)" would silently bypass the block on an existing "Monthly" PM.
+const FREQUENCY_ALIASES: Record<string, string> = {
+  '1 day(s)': 'Daily',
+  '7 day(s)': 'Weekly',
+  '1 month(s)': 'Monthly',
+  '3 month(s)': 'Quarterly',
+  '12 month(s)': 'Yearly',
+  '1 year(s)': 'Yearly',
+};
+
+export function normalizeFrequency(frequency: string): string {
+  const cleaned = frequency.trim().toLowerCase();
+  const alias = FREQUENCY_ALIASES[cleaned];
+  // Lowercase non-aliased values too so e.g. "Monthly" vs "monthly" still match.
+  return (alias || frequency).trim().toLowerCase();
+}
+
 const DAYS_PER_UNIT: Record<FrequencyUnit, number> = { hour: 1 / 24, day: 1, week: 7, month: 30, year: 365 };
 
 // Rough length of one cycle in days, used only to order PM types from most to least frequent.

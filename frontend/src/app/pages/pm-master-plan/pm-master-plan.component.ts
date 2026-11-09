@@ -1,7 +1,8 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { PmService } from '../../core/services/pm.service';
+import { PmStore } from '../../core/services/pm-store.service';
+import { MasterPlanService } from '../../core/services/master-plan.service';
 import { isAssetInMasterPlan } from '../../core/services/pm-plan.util';
 import { AuthService } from '../../core/services/auth.service';
 import { TranslationService } from '../../core/services/translation.service';
@@ -33,7 +34,8 @@ interface MasterPlanRow {
   styleUrl: './pm-master-plan.component.scss'
 })
 export class PmMasterPlanComponent implements OnInit {
-  private pmService = inject(PmService);
+  private pmStore = inject(PmStore);
+  private masterPlan = inject(MasterPlanService);
   private authService = inject(AuthService);
   private translationService = inject(TranslationService);
 
@@ -45,7 +47,7 @@ export class PmMasterPlanComponent implements OnInit {
   ngOnInit() {
     // 'Done' tasks aren't loaded by default — needed so occurrences already completed
     // earlier in the selected year still show their WW mark.
-    this.pmService.loadHistoricalTasks()
+    this.pmStore.loadHistoricalTasks()
       .then(() => this.historyLoaded.set(true))
       .catch(console.error);
   }
@@ -55,7 +57,7 @@ export class PmMasterPlanComponent implements OnInit {
   // every type. Purely client-side (mockTasks signal) — never sent to the API.
   isDevBuild = !environment.production;
   mockTasks = signal<PMTask[]>([]);
-  tasks = computed(() => [...this.pmService.planTasks(), ...this.mockTasks()]);
+  tasks = computed(() => [...this.pmStore.planTasks(), ...this.mockTasks()]);
 
   loadMockPreviewData() {
     if (this.mockTasks().length > 0) {
@@ -65,7 +67,7 @@ export class PmMasterPlanComponent implements OnInit {
     // Must pick an asset that's actually visible under the current role/department/product/search
     // filters — picking from the full unfiltered asset list could silently target a machine an
     // engineer/technician can't see, making the mock data look like it "did nothing".
-    const asset = this.filteredAssets()[0] ?? this.pmService.assets()[0];
+    const asset = this.filteredAssets()[0] ?? this.pmStore.assets()[0];
     if (!asset) return;
     const year = this.selectedYear();
     let seq = 0;
@@ -109,7 +111,7 @@ export class PmMasterPlanComponent implements OnInit {
   versionDropdownOpen = signal(false);
 
   // Snapshots only hold the machine list (Asset[]); PM marks always come from live tasks.
-  versions = computed(() => [...this.pmService.masterPlanVersions()].reverse());
+  versions = computed(() => [...this.masterPlan.masterPlanVersions()].reverse());
   selectedVersionId = signal('');
   selectedVersion = computed(() => this.versions().find(v => v.id === this.selectedVersionId()));
 
@@ -179,7 +181,7 @@ export class PmMasterPlanComponent implements OnInit {
     const role = this.currentUser?.baseRole;
     const showAll = role === 'admin' || role === 'manager';
     const userDept = (this.currentUser?.department || '').toLowerCase();
-    const source = this.selectedVersion()?.assets ?? this.pmService.assets();
+    const source = this.selectedVersion()?.assets ?? this.pmStore.assets();
     return source.filter(a => isAssetInMasterPlan(a) && (showAll || a.department?.toLowerCase() === userDept));
   });
 

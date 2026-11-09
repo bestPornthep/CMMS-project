@@ -1,7 +1,8 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { PmService } from '../../core/services/pm.service';
+import { PmStore } from '../../core/services/pm-store.service';
+import { MasterPlanService } from '../../core/services/master-plan.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
 import { TranslatePipe } from '../../shared/pipes/translate.pipe';
@@ -16,7 +17,8 @@ import { environment } from '../../../environments/environment';
   styleUrl: './pm-approvals.component.scss'
 })
 export class PmApprovalsComponent {
-  private pmService = inject(PmService);
+  private pmStore = inject(PmStore);
+  private masterPlan = inject(MasterPlanService);
   private authService = inject(AuthService);
   private toast = inject(ToastService);
 
@@ -26,14 +28,14 @@ export class PmApprovalsComponent {
 
   canApprove = computed(() => this.authService.hasPermission('pm.masterplan.approve'));
 
-  pendingChanges = computed(() => this.pmService.pendingMasterPlanChanges().filter(c => c.status === 'pending'));
-  resolvedChanges = computed(() => this.pmService.pendingMasterPlanChanges()
+  pendingChanges = computed(() => this.masterPlan.pendingMasterPlanChanges().filter(c => c.status === 'pending'));
+  resolvedChanges = computed(() => this.masterPlan.pendingMasterPlanChanges()
     .filter(c => c.status !== 'pending')
     .sort((a, b) => new Date(b.resolvedAt || 0).getTime() - new Date(a.resolvedAt || 0).getTime())
     .slice(0, 10));
 
   detailId = signal<string | null>(null);
-  detailRecord = computed(() => this.pmService.pendingMasterPlanChanges().find(c => c.id === this.detailId()) || null);
+  detailRecord = computed(() => this.masterPlan.pendingMasterPlanChanges().find(c => c.id === this.detailId()) || null);
   selectedIds = signal<Set<string>>(new Set());
   rejectingId = signal<string | null>(null);
   rejectReason = signal('');
@@ -42,7 +44,7 @@ export class PmApprovalsComponent {
   processing = signal(false);
 
   seedMockData() {
-    this.pmService.seedMockMasterPlanChanges();
+    this.masterPlan.seedMockMasterPlanChanges();
   }
 
   openDetail(record: PendingMasterPlanChange) {
@@ -58,7 +60,7 @@ export class PmApprovalsComponent {
   // Live asset state to diff a proposal's editFields/setActive against — not a snapshot, so the
   // modal always shows "current vs proposed", same reconcile-not-replay principle as the service.
   currentAssetOf(record: PendingMasterPlanChange) {
-    return this.pmService.assets().find(a => a.id === record.assetId);
+    return this.pmStore.assets().find(a => a.id === record.assetId);
   }
 
   // Looks up the real existing PM (title/checklist/hours/parts) a removePmTypes entry refers
@@ -66,7 +68,7 @@ export class PmApprovalsComponent {
   // there's nothing to look up for addPmTypes, since a proposed new PM type has no definition
   // yet (see handoff: no PM-definition UI exists for proposals).
   existingPmFor(assetId: string, frequency: string) {
-    return this.pmService.findExistingPmOfType(assetId, frequency);
+    return this.pmStore.findExistingPmOfType(assetId, frequency);
   }
 
   resolveName(employeeId?: string): string {
@@ -92,14 +94,14 @@ export class PmApprovalsComponent {
   }
 
   isSendRequest(record: PendingMasterPlanChange): boolean {
-    return this.pmService.isSendRequest(record);
+    return this.masterPlan.isSendRequest(record);
   }
 
   // ── Change description tags (green +added / red −removed, reuse pm-audit's pill style) ──
   changeTags(record: PendingMasterPlanChange): { text: string; cls: string }[] {
     const tags: { text: string; cls: string }[] = [];
     const p = record.proposedState;
-    if (this.pmService.isSendRequest(record)) tags.push({ text: 'Add to Master Plan', cls: 'tag-send' });
+    if (this.masterPlan.isSendRequest(record)) tags.push({ text: 'Add to Master Plan', cls: 'tag-send' });
     if (p.setActive === false) tags.push({ text: `− Deactivate machine`, cls: 'tag-removed' });
     if (p.setActive === true) tags.push({ text: `+ Reactivate machine`, cls: 'tag-added' });
     if (p.editFields?.name) tags.push({ text: `Rename → "${p.editFields.name}"`, cls: 'tag-edited' });
@@ -115,7 +117,7 @@ export class PmApprovalsComponent {
     if (this.processing()) return;
     this.processing.set(true);
     try {
-      await this.pmService.approveMasterPlanChange(record.id);
+      await this.masterPlan.approveMasterPlanChange(record.id);
       this.toast.success(`Approved changes for ${record.assetId}.`);
       if (this.detailId() === record.id) this.closeDetail();
     } catch (e: any) {
@@ -147,7 +149,7 @@ export class PmApprovalsComponent {
       return;
     }
     try {
-      this.pmService.rejectMasterPlanChange(record.id, this.rejectReason());
+      this.masterPlan.rejectMasterPlanChange(record.id, this.rejectReason());
       this.toast.success(`Rejected changes for ${record.assetId}.`);
       this.cancelReject();
       if (this.detailId() === record.id) this.closeDetail();
@@ -165,10 +167,10 @@ export class PmApprovalsComponent {
     }
     // One bulk-approve action = one revision (Rev A -> Rev B), not one per item — and one shared
     // Audit Log timestamp for every row. approveMasterPlanChanges() handles both in a single batch.
-    let results: Awaited<ReturnType<PmService['approveMasterPlanChanges']>>;
+    let results: Awaited<ReturnType<MasterPlanService['approveMasterPlanChanges']>>;
     this.processing.set(true);
     try {
-      results = await this.pmService.approveMasterPlanChanges(ids);
+      results = await this.masterPlan.approveMasterPlanChanges(ids);
     } catch (e: any) {
       this.toast.error(e?.message || 'Failed to approve. Please try again.');
       return;

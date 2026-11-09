@@ -1,6 +1,6 @@
 import { Component, OnInit, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { PmService } from '../../core/services/pm.service';
+import { PmStore } from '../../core/services/pm-store.service';
 import { PMTask } from '../../core/models/pm.model';
 import { RouterModule } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
@@ -15,13 +15,13 @@ import { TranslatePipe } from '../../shared/pipes/translate.pipe';
   styleUrl: './dashboard.component.scss'
 })
 export class DashboardComponent implements OnInit {
-  private pmService = inject(PmService);
+  private pmStore = inject(PmStore);
   private authService = inject(AuthService);
   public translationService = inject(TranslationService);
   
   tasks = computed(() => {
     const user = this.authService.currentUser();
-    const allTasks = this.pmService.pmTasks();
+    const allTasks = this.pmStore.pmTasks();
     if (!user) return [];
     
     if (user.baseRole === 'admin' || user.baseRole === 'manager') {
@@ -41,7 +41,7 @@ export class DashboardComponent implements OnInit {
   });
 
   // Assigning a recurring series pre-assigns every not-yet-due occurrence too (see
-  // pm.service.ts assignTaskToTechnician), so future months already carry an assignedTo/
+  // pm-task.service.ts assignTaskToTechnician), so future months already carry an assignedTo/
   // exist in the list well before they're due. Collapse those down to one representative
   // per series — same rule as pm-record's actionable list — so KPIs (for every role, not
   // just technician) don't count months that haven't happened yet. Completed/history tasks

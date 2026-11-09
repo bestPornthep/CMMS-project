@@ -5,7 +5,8 @@ import { Router, provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { vi } from 'vitest';
 import { PmMachinesComponent } from './pm-machines.component';
-import { PmService } from '../../core/services/pm.service';
+import { PmStore } from '../../core/services/pm-store.service';
+import { MasterPlanService } from '../../core/services/master-plan.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ApiService } from '../../core/services/api.service';
 import { ToastService } from '../../core/services/toast.service';
@@ -75,8 +76,8 @@ async function render(options: { user?: User; url?: string } = {}) {
       ]),
     ]
   });
-  const pm = TestBed.inject(PmService);
-  await pm.loadData();
+  const pm = TestBed.inject(MasterPlanService);
+  await TestBed.inject(PmStore).loadData();
 
   const harness = await RouterTestingHarness.create();
   const component = await harness.navigateByUrl(options.url ?? '/machines', PmMachinesComponent);
@@ -225,13 +226,13 @@ describe('PmMachinesComponent — machine detail window', () => {
   });
 
   it('closes by itself when the machine disappears while it is open', async () => {
-    const { host, settle, pm, backend } = await render();
+    const { host, settle, backend } = await render();
     rowOf(host, 'A').click();
     await settle();
     expect(isOpen(host)).toBe(true);
 
     backend.assets = backend.assets.filter(a => a.id !== 'A');
-    await pm.loadData();
+    await TestBed.inject(PmStore).loadData();
     await settle();
 
     expect(isOpen(host)).toBe(false);
@@ -274,7 +275,7 @@ const MONTHLY_DRAFT: NewPmTypeDetail = {
   checklist: [{ text: 'Drain tank' }], startDate: new Date(2026, 6, 1), isRecurring: false
 };
 // Added Monthly first on purpose: the detail window must still order Weekly before Monthly.
-const addTwoDrafts = (pm: PmService) => {
+const addTwoDrafts = (pm: MasterPlanService) => {
   pm.addDraftPmType('N', 'Monthly', MONTHLY_DRAFT);
   pm.addDraftPmType('N', 'Weekly', WEEKLY_DRAFT);
 };
@@ -295,7 +296,7 @@ const removeOptionLabels = (host: HTMLElement) =>
   Array.from(removeModal(host)!.querySelectorAll('label')).map(l => l.textContent?.trim());
 const confirmRemoveButton = (host: HTMLElement) => buttonIn(removeModal(host)!, 'Remove PM Type') as HTMLButtonElement;
 const successMessages = (toast: ToastService) => toast.toasts().filter(t => t.type === 'success').map(t => t.message);
-const openRequestsFor = (pm: PmService, assetId: string) =>
+const openRequestsFor = (pm: MasterPlanService, assetId: string) =>
   pm.pendingMasterPlanChanges().filter(c => c.assetId === assetId && c.status === 'pending');
 
 type Rendered = Awaited<ReturnType<typeof render>>;

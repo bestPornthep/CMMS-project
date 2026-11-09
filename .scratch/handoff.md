@@ -1,49 +1,79 @@
-# Handoff — Session 2026-10-27: Send to Master Plan verified and review-fixed; whole app given a 768 px (tablet) responsive pass; pm-machines template restored after it was reset
+# Handoff — Session 2026-11-09: Frontend cleanup (self-hosted fonts, dead SCSS removed, PmService split, angular-eslint guard)
 
 ## Branch
-`feature/pm-checklist-audit-diff` — not merged to main, **nothing committed**. The tree holds several sessions of uncommitted work that share files (`pm.service.ts`, `pm.model.ts`, `pm-machines.component.*`, `styles.scss`, most page scss), so a clean split into commits is not practical: ask the user before committing. Untracked files (`git status` shows `??`) must be included in any commit: `.github/skills/poteto-mode/`, `.scratch/send-to-master-plan/`, `frontend/src/app/pages/pm-approvals/` (incl. its spec), `pm-machines.component.spec.ts`, `pm.service.master-plan.spec.ts`, and the `pm-frequency`, `pm-plan`, `pm-preview-occurrences`, `pm-masterplan-reconcile` util files and specs under `core/services/`.
-
-Spec and tickets: `.scratch/send-to-master-plan/spec.md`, `issues/01–07`. Status lines: 01–05 "built"; 06 says "browser check pending" (stale, the check passed); 07 "in progress".
+`chore/frontend-cleanup`, branched from `feature/pm-checklist-audit-diff` at `a294ebd` (that branch is pushed). Not merged, and **nothing on the cleanup branch is committed yet**. Ask the user before committing or pushing. The untracked files must be included in the commit: `frontend/eslint.config.js`, plus `pm-store.service.ts`, `pm-task.service.ts`, `master-plan.service.ts`, `template.service.ts` and `pm-masterplan-mock.ts` under `frontend/src/app/core/services/`.
 
 ## What was done this session
 
-- **Send to Master Plan browser walk-through (manager) — passed:** add machine → draft → Send → locked + Waiting banner → Withdraw → Send → Approvals card/detail → blank reject blocked → Reject with reason → rejection banner on the machine → Send → Approve → Master Plan row marks, Rev A, audit lines "Rejected/Approved PM Master Plan".
-- **Ticket 07 doc:** `docs/backend_fixes_needed_combined.html` `#masterplan` has the "Send to Master Plan (new machines)" proposal card (marked frontend-derived, demo seed).
-- **Self-review fixes** (`pm.service.ts` `approveMasterPlanChanges`, `pm-approvals.component.ts|html`): add steps re-read the machine after editFields; adds run before removals and earlier removals are re-applied after a backend reload (helper `cancelOpenTasksOfType`); in-flight guard `isProcessingMasterPlanChange` + component `processing` signal (double Approve / Reject during approval). 8 service specs + 1 component spec added.
-- **Thai sweep:** about 40 entries in `translation.service.ts`; `| tr` added to Approvals headers/buttons and four layout nav items.
-- **Responsive pass to 768 px (tablet), whole app, CSS/template only, desktop >=1280 px intended unchanged** (three sonnet agents, not visually verified by them):
-  - Shell: `layout.component.scss` (topbar truncation, search stays visible at <=899, 40 px touch targets, `100dvh`), `styles.scss` (shared btn/form/modal/card-header rules at <=1023), `toast.component.ts`.
-  - `pm-assign`: removed `min-width:900px`; work-order tables become stacked rows at <=1199 so Assign To + Assign stay reachable (screenshot-confirmed good); `pm-record`: removed `min-width:900px`, single column at <=1199, `scrollToDetail()` added in the `.ts`; `pm-create`: single column at <=1023, 40 px targets.
-  - `pm-approvals`: inline styles became classes, tables scroll inside their container with min-widths, sticky Actions column at <=767, modal `calc(100vw - 32px)`; `pm-master-plan`: grid scrolls in its container, filters wrap; `dashboard` (removed rules that hid Asset/Assigned/Status columns), `pm-calendar`, `pm-reports`, `pm-audit`, `profile-config` (inline grids became classes), `login` (44 px inputs, 16 px font).
-  - `pm-machines`: form/filters/table/action buttons (stacked 40 px buttons, sticky actions column) plus the detail dialog (`calc(100vw - 32px)`, scrollable body, wrapping footer).
-- **Incident — pm-machines template was reset:** at 09:03:57 `pm-machines.component.html` was reset to git HEAD and the `.scss` lost all uncommitted work except the later responsive block (cause unknown: probably an editor undo / discard; `.ts` and the spec were untouched). It was **reconstructed by an opus agent from the 08:39 production build** (`frontend/dist/frontend/browser/chunk-ZVJM5RRB.js`) plus the `.ts` and the 45-test spec; the compiled output of the new template was compared with the old build (consts and instruction counts match). Not recoverable with confidence: the three `@let` names (`hint`, `locked`, `sendReason` are guesses), original formatting/comments, exact SCSS colors (now rgba from the build). Browser screenshot of Manage Machines after the restore shows the plan-status chips, filters and table as expected; the detail dialog and its new responsive rules were not looked at.
+- **angular-eslint, type-aware** (`frontend/eslint.config.js`, `lint` target in `angular.json`, `npm run lint`):
+  - Rules that already had violations are set to `warn`; that is the baseline.
+  - Clean rules and `no-misused-promises` are `error`.
+  - Current result: 0 errors, 796 warnings (35 of them are `no-floating-promises`).
+- **Fonts and icons are self-hosted:**
+  - Packages: `@fontsource/plus-jakarta-sans` (400–800 plus 400 italic), `@fontsource/jetbrains-mono` (400, 500) and `material-symbols` (outlined). Their CSS is listed in the `angular.json` build `styles`, before `src/styles.scss`.
+  - The Google `<link>` tags are gone from `index.html`, and the `@import` is gone from `styles.scss`.
+  - Checked in a browser with Google blocked: zero font requests leave the app, and icons render as glyphs.
+- **Dead SCSS removed, about 2,500 lines:**
+  - Copied app-shell rules (sidebar, nav, topbar, `.app`, `.main` and similar) came out of dashboard, pm-record, pm-calendar, pm-assign, pm-create and pm-approvals. Under emulated encapsulation these could never match.
+  - Also removed: `:root{}` blocks inside components, page-level `--sidebar-width`, 57 custom properties nothing reads, and 10 that only repeated the global value.
+- **Real CSS bug fixed (a visible change):** declarations of the form `--x: var(--x)` are a CSS cycle, which the browser treats as invalid. Results of the fix:
+  - Task IDs on pm-record and pm-assign (`.mono`) now actually use JetBrains Mono.
+  - pm-calendar now gets its card shadows and the eased transitions.
+  - The code review confirmed these are the only visual changes.
+- **`pm.service.ts` (about 1,600 lines) deleted and split, with identical logic** (confirmed method by method in an opus code review):
+  - `PmStore` (`pm-store.service.ts`): signals for assets, tasks and preview tasks; `loadData()`, which is the only load entry point (`APP_INITIALIZER` and login); `viewedTaskGlobal`; write methods `updateAssets`, `setPmTasks`, `updatePmTasks`, `updatePreviewTasks`.
+  - `TemplateService`: templates and the default mock templates.
+  - `PmTaskService`: task actions and permission checks.
+  - `MasterPlanService`: machines, drafts, send/withdraw/approve/reject, versions, local audit log (965 lines).
+  - Mock seeds moved to `pm-masterplan-mock.ts`. `SERIES_MARKER*` and `copyPmTypeDetail` moved to `pm-plan.util.ts`; `normalizeFrequency` moved to `pm-frequency.util.ts`.
+  - Injection runs one way only: `MasterPlanService → PmTaskService → PmStore → TemplateService`.
+  - `updatePmSchedule` deleted (it had no callers). `updateAsset` and `removePmScheduleType` are now private.
+  - Specs changed only in setup lines and call receivers. The `describe('PmService…')` test names were kept on purpose so the passing-test lists can be compared by name.
+- **Agent instructions now record the lessons from this cleanup:**
+  - `.github/instructions/frontend.instructions.md`: component SCSS rules, the fonts rule, the services and dependency-direction map, a size limit on services, and lint rules.
+  - `.github/copilot-instructions.md`: correct type-check and lint commands, and the Key Files table.
+- `dashboard.component.ts`: a stale comment that referred to `pm.service.ts` was fixed.
 
 ## In-flight / next steps
 
-1. **Commit soon** (ask the user): an uncommitted tree already lost a file once this session. Commit all of the files listed under Branch.
-2. **Visual check at 768 px** after the user signs in as a manager (the session is in memory: any reload or URL navigation logs out — click links only): every page, plus the machine detail dialog, Approvals detail modal and Master Plan filters. The browser tool's viewport is flaky (`runPlaywrightCode` `page.setViewportSize` takes effect only sometimes, snapshots often "unavailable" — use `screenshotPage`). Fix anything clipped; the thing to look at first is the Approvals/Manage Machines tables (min-width + sticky Actions column) and the topbar.
-3. Browser checks still open from the Send work: a change on the now-in-plan machine becomes an approval card; the seeded Send card `MOCK-WAVE-SOLDER-1` (appears only after "Load mock pending changes (dev only)" on Approvals); no draft/preview task on Assign PM, Record PM, Calendar, Dashboard, Reports; console free of errors; Thai UI.
-4. Update the `Status:` lines of tickets 06 and 07 when 2–3 pass; show the user, then ask about merge to `main`. Overwrite this handoff after merge.
-5. Decide with the user: should creating a new customer in Add Machine also wait until beta (see Known issues)?
+1. **Ask the user to commit and push** `chore/frontend-cleanup`, including all the untracked files listed above. After that, ask whether to merge into `feature/pm-checklist-audit-diff` or open a PR.
+2. **Signed-in visual check.** It was not done because it needs a manager login on the shared backend, and the session is lost on reload, so click links only. Check every page at desktop and at 768 px. Pay special attention to:
+   - pm-calendar shadows and transitions, and the task-ID font on pm-record and pm-assign (both intentional changes);
+   - dashboard, pm-record, pm-create and pm-assign layouts, which had the largest SCSS deletions.
+3. Items carried over from the previous handoff, still open:
+   - A 768 px pass of the Approvals and Manage Machines tables and the topbar.
+   - Send-to-Master-Plan browser checks: the approval card for an in-plan machine; the seed card `MOCK-WAVE-SOLDER-1`; no preview tasks on the execution pages; Thai UI.
+   - Update the status lines in tickets 06 and 07 (`.scratch/send-to-master-plan/issues/`).
+   - Decide with the user whether new-customer creation in Add Machine should wait for beta.
+4. Lint follow-up: fix `no-floating-promises` (35 hits) and then promote that rule to `error`. After that, work through the other `warn` rules one at a time.
 
 ## Known issues / deferred work
 
-- Interpolated toasts/tags stay English (exact-match translation): `Approved/Rejected changes for ${id}.`, `${n} change(s) approved.`, `changeTags()` labels, `'Rev ' + label`, pm-create/pm-machines "submitted for approval" toasts, the `addDraftPmType` duplicate error. Other layout nav labels never used `| tr`.
-- **New customers still hit the real backend:** `addMachine()` in `pm-machines.component.ts` calls `pmService.createProduct()` for an unknown customer unless the dev "Test with mock data" box is ticked, although the machine is local-only.
-- Risks carried over: a real PM already created on the shared dev backend `10.144.15.76` cannot be undone if a later approval step fails; a waiting machine that becomes In plan through a reload merges later requests into its old Send request; revision ids `MPV-<ms>` can collide; `createPmFromProposal` for in-plan backend machines never run end to end.
-- Demo seed: many machines start "Not in plan" (Done tasks are not in the startup load). Master Plan grid still plots Cancelled tasks. Approver can approve own submission (by design). The Draft tag still shows on a waiting machine's PM type (cosmetic). The responsive agents suggest moving the repeated 40 px minimum for `.c-dropdown-trigger` / `.c-dropdown-item` and the copy-pasted `.modal-overlay` / `.template-modal` styles into `styles.scss` (not done).
-- Bundle: initial 564.99 kB vs 500 kB budget (warning only; last built before the responsive edits). `npm test` / `ng test` never run where it works; old `PmCreateComponent - Checklist` describe logs in against the real backend and fails by design; `api.service.spec`, `auth.service.spec`, `pm.service.spec` fail under the node harness (`localStorage is not defined`), pre-existing.
+- The pre-existing oddities below were noticed during the split but not fixed, to keep it behavior-preserving:
+  - `pm.service.spec.ts` expects `addPmTask`, `updateTask`, `saveTemplate` and `deleteTemplate` to throw synchronously, but they are async.
+  - `saveTemplate` changes the template object passed into it.
+  - `cancelPmTaskSeries` and `removePmScheduleType` ignore API errors and apply the change locally only.
+  - `assignTaskToTechnician` matches `[SeriesID: X]` by exact text and does not use `SERIES_MARKER`.
+- `master-plan.service.ts` is still 965 lines. Split it further before adding features to it.
+- Shared UI patterns are still styled separately in each page, with small differences between copies: `c-dropdown`, `ms-*`, `modal-overlay`, `data-table`. A safe automatic hoist would only have saved 10 declarations, so the real fix is extracting shared components.
+- npm audit went from 44 to 58 issues. All 14 new ones are moderate and come from the dev-only eslint toolchain, via `minimatch`. They don't ship to users.
+- The initial bundle is 549 kB against a 500 kB budget (it was 578 kB). This is a warning only.
+- 109 of 410 tests fail at baseline: they call the real dev backend `10.144.15.76` and get 401. They are unchanged by this work.
+- Carried over: interpolated toasts are not translated; Add Machine with a new customer calls the real backend `createProduct`; Master Plan state is memory-only until the backend exists.
 
 ## Anti-patterns to avoid
 
-- Do not let delegated agents edit files while the user/other agents may reset or undo them, and keep a commit or a copy of the work: `git status` was the only record. If a template is lost again, `frontend/dist` (last `npm run build`) holds compiled templates and styles.
-- Responsive agents must not use the shared browser; ask for a screenshot pass by the main session afterwards. Split agents by file ownership (shell + styles.scss vs. page folders) to avoid edit clashes.
-- Run service specs under `VITEST_ENV=node` only for the three Send specs; page specs under jsdom **one folder at a time** (two at once caused "Failed to start threads worker"). Commands (from `frontend`, harness `.local-test/` is git-excluded; recreate if missing: Angular JIT, plugin turning `templateUrl` into `?raw`, TestBed init only when `document` exists, threads pool, no file parallelism): `$env:VITEST_ENV='node'; npx vitest run --config .local-test/vitest.config.mjs src/app/core/services/pm.service.master-plan.spec.ts src/app/core/services/pm-masterplan-reconcile.util.spec.ts src/app/core/services/pm-preview-occurrences.util.spec.ts`; jsdom for pages; pm-create with `-t "draft PM types and machine link"`.
-- Toasts are translated by exact string: no interpolation. Components injecting `ActivatedRoute` need `provideRouter([])` in specs. `markForCheck()` before re-rendering routed jsdom components. Never call `submitMasterPlanChange` for a Not-in-plan machine. Preview tasks belong only in `planTasks()`. Run `npx ngc -p tsconfig.app.json --noEmit` after touching templates or `THAI_TRANSLATIONS` (ngc and tsc do not compile SCSS; compile with `npx sass` or run a build).
-- Browser tool: `typeInPage` with a `selector` plus parallel calls types into whichever field has focus — type one field at a time with a `ref`.
-- Delegation (`.github/copilot-instructions.md`): haiku easy, sonnet-5.5 medium, opus-5.5 hard / review; set `model` explicitly. Re-read edited regions after delegated edits.
+- **Plain `npx tsc --noEmit` in `frontend/` checks nothing**, because `tsconfig.json` is solution-style. Always run it with `-p tsconfig.app.json` and with `-p tsconfig.spec.json`.
+- **`--x: var(--x)` is not harmless:** it is a CSS cycle that turns the variable off for the whole subtree. Never re-declare a global token inside a page just to "alias" it.
+- **Don't copy another page's SCSS as a starting point.** That is how about 2,500 dead lines built up. The rules now live in `frontend.instructions.md`.
+- Before deleting or hoisting CSS, check dynamic class usage (`[class.x]`, `[ngClass]`, string-built names, `classList`) and the effect on the cascade (specificity changes once the `[_ngcontent]` attribute is gone).
+- To prove a refactor preserves behavior, compare **passing test names** and **`expect(` counts per spec** against a saved baseline. Exit code and totals are not enough, because 109 tests fail at baseline. Ready-made scripts are in the session-state folder `files/` (`compare-tests.js`, `expect-count.js`, `lint-check.js`), but they are not in the repo.
 
 ## TypeScript / build status
 
-`npx tsc --noEmit -p tsconfig.app.json` — 0 errors; `-p tsconfig.spec.json` — 0 errors; `npx ngc -p tsconfig.app.json --noEmit` — 0 errors (all re-run after the template restore).
-Specs via the harness: Send service + util specs 209/209; `pm-machines` 45/45; `pm-approvals` 12/12; `pm-create` new describe 19/19 (12 old backend-login tests skipped). `npm run build` last passed at 08:39 (before fixes, Thai and responsive edits; only the bundle-budget warning) — re-run it, since the SCSS is not compiled by tsc/ngc. `npm start` — the dev server on port 4300 is running.
+- `npx tsc --noEmit -p tsconfig.app.json`: 0 errors.
+- `npx tsc --noEmit -p tsconfig.spec.json`: 0 errors.
+- `npm run lint`: 0 errors, 796 warnings (baseline was 797).
+- `npx ng test --watch=false`: 301 pass and 109 fail, the same set of passing test names as baseline. `expect(` count is 1,070, the same as baseline.
+- `npx ng build`: passes, with only the bundle-budget warning (549.23 kB).
+- `npm start` builds clean. No dev server is left running.

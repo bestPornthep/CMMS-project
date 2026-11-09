@@ -26,10 +26,6 @@
 .data-table tbody tr {
   transition: background var(--dur-base) cubic-bezier(0.16,1,0.3,1);
 }
-
-.changes-row td {
-  cursor: default;
-}
 .changes-list {
   display: flex;
   flex-wrap: wrap;
@@ -116,8 +112,6 @@
 .diff-inline .to { color:var(--color-success-text); font-weight:600; }
 .diff-inline .removed-value { color:var(--color-error-text); font-weight:600; }
 .diff-inline .arrow { color:var(--color-text-muted); }
-
-.pm-type-row { display:flex; align-items:center; gap:10px; padding:4px 0; flex-wrap:wrap; }
 .pm-type-note { font-size:11.5px; color:var(--color-text-muted); margin:4px 0 0; }
 .pm-type-note-muted { font-size:11.5px; color:var(--color-text-muted); font-style:italic; margin:4px 0; }
 

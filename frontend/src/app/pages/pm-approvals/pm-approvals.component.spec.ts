@@ -4,7 +4,8 @@ import { provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { vi } from 'vitest';
 import { PmApprovalsComponent } from './pm-approvals.component';
-import { PmService } from '../../core/services/pm.service';
+import { PmStore } from '../../core/services/pm-store.service';
+import { MasterPlanService } from '../../core/services/master-plan.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ApiService } from '../../core/services/api.service';
 import { ToastService } from '../../core/services/toast.service';
@@ -75,8 +76,8 @@ async function render() {
       provideRouter([{ path: 'approvals', component: PmApprovalsComponent }]),
     ]
   });
-  const pm = TestBed.inject(PmService);
-  await pm.loadData();
+  const pm = TestBed.inject(MasterPlanService);
+  await TestBed.inject(PmStore).loadData();
 
   const openPage = async () => {
     const harness = await RouterTestingHarness.create();
@@ -101,11 +102,11 @@ async function render() {
 type Rendered = Awaited<ReturnType<typeof render>>;
 
 // Drafts the given PM types on a machine and sends it, as the current (engineer) user.
-function sendMachine(pm: PmService, assetId: string, drafts: [string, NewPmTypeDetail][] = [['Weekly', WEEKLY_DRAFT], ['Monthly', MONTHLY_DRAFT]]) {
+function sendMachine(pm: MasterPlanService, assetId: string, drafts: [string, NewPmTypeDetail][] = [['Weekly', WEEKLY_DRAFT], ['Monthly', MONTHLY_DRAFT]]) {
   for (const [frequency, detail] of drafts) pm.addDraftPmType(assetId, frequency, detail);
   pm.sendToMasterPlan(assetId);
 }
-const openRequestFor = (pm: PmService, assetId: string) =>
+const openRequestFor = (pm: MasterPlanService, assetId: string) =>
   pm.pendingMasterPlanChanges().find(c => c.assetId === assetId && c.status === 'pending');
 
 const pendingRows = (host: HTMLElement) =>
@@ -125,7 +126,7 @@ const fieldOf = (block: HTMLElement, label: string) =>
 const checklistRows = (block: HTMLElement) =>
   Array.from(block.querySelectorAll('.pm-checklist-table tr')).slice(1).map(r => r.textContent?.replace(/\s+/g, ' ').trim());
 const toastsOf = (toast: ToastService, type: string) => toast.toasts().filter(t => t.type === type).map(t => t.message);
-const versionCount = (pm: PmService) => pm.masterPlanVersions().length;
+const versionCount = (pm: MasterPlanService) => pm.masterPlanVersions().length;
 
 function typeReason(host: HTMLElement, reason: string) {
   const input = dialog(host).querySelector<HTMLInputElement>('input.input')!;
@@ -263,7 +264,7 @@ describe('PmApprovalsComponent — Send to Master Plan requests', () => {
       const ctx = await render();
       sendMachine(ctx.pm, 'N');
       ctx.backend.assets = ctx.backend.assets.filter(a => a.id !== 'N');
-      await ctx.pm.loadData();
+      await TestBed.inject(PmStore).loadData();
       ctx.setUser(manager);
       const { host, settle } = await ctx.openPage();
       expect(pendingRows(host).length).toBe(1);
@@ -283,7 +284,7 @@ describe('PmApprovalsComponent — Send to Master Plan requests', () => {
       sendMachine(ctx.pm, 'N');
       sendMachine(ctx.pm, 'M');
       ctx.backend.assets = ctx.backend.assets.filter(a => a.id !== 'N');
-      await ctx.pm.loadData();
+      await TestBed.inject(PmStore).loadData();
       ctx.setUser(manager);
       const { host, settle } = await ctx.openPage();
 

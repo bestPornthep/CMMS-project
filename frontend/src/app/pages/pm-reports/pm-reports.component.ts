@@ -1,7 +1,7 @@
 import { Component, computed, inject, signal, OnInit } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { PmService } from '../../core/services/pm.service';
+import { PmStore } from '../../core/services/pm-store.service';
 import { AuthService } from '../../core/services/auth.service';
 import { PMTask } from '../../core/models/pm.model';
 import { TranslatePipe } from '../../shared/pipes/translate.pipe';
@@ -16,15 +16,15 @@ import { environment } from '../../../environments/environment';
   styleUrl: './pm-reports.component.scss'
 })
 export class PmReportsComponent implements OnInit {
-  private pmService = inject(PmService);
+  private pmStore = inject(PmStore);
   private authService = inject(AuthService);
 
   // Dev-only: lets us preview the PDF export with synthetic data without writing to the real DB.
   // Never populated in production builds (gated by `isDevBuild` / environment.production below).
   isDevBuild = !environment.production;
   mockTasks = signal<PMTask[]>([]);
-  tasks = computed(() => [...this.pmService.pmTasks(), ...this.mockTasks()]);
-  assets = this.pmService.assets;
+  tasks = computed(() => [...this.pmStore.pmTasks(), ...this.mockTasks()]);
+  assets = this.pmStore.assets;
 
   // Filters
   startDate = signal<string>('');
@@ -47,7 +47,7 @@ export class PmReportsComponent implements OnInit {
 
   ngOnInit() {
     // Lazy load historical data only when visiting reports
-    this.pmService.loadHistoricalTasks()
+    this.pmStore.loadHistoricalTasks()
       .then(() => this.historyLoaded.set(true))
       .catch(console.error);
   }
@@ -114,7 +114,7 @@ export class PmReportsComponent implements OnInit {
   availableAssets = computed(() => {
     const user = this.authService.currentUser();
     const products = this.availableProducts();
-    let assets = this.pmService.assets().filter(a => products.includes(a.location));
+    let assets = this.pmStore.assets().filter(a => products.includes(a.location));
     
     if (user && (user.baseRole === 'technician' || user.baseRole === 'engineer')) {
       assets = assets.filter(a => a.department === user.department);
@@ -177,9 +177,9 @@ export class PmReportsComponent implements OnInit {
       this.mockTasks.set([]);
       return;
     }
-    const assetId = this.availableAssets()[0] ?? this.pmService.assets()[0]?.id;
+    const assetId = this.availableAssets()[0] ?? this.pmStore.assets()[0]?.id;
     if (!assetId) return;
-    const assetInfo = this.pmService.assets().find(a => a.id === assetId);
+    const assetInfo = this.pmStore.assets().find(a => a.id === assetId);
     const productId = assetInfo?.location ?? 'MOCK-PRODUCT';
     const department = assetInfo?.department ?? 'Mechanic';
     const year = 2026;

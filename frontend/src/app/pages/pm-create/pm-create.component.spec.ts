@@ -6,7 +6,10 @@ import { vi } from 'vitest';
 import { PmCreateComponent } from './pm-create.component';
 import { By } from '@angular/platform-browser';
 import { FormsModule } from '@angular/forms';
-import { PmService } from '../../core/services/pm.service';
+import { PmStore } from '../../core/services/pm-store.service';
+import { MasterPlanService } from '../../core/services/master-plan.service';
+import { PmTaskService } from '../../core/services/pm-task.service';
+import { TemplateService } from '../../core/services/template.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ApiService } from '../../core/services/api.service';
 import { ToastService } from '../../core/services/toast.service';
@@ -69,9 +72,9 @@ describe('PmCreateComponent - Checklist', () => {
   });
 
   it('should save a template via PmService', () => {
-    const pmService = TestBed.inject(PmService);
+    const templateService = TestBed.inject(TemplateService);
     let savedTemplate: any = null;
-    (pmService as any).saveTemplate = (tpl: any) => { savedTemplate = tpl; };
+    (templateService as any).saveTemplate = (tpl: any) => { savedTemplate = tpl; };
 
     component.newTemplateName = 'My Test Template';
     component.department = 'Test';
@@ -109,9 +112,9 @@ describe('PmCreateComponent - Checklist', () => {
   });
 
   it('should not submit without required fields', () => {
-    const pmService = TestBed.inject(PmService);
+    const pmTaskService = TestBed.inject(PmTaskService);
     let savedTask: any = null;
-    (pmService as any).addPmTask = (task: any) => { savedTask = task; };
+    (pmTaskService as any).addPmTask = (task: any) => { savedTask = task; };
 
     // Missing productId, department, assetId
     component.submitForm();
@@ -119,9 +122,9 @@ describe('PmCreateComponent - Checklist', () => {
   });
 
   it('should reject submission with mismatched asset-product', () => {
-    const pmService = TestBed.inject(PmService);
+    const pmTaskService = TestBed.inject(PmTaskService);
     let savedTask: any = null;
-    (pmService as any).addPmTask = (task: any) => { savedTask = task; };
+    (pmTaskService as any).addPmTask = (task: any) => { savedTask = task; };
 
     // THC-P1-01 belongs to CUST-001 Test, setting CUST-002 should fail
     component.productId = 'CUST-002';
@@ -240,8 +243,8 @@ async function render(options: { user?: User; url?: string } = {}) {
       ]),
     ]
   });
-  const pm = TestBed.inject(PmService);
-  await pm.loadData();
+  const pm = TestBed.inject(MasterPlanService);
+  await TestBed.inject(PmStore).loadData();
 
   const harness = await RouterTestingHarness.create();
   const component = await harness.navigateByUrl(options.url ?? '/create', PmCreateComponent);
@@ -300,7 +303,7 @@ const expectedDetail = (title: string, startDate: string, isRecurring = true): N
 });
 
 // Nothing was written: no draft on any machine and no approval request.
-const expectNothingSaved = (pm: PmService) => {
+const expectNothingSaved = (pm: MasterPlanService) => {
   for (const id of ALL_IDS) expect(pm.draftPmTypesFor(id)).toEqual([]);
   expect(pm.pendingMasterPlanChanges()).toEqual([]);
 };
@@ -446,7 +449,7 @@ describe('PmCreateComponent — draft PM types and machine link', () => {
   });
 
   describe('duplicate PM types', () => {
-    const draftMonthly = (pm: PmService) => pm.addDraftPmType('N', 'Monthly', { title: 'New Mill' });
+    const draftMonthly = (pm: MasterPlanService) => pm.addDraftPmType('N', 'Monthly', { title: 'New Mill' });
 
     it('counts an existing draft, including its Custom alias, but not another frequency', async () => {
       const { component, pm, settle } = await render({ url: '/create?machine=N' });

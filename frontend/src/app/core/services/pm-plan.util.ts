@@ -1,4 +1,18 @@
-import { Asset, PMTask } from '../models/pm.model';
+import { Asset, NewPmTypeDetail, PMTask } from '../models/pm.model';
+
+// The backend tags every task of a recurring series with "[SeriesID: …]" inside its description.
+export const SERIES_MARKER = /\[SeriesID:\s*[^\]]+\]/;
+export const SERIES_MARKER_G = /\[SeriesID:\s*[^\]]+\]\n?/g;
+
+// A request keeps its own copy of each PM type, so nothing done to the source later can change it.
+export function copyPmTypeDetail(d: NewPmTypeDetail): NewPmTypeDetail {
+  return {
+    ...d,
+    partsRequired: d.partsRequired ? [...d.partsRequired] : undefined,
+    checklist: d.checklist?.map(item => ({ ...item })),
+    startDate: d.startDate ? new Date(d.startDate) : undefined
+  };
+}
 
 // Absent flag = in plan, so machines that never went through the Send flow (every backend machine
 // today) keep showing on the Master Plan exactly as before.

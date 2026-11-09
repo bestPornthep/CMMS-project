@@ -2,7 +2,9 @@ import { Component, computed, inject, signal, HostListener } from '@angular/core
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { PmService } from '../../core/services/pm.service';
+import { PmStore } from '../../core/services/pm-store.service';
+import { TemplateService } from '../../core/services/template.service';
+import { MasterPlanService } from '../../core/services/master-plan.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
 import { NewPmTypeDetail, PMTaskFrequency, Template } from '../../core/models/pm.model';
@@ -16,7 +18,9 @@ import { TranslatePipe } from '../../shared/pipes/translate.pipe';
   styleUrl: './pm-create.component.scss'
 })
 export class PmCreateComponent {
-  private pmService = inject(PmService);
+  private pmStore = inject(PmStore);
+  private templateService = inject(TemplateService);
+  private masterPlan = inject(MasterPlanService);
   private authService = inject(AuthService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
@@ -62,7 +66,7 @@ export class PmCreateComponent {
   // Fills customer, department and machine from a link. An unknown, inactive or inaccessible machine is
   // ignored with a message and the form stays as it was: a link must never pick a machine the picker would not offer.
   private preselectMachine(id: string) {
-    const machine = this.pmService.assets().find(a => a.id === id);
+    const machine = this.pmStore.assets().find(a => a.id === id);
     if (!machine) {
       this.toast.error('Machine not found.');
       return;
@@ -105,12 +109,12 @@ export class PmCreateComponent {
   showManageTemplateModal = false;
   newTemplateName = '';
   defaultTemplates = computed(() => {
-    const all = this.pmService.templates();
+    const all = this.templateService.templates();
     return all.filter(t => t.isDefault && (this.canChangeDept || t.department === 'All' || t.department === this.currentUser?.department));
   });
 
   personalTemplates = computed(() => {
-    const all = this.pmService.templates();
+    const all = this.templateService.templates();
     return all.filter(t => !t.isDefault && t.createdBy === this.currentUser?.employeeId);
   });
 
@@ -135,7 +139,7 @@ export class PmCreateComponent {
     this.productId = p;
     // If Product changes, reset Asset if it does not belong to the new Product.
     if (this.assetId) {
-      const asset = this.pmService.assets().find(a => a.id === this.assetId);
+      const asset = this.pmStore.assets().find(a => a.id === this.assetId);
       if (asset && asset.location.toLowerCase() !== p.toLowerCase()) {
         this.assetId = '';
       }
@@ -147,7 +151,7 @@ export class PmCreateComponent {
     event.stopPropagation();
     this.department = d;
     if (this.assetId) {
-      const asset = this.pmService.assets().find(a => a.id === this.assetId);
+      const asset = this.pmStore.assets().find(a => a.id === this.assetId);
       if (asset && asset.department.toLowerCase() !== d.toLowerCase()) {
         this.assetId = '';
       }
@@ -159,7 +163,7 @@ export class PmCreateComponent {
     event.stopPropagation();
     this.assetId = a;
     if (a) {
-      const asset = this.pmService.assets().find(x => x.id === a);
+      const asset = this.pmStore.assets().find(x => x.id === a);
       if (asset) {
         this.productId = asset.location;
         this.department = asset.department;
@@ -181,7 +185,7 @@ export class PmCreateComponent {
   // Drafts and preview tasks count too.
   isDuplicatePm(): boolean {
     if (!this.assetId || !this.pmType) return false;
-    return this.pmService.hasPmType(this.assetId, this.getEffectiveFrequency());
+    return this.masterPlan.hasPmType(this.assetId, this.getEffectiveFrequency());
   }
 
   togglePart(part: string, event: Event) {
@@ -215,7 +219,7 @@ export class PmCreateComponent {
 
     // Only active machines are offered here — deactivated machines must be reactivated
     // from the Machines page before a new PM can be created for them.
-    return this.pmService.activeAssets().filter(a => {
+    return this.pmStore.activeAssets().filter(a => {
       const aLoc = a.location?.toLowerCase() || '';
       const aDept = a.department?.toLowerCase() || '';
 
@@ -324,7 +328,7 @@ export class PmCreateComponent {
     if (!tpl) return;
     
     try {
-      await this.pmService.updateTemplate({
+      await this.templateService.updateTemplate({
         ...tpl,
         checklist: [...this.checklist()]
       });
@@ -337,7 +341,7 @@ export class PmCreateComponent {
 
   saveTemplate() {
     if (!this.newTemplateName.trim()) return;
-    this.pmService.saveTemplate({
+    this.templateService.saveTemplate({
       name: this.newTemplateName,
       department: this.department || 'All',
       checklist: [...this.checklist()]
@@ -355,7 +359,7 @@ export class PmCreateComponent {
       this.loadedTemplateId = null;
       this.loadedTemplateName = null;
     }
-    this.pmService.deleteTemplate(tpl);
+    this.templateService.deleteTemplate(tpl);
   }
 
   // Submit
@@ -372,7 +376,7 @@ export class PmCreateComponent {
       return;
     }
 
-    if (this.pmService.findPendingPmAdd(this.assetId, this.getEffectiveFrequency())) {
+    if (this.masterPlan.findPendingPmAdd(this.assetId, this.getEffectiveFrequency())) {
       this.toast.error(`A ${this.getEffectiveFrequency()} PM for this asset is already waiting for approval.`);
       return;
     }
@@ -395,7 +399,7 @@ export class PmCreateComponent {
     }
 
     const isNewProduct = !this.products().includes(this.productId);
-    const selectedAsset = this.pmService.assets().find(a => a.id === this.assetId);
+    const selectedAsset = this.pmStore.assets().find(a => a.id === this.assetId);
     const isNewAsset = !selectedAsset;
 
     // Machines are now created via the dedicated "Machines" page, not auto-created here.
@@ -431,14 +435,14 @@ export class PmCreateComponent {
       };
 
       // A machine that is not in the Master Plan keeps its PM types as drafts: no approval, no tasks.
-      if (!this.pmService.isInMasterPlan(this.assetId)) {
-        this.pmService.addDraftPmType(this.assetId, finalFrequency, detail);
+      if (!this.masterPlan.isInMasterPlan(this.assetId)) {
+        this.masterPlan.addDraftPmType(this.assetId, finalFrequency, detail);
         this.toast.success('PM type saved as a draft. Send the machine to the Master Plan when it is ready.');
         this.router.navigate(['/pm-machines'], { queryParams: { machine: this.assetId } });
         return;
       }
 
-      this.pmService.submitMasterPlanChange({
+      this.masterPlan.submitMasterPlanChange({
         assetId: this.assetId,
         assetName: selectedAsset.name,
         department: this.department,
@@ -449,7 +453,7 @@ export class PmCreateComponent {
         note: this.description.trim() || `New ${finalFrequency} PM via Create PM`
       });
       this.toast.success(`${finalFrequency} PM for "${selectedAsset.name}" submitted for approval.`);
-      this.router.navigate([this.pmService.canApproveMasterPlanChange() ? '/pm-approvals' : '/dashboard']);
+      this.router.navigate([this.masterPlan.canApproveMasterPlanChange() ? '/pm-approvals' : '/dashboard']);
     } catch (e: any) {
       this.toast.error(e?.message || 'Failed to save the PM. Please try again.');
     } finally {

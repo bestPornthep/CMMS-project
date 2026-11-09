@@ -1,6 +1,4 @@
 .login-page {
-  --font-sans: 'Plus Jakarta Sans', sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
 
   --bg-page: #ECF0F7;
   --bg-card: #FFFFFF;
@@ -19,15 +17,8 @@
   --error-bg: #FEF2F2;
   --error-text: #7F1D1D;
 
-  --r-sm: 6px;
-  --r-md: 9px;
-  --r-lg: 14px;
-  --r-xl: 18px;
-
   --shadow-card: 0 1px 2px rgba(12,21,35,0.04), 0 4px 16px rgba(12,21,35,0.06);
   --shadow-inset: inset 0 1px 0 rgba(255,255,255,0.9);
-
-  --ease-out: cubic-bezier(0.16,1,0.3,1);
   --dur-fast: 180ms;
   --dur-base: 260ms;
   --dur-enter: 560ms;

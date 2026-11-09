@@ -141,7 +141,7 @@ export interface AuditLog {
 
 // ── PM Master Plan approval workflow ──────────────────────────────────────
 // Backend has no support for any of this yet — see docs/backend_fixes_needed_combined.html#masterplan.
-// All state lives client-side only (PmService signals) until that's built.
+// All state lives client-side only (MasterPlanService signals) until that's built.
 
 export type MasterPlanChangeType = 'add-machine' | 'edit-machine' | 'deactivate-machine' | 'reactivate-machine' | 'add-pm-type' | 'remove-pm-type';
 

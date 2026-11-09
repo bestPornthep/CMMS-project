@@ -3,7 +3,8 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { PmService } from '../../core/services/pm.service';
+import { PmStore } from '../../core/services/pm-store.service';
+import { MasterPlanService } from '../../core/services/master-plan.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
 import { Asset, PendingMasterPlanChange, PmTypeSummary } from '../../core/models/pm.model';
@@ -22,7 +23,8 @@ type PlanFilter = 'all' | 'in' | 'out';
   styleUrl: './pm-machines.component.scss'
 })
 export class PmMachinesComponent {
-  private pmService = inject(PmService);
+  private pmStore = inject(PmStore);
+  private masterPlan = inject(MasterPlanService);
   private authService = inject(AuthService);
   private toast = inject(ToastService);
   private route = inject(ActivatedRoute);
@@ -100,7 +102,7 @@ export class PmMachinesComponent {
   isDuplicateAssetId(): boolean {
     const id = this.assetId.trim().toLowerCase();
     if (!id) return false;
-    return this.pmService.assets().some(a => a.id.toLowerCase() === id);
+    return this.pmStore.assets().some(a => a.id.toLowerCase() === id);
   }
 
   async addMachine() {
@@ -126,7 +128,7 @@ export class PmMachinesComponent {
     try {
       if (isNewProduct) {
         try {
-          await this.pmService.createProduct({ id: productId, name: productId });
+          await this.masterPlan.createProduct({ id: productId, name: productId });
         } catch (e: any) {
           if (e?.status === 403) {
             this.toast.error('You do not have permission to create new customers. Contact an admin or manager.');
@@ -137,7 +139,7 @@ export class PmMachinesComponent {
         }
       }
 
-      await this.pmService.addMachine({ id: assetId, name: assetName, location: productId, department, workCenter });
+      await this.masterPlan.addMachine({ id: assetId, name: assetName, location: productId, department, workCenter });
       this.toast.success('Machine added. It is not in the Master Plan yet: add its PM types, then send it to the Master Plan.');
       // Keep Customer/Department so adding several machines to the same customer stays quick.
       this.assetId = '';
@@ -177,7 +179,7 @@ export class PmMachinesComponent {
     const role = this.currentUser?.baseRole;
     const showAll = role === 'admin' || role === 'manager';
     const userDept = (this.currentUser?.department || '').toLowerCase();
-    return this.pmService.assets().filter(a => showAll || a.department?.toLowerCase() === userDept);
+    return this.pmStore.assets().filter(a => showAll || a.department?.toLowerCase() === userDept);
   });
 
   filteredMachines = computed(() => {
@@ -215,23 +217,23 @@ export class PmMachinesComponent {
   });
   detailPmTypes = computed(() => {
     const machine = this.detailMachine();
-    return machine ? this.pmService.pmTypesFor(machine.id) : [];
+    return machine ? this.masterPlan.pmTypesFor(machine.id) : [];
   });
   // Computed (not template method calls) so the banners get a stable object between change detections.
   detailWaitingRequest = computed<PendingMasterPlanChange | null>(() => {
     const machine = this.detailMachine();
-    return machine && this.pmService.isWaitingForApproval(machine.id) ? this.pmService.openRequestFor(machine.id) ?? null : null;
+    return machine && this.masterPlan.isWaitingForApproval(machine.id) ? this.masterPlan.openRequestFor(machine.id) ?? null : null;
   });
   detailRejection = computed(() => {
     const machine = this.detailMachine();
-    return machine ? this.pmService.lastRejectionFor(machine.id) ?? null : null;
+    return machine ? this.masterPlan.lastRejectionFor(machine.id) ?? null : null;
   });
 
   readonly lockMessage = 'This machine is waiting for approval. Withdraw the request to change it.';
 
   // A machine waiting for approval is locked: the service refuses changes and the page disables them.
   isLocked(assetId: string): boolean {
-    return this.pmService.isWaitingForApproval(assetId);
+    return this.masterPlan.isWaitingForApproval(assetId);
   }
 
   resolveName(employeeId: string): string {
@@ -334,7 +336,7 @@ export class PmMachinesComponent {
 
   async saveEdit(a: Asset) {
     try {
-      const result = await this.pmService.editMachine(a.id, {
+      const result = await this.masterPlan.editMachine(a.id, {
         name: this.editName,
         department: this.editDepartment,
         location: this.editProductId,
@@ -351,7 +353,7 @@ export class PmMachinesComponent {
 
   // Machines with a not-yet-resolved Master Plan change, for the row badge.
   pendingAssetIds = computed(() => new Set(
-    this.pmService.pendingMasterPlanChanges().filter(c => c.status === 'pending').map(c => c.assetId)));
+    this.masterPlan.pendingMasterPlanChanges().filter(c => c.status === 'pending').map(c => c.assetId)));
 
   removePmTarget: Asset | null = null;
   removePmType = '';
@@ -368,7 +370,7 @@ export class PmMachinesComponent {
   }
 
   removablePmTypes(): string[] {
-    return this.removePmTarget ? this.pmService.removablePmTypeFrequencies(this.removePmTarget.id) : [];
+    return this.removePmTarget ? this.masterPlan.removablePmTypeFrequencies(this.removePmTarget.id) : [];
   }
 
   confirmRemovePm() {
@@ -376,7 +378,7 @@ export class PmMachinesComponent {
     const frequency = this.removePmType;
     if (!asset || !frequency) return;
     try {
-      const result = this.pmService.removePmType(asset.id, frequency);
+      const result = this.masterPlan.removePmType(asset.id, frequency);
       if (result === 'applied') this.toast.success('Draft PM type removed.');
       else if (result === 'submitted') this.toast.success(`Removal of ${frequency} PM for "${asset.name}" submitted for approval.`);
       else this.toast.show('No changes to save.');
@@ -395,8 +397,8 @@ export class PmMachinesComponent {
   // ── Send to Master Plan / Withdraw ──────────────────────────────────────────
   // Why Send is unavailable, or null when it is allowed.
   sendDisabledReason(assetId: string): string | null {
-    return this.pmService.sendBlockedReason(assetId)
-      ?? (this.pmService.canProposeMasterPlanChange() ? null : 'You are not allowed to send machines to the Master Plan.');
+    return this.masterPlan.sendBlockedReason(assetId)
+      ?? (this.masterPlan.canProposeMasterPlanChange() ? null : 'You are not allowed to send machines to the Master Plan.');
   }
 
   // The one hint line in the detail footer: waiting first, then an inactive machine (whose hint already
@@ -408,7 +410,7 @@ export class PmMachinesComponent {
 
   sendToMasterPlan(machine: Asset) {
     try {
-      this.pmService.sendToMasterPlan(machine.id);
+      this.masterPlan.sendToMasterPlan(machine.id);
       this.toast.success('Sent to the Master Plan for approval. The machine is locked until a manager decides.');
     } catch (e: any) {
       this.toast.error(e?.message || 'Failed to send the machine to the Master Plan. Please try again.');
@@ -417,12 +419,12 @@ export class PmMachinesComponent {
 
   // The sender or an approver; the service enforces the same rule.
   canWithdraw(request: PendingMasterPlanChange): boolean {
-    return request.submittedBy === this.currentUser?.employeeId || this.pmService.canApproveMasterPlanChange();
+    return request.submittedBy === this.currentUser?.employeeId || this.masterPlan.canApproveMasterPlanChange();
   }
 
   withdrawRequest(machine: Asset) {
     try {
-      this.pmService.withdrawSendRequest(machine.id);
+      this.masterPlan.withdrawSendRequest(machine.id);
       this.toast.success('Request withdrawn. You can edit the machine again.');
     } catch (e: any) {
       this.toast.error(e?.message || 'Failed to withdraw the request. Please try again.');
@@ -455,7 +457,7 @@ export class PmMachinesComponent {
     const asset = this.confirmTarget;
     const activate = this.confirmAction === 'reactivate';
     try {
-      const result = await this.pmService.setMachineActive(asset.id, activate);
+      const result = await this.masterPlan.setMachineActive(asset.id, activate);
       if (result === 'unchanged') this.toast.show('No changes to save.');
       else if (result === 'applied') this.toast.success(activate ? 'Machine reactivated.' : 'Machine deactivated.');
       else this.toast.success('Change submitted for approval.');
