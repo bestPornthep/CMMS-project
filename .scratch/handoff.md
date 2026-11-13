@@ -27,22 +27,20 @@ Frontend:
 - Frontend: `npx tsc --noEmit -p tsconfig.app.json` and `-p tsconfig.spec.json` clean. `npm test`: pm-approvals, pm-machines, master-plan.service and others pass.
 - Still failing, pre-existing and unrelated: `api.service.spec`, `auth.service.spec`, `pm.service.spec`, `pm-assign.component.spec` and the "Checklist" block of `pm-create.component.spec`. They call the live backend at `10.144.15.76:3000` and get 401.
 
-## MUST DO BEFORE DEPLOYING THE BACKEND (none applied to the dev DB yet)
-Apply these in `backend/prisma/manual-sql/` first (the running Docker `cmms-backend` uses the old client until rebuilt). Never use `prisma migrate` / `db push`:
-1. `add-machine-lifecycle-fields.sql`
-2. `create-pm-id-sequences-table.sql`
-3. `create-pm-types-table.sql`
-4. `add-audit-changes-column.sql`
-5. `create-masterplan-tables.sql`
-6. `trim-pm-task-overgeneration.sql` — cleanup; dry-run first, via the DB team.
+## Deployed (dev)
+- Applied to dev DB `KETL_Tester` (each script in its own transaction; never use `prisma migrate` / `db push`): `add-machine-lifecycle-fields`, `create-pm-id-sequences-table`, `add-audit-changes-column`, `create-masterplan-tables`, `create-pm-types-table`.
+- `cmms-backend` rebuilt with `docker compose up -d --build backend` (from `backend/`); all new routes mount under `/api/v1`; unauthenticated calls return 401.
+- NOT applied: `trim-pm-task-overgeneration.sql` (deletes rows; DB team approval needed). Dry run found 24,804 far-future Pending rows across 25 schedules (earliest 2027-11-14, latest 2109). Run STEP 1 again and set `@Expected` before deleting.
+- `create-pm-types-table.sql` backfill report: legacy duplicate monthly schedules for `SRV-P2-01` (3) and `THC-P1-01` (6); only the earliest got a claim. DB team to decide what to retire.
+- `cmms_pm_tasks.id` is NVARCHAR(1000), so the long task ids fit.
 
 ## Next steps
-1. Ask the user to approve applying the SQL scripts, then rebuild/redeploy `cmms-backend`, then smoke-test Master Plan end to end (approve/merge are only mock-tested).
-2. Merge/push when the user is satisfied (feature workflow: self-review with `/code-review` against `main` first).
+1. Smoke-test Master Plan end to end with a real login (approve/merge are only mock-tested; not yet exercised against the DB).
+2. DB team: run the trim cleanup and resolve the duplicate schedules.
+3. Merge/push when the user is satisfied (feature workflow: `/code-review` against `main` was skipped at the user's request).
 
 ## Known issues / deferred
 - `PUT /pm-tasks/schedule/:seriesId` has no technician role block (pre-existing; more impactful now that checklist edits reach in-flight tasks).
-- Real `cmms_pm_tasks.id` column length vs the new long ids is unverified.
 - Submit/merge of a Master Plan card is a read-modify-write (no locking).
 - A paused deactivated asset's PM-type claim remains.
 - `PmStore.loadData()` loads tasks excluding Done, so a reload (e.g. after approve) drops loaded Done history.
