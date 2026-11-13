@@ -21,7 +21,7 @@ import {
   ProposedMasterPlanState,
   reconcileMasterPlanChange,
   stripEmpty,
-  versionLabel,
+  nextVersionLabel,
 } from './masterplan.util';
 
 const OPEN_TASK_STATUSES_EXCLUDED = ['Done', 'Cancelled'];
@@ -271,7 +271,7 @@ export class MasterplanService {
   }
 
   private async approveBatch(user: MasterPlanUser, ids: string[]) {
-    const label = versionLabel(await this.prisma.masterPlanVersion.count());
+    const label = await this.nextLabel();
     const now = new Date();
     const results: { id: string; ok: boolean; error?: string }[] = [];
     let anyChanged = false;
@@ -415,10 +415,15 @@ export class MasterplanService {
         return { id: row.id, label: row.label };
       } catch (err: any) {
         if (err?.code !== 'P2002') throw err;
-        current = versionLabel(await this.prisma.masterPlanVersion.count());
+        current = await this.nextLabel();
       }
     }
     return undefined;
+  }
+
+  private async nextLabel(): Promise<string> {
+    const rows = await this.prisma.masterPlanVersion.findMany({ select: { label: true } });
+    return nextVersionLabel(rows.map((r) => r.label));
   }
 
   private errorMessage(err: unknown): string {

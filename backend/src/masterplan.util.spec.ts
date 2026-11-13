@@ -2,6 +2,7 @@ import {
   describeDiff,
   isEmptyDiff,
   mergeProposedState,
+  nextVersionLabel,
   reconcileMasterPlanChange,
   versionLabel,
 } from './masterplan.util';
@@ -91,5 +92,17 @@ describe('versionLabel', () => {
     expect(versionLabel(0)).toBe('A');
     expect(versionLabel(25)).toBe('Z');
     expect(versionLabel(26)).toBe('V27');
+  });
+});
+
+describe('nextVersionLabel', () => {
+  it('uses the next letter by count when free', () => {
+    expect(nextVersionLabel([])).toBe('A');
+    expect(nextVersionLabel(['A'])).toBe('B');
+  });
+
+  it('skips labels already taken, e.g. after a version was deleted', () => {
+    expect(nextVersionLabel(['B'])).toBe('C');
+    expect(nextVersionLabel(['A', 'C'])).toBe('D');
   });
 });

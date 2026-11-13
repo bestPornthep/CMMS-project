@@ -140,6 +140,14 @@ export function versionLabel(existingCount: number): string {
   return VERSION_LETTERS[existingCount] ?? `V${existingCount + 1}`;
 }
 
+// Labels are unique, so a count-based label can collide once a version has been deleted.
+export function nextVersionLabel(existingLabels: string[]): string {
+  const taken = new Set(existingLabels);
+  let n = existingLabels.length;
+  while (taken.has(versionLabel(n))) n++;
+  return versionLabel(n);
+}
+
 function uniqueByFrequency(list: string[]): string[] {
   const seen = new Set<string>();
   return list.filter(f => {
