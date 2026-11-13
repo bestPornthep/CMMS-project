@@ -37,7 +37,8 @@ export class PmStore {
       this.api.getTemplates(),
     ]).then(([assets, tasks, templates]) => {
       this.assetsSignal.set(mergeLoadedAssets(assets, this.assetsSignal(), tasks));
-      this.pmTasksSignal.set(tasks);
+      // Done history loaded on demand must survive a refresh of the open tasks.
+      this.pmTasksSignal.update(existing => [...tasks, ...existing.filter(t => t.status === 'Done')]);
       this.templateService.setLoadedTemplates(templates);
     });
   }
