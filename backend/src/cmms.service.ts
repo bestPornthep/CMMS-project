@@ -1,6 +1,7 @@
 import { Injectable, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from './prisma.service';
 import { Prisma } from '@prisma/client';
+import { addFrequency } from './frequency.util';
 
 @Injectable()
 export class CmmsService {
@@ -109,23 +110,9 @@ export class CmmsService {
 
   // ── Scheduling Logic ───────────────────────────────────────────────────────
   private getFrequencyIncrementFn(frequency: string): (d: Date) => void {
-    if (frequency === 'Daily') return (d: Date) => d.setDate(d.getDate() + 1);
-    if (frequency === 'Weekly') return (d: Date) => d.setDate(d.getDate() + 7);
-    if (frequency === 'Monthly') return (d: Date) => d.setMonth(d.getMonth() + 1);
-    if (frequency === 'Quarterly') return (d: Date) => d.setMonth(d.getMonth() + 3);
-    if (frequency === 'Yearly') return (d: Date) => d.setFullYear(d.getFullYear() + 1);
-
-    const parts = frequency.split(' ');
-    if (parts.length === 2) {
-      const val = parseInt(parts[0], 10);
-      const unit = parts[1];
-      if (unit === 'hour(s)') return (d: Date) => d.setHours(d.getHours() + val);
-      if (unit === 'day(s)') return (d: Date) => d.setDate(d.getDate() + val);
-      if (unit === 'month(s)') return (d: Date) => d.setMonth(d.getMonth() + val);
-      if (unit === 'Year(s)') return (d: Date) => d.setFullYear(d.getFullYear() + val);
-    }
-
-    return (d: Date) => d.setMonth(d.getMonth() + 1);
+    return (d: Date) => {
+      d.setTime(addFrequency(d, frequency).getTime());
+    };
   }
 
   calculateDates(frequency: string, startDate?: Date): Date[] {
