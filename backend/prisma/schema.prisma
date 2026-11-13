@@ -3083,5 +3083,6 @@ model AuditLog {
   department   String?  @map("department")
   type         String   @map("type") // 'security', 'system', 'data'
   timestamp    DateTime @default(now())
+  changes      String?  @db.NVarChar(Max) // JSON string[] — human-readable diff lines
   @@map("cmms_audit_logs")
 }

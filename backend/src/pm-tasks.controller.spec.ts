@@ -72,9 +72,53 @@ describe('PmTasksController — cancellation & reassign cascade', () => {
 
   it('schedule update accepts isActive', async () => {
     const { controller, prisma } = build(task('Pending'));
-    prisma.pmSchedule.findUnique.mockResolvedValue({ id: 'S1', productId: 'P1' });
+    prisma.pmSchedule.findUnique.mockResolvedValue({ id: 'S1', productId: 'P1', checklist: '[]' });
     prisma.pmTask.findMany = jest.fn().mockResolvedValue([]);
     await controller.updateSchedule('S1', { isActive: false }, admin);
     expect(prisma.pmSchedule.update).toHaveBeenCalledWith({ where: { id: 'S1' }, data: { isActive: false } });
+  });
+});
+
+describe('PmTasksController.updateSchedule — checklist edit', () => {
+  const item = (text: string, extra: any = {}) => ({ text, requiresPhoto: false, requiresValue: false, ...extra });
+
+  function setup(tasks: any[], scheduleChecklist: any[]) {
+    const { controller, prisma } = build(task('Pending'));
+    const logAction = (controller as any).cmms.logAction as jest.Mock;
+    prisma.pmSchedule.findUnique.mockResolvedValue({
+      id: 'S1', title: 'Series', productId: 'P1', department: 'Fab', checklist: JSON.stringify(scheduleChecklist),
+    });
+    prisma.pmTask.findMany = jest.fn().mockResolvedValue(tasks);
+    return { controller, prisma, logAction };
+  }
+
+  it('scopes to non-Done/Cancelled tasks, audits the diff', async () => {
+    const { controller, prisma, logAction } = setup([], [item('a'), item('b')]);
+    await controller.updateSchedule('S1', { checklist: [item('a'), item('c')] }, admin);
+    expect(prisma.pmTask.findMany.mock.calls[0][0].where).toEqual({
+      scheduleId: 'S1',
+      status: { notIn: ['Done', 'Cancelled'] },
+    });
+    expect(logAction).toHaveBeenCalledTimes(1);
+    expect(logAction.mock.calls[0][0]).toBe('Edited PM checklist');
+    expect(logAction.mock.calls[0][6]).toEqual(["Added: 'c'", "Removed: 'b'"]);
+  });
+
+  it('writes no audit entry for a reorder-only edit', async () => {
+    const { controller, logAction } = setup([], [item('a'), item('b')]);
+    await controller.updateSchedule('S1', { checklist: [item('b'), item('a')] }, admin);
+    expect(logAction).not.toHaveBeenCalled();
+  });
+
+  it('keeps recorded progress on in-flight tasks and leaves other fields alone', async () => {
+    const inFlight = {
+      ...task('In Progress'),
+      checklist: JSON.stringify([item('a', { done: true, value: '42' }), item('b')]),
+    };
+    const { controller, prisma } = setup([inFlight], [item('a'), item('b')]);
+    await controller.updateSchedule('S1', { title: 'New', checklist: [item('a'), item('c')] }, admin);
+    const data = prisma.pmTask.update.mock.calls[0][0].data;
+    expect(data.title).toBeUndefined();
+    expect(JSON.parse(data.checklist)).toEqual([item('a', { done: true, value: '42' }), item('c')]);
   });
 });

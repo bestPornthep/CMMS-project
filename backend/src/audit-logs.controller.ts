@@ -41,6 +41,7 @@ export class AuditLogsController {
       target: l.targetId ? { id: l.targetId, name: l.targetName || '', isUser: l.targetIsUser } : null,
       product: l.productId || '',
       type: l.type,
+      ...(l.changes && { changes: JSON.parse(l.changes) as string[] }),
     }));
   }
 }

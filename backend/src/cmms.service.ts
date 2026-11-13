@@ -176,6 +176,7 @@ export class CmmsService {
     productId: string | null,
     type: 'security' | 'system' | 'data',
     department: string | null = null,
+    changes: string[] = [],
   ) {
     await this.prisma.auditLog.create({
       data: {
@@ -188,6 +189,7 @@ export class CmmsService {
         productId,
         department,
         type,
+        ...(changes.length > 0 && { changes: JSON.stringify(changes) }),
       },
     });
   }

@@ -4,6 +4,10 @@ import { CmmsService } from './cmms.service';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { CurrentUser } from './auth/current-user.decorator';
 import { CreatePmTaskDto } from './dto/create-pm-task.dto';
+import { diffChecklist } from './checklist-diff.util';
+
+// Done tasks are history; Cancelled tasks must stay cancelled — series edits never touch either.
+const FINISHED_STATUSES = ['Done', 'Cancelled'];
 
 @UseGuards(JwtAuthGuard)
 @Controller('api/v1/pm-tasks')
@@ -542,6 +546,9 @@ export class PmTasksController {
         throw new ForbiddenException('You do not own the product for this schedule.');
       }
 
+      const checklistChanges =
+        body.checklist !== undefined ? diffChecklist(this.parseChecklist(schedule.checklist), body.checklist) : [];
+
       const scheduleData: any = {};
       if (body.title !== undefined) scheduleData.title = body.title;
       if (body.description !== undefined) scheduleData.description = body.description;
@@ -554,9 +561,11 @@ export class PmTasksController {
       }
 
       const tasks = await this.prisma.pmTask.findMany({
-        where: { scheduleId: seriesId, status: 'Pending' },
+        where: { scheduleId: seriesId, status: { notIn: FINISHED_STATUSES } },
       });
-      return this.applyScheduleUpdatesToTasks(tasks, seriesId, body);
+      const updatedTasks = await this.applyScheduleUpdatesToTasks(tasks, seriesId, body);
+      await this.logChecklistChange(user, seriesId, schedule.title, schedule.productId, schedule.department, checklistChanges);
+      return updatedTasks;
     }
 
     // Legacy fallback: schedules created before this fix have no PmSchedule
@@ -564,7 +573,7 @@ export class PmTasksController {
     // existing series remain editable (not retroactively migrated).
     const tasks = await this.prisma.pmTask.findMany({
       where: {
-        status: 'Pending',
+        status: { notIn: FINISHED_STATUSES },
         description: { contains: `[SeriesID: ${seriesId}]` },
       },
     });
@@ -581,18 +590,57 @@ export class PmTasksController {
       throw new ForbiddenException('You do not own the product for this schedule.');
     }
 
-    return this.applyScheduleUpdatesToTasks(tasks, seriesId, body);
+    const checklistChanges =
+      body.checklist !== undefined ? diffChecklist(this.parseChecklist(tasks[0].checklist), body.checklist) : [];
+    const updatedTasks = await this.applyScheduleUpdatesToTasks(tasks, seriesId, body);
+    await this.logChecklistChange(user, seriesId, tasks[0].title, tasks[0].productId, tasks[0].department, checklistChanges);
+    return updatedTasks;
+  }
+
+  private parseChecklist(raw: unknown): { text: string; requiresPhoto?: boolean; requiresValue?: boolean }[] {
+    try {
+      const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  private async logChecklistChange(
+    user: any,
+    seriesId: string,
+    title: string,
+    productId: string,
+    department: string,
+    changes: string[],
+  ) {
+    if (changes.length === 0) return;
+    await this.cmms.logAction(
+      'Edited PM checklist',
+      { id: user.employeeId, name: user.name },
+      { id: seriesId, name: title, isUser: false },
+      productId,
+      'data',
+      department,
+      changes,
+    );
   }
 
   private async applyScheduleUpdatesToTasks(tasks: any[], seriesId: string, body: any) {
     const updatedTasks = [];
     for (const task of tasks) {
       const data: any = {};
-      if (body.title !== undefined) data.title = body.title;
-      if (body.description !== undefined) data.description = `[SeriesID: ${seriesId}]\n${body.description}`;
-      if (body.checklist !== undefined) data.checklist = JSON.stringify(body.checklist);
-      if (body.partsRequired !== undefined) data.partsRequired = JSON.stringify(body.partsRequired);
-      if (body.assignedTo !== undefined) data.assignedTo = body.assignedTo;
+      // Title/description/parts/assignee edits keep their original Pending-only reach;
+      // only the checklist cascades to in-flight (In Progress / Pending Approval / Overdue) work.
+      if (task.status === 'Pending') {
+        if (body.title !== undefined) data.title = body.title;
+        if (body.description !== undefined) data.description = `[SeriesID: ${seriesId}]\n${body.description}`;
+        if (body.partsRequired !== undefined) data.partsRequired = JSON.stringify(body.partsRequired);
+        if (body.assignedTo !== undefined) data.assignedTo = body.assignedTo;
+      }
+      if (body.checklist !== undefined) {
+        data.checklist = JSON.stringify(this.carryOverProgress(task.checklist, body.checklist));
+      }
 
       const updated = await this.prisma.pmTask.update({
         where: { id: task.id },
@@ -602,5 +650,21 @@ export class PmTasksController {
     }
 
     return updatedTasks.map(t => this.cleanPmTask(t));
+  }
+
+  // Keeps a technician's recorded progress (done / photo / value) on items whose text is unchanged.
+  private carryOverProgress(existingRaw: unknown, incoming: any[]) {
+    const progressByText = new Map<string, any[]>();
+    for (const old of this.parseChecklist(existingRaw) as any[]) {
+      const queue = progressByText.get(old.text) ?? [];
+      queue.push(old);
+      progressByText.set(old.text, queue);
+    }
+    return incoming.map(item => {
+      const old = progressByText.get(item.text)?.shift();
+      if (!old) return item;
+      const { done, photoUrl, value } = old;
+      return { ...item, ...(done !== undefined && { done }), ...(photoUrl !== undefined && { photoUrl }), ...(value !== undefined && { value }) };
+    });
   }
 }
