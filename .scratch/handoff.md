@@ -30,17 +30,17 @@ Frontend:
 ## Deployed (dev)
 - Applied to dev DB `KETL_Tester` (each script in its own transaction; never use `prisma migrate` / `db push`): `add-machine-lifecycle-fields`, `create-pm-id-sequences-table`, `add-audit-changes-column`, `create-masterplan-tables`, `create-pm-types-table`.
 - `cmms-backend` rebuilt with `docker compose up -d --build backend` (from `backend/`); all new routes mount under `/api/v1`; unauthenticated calls return 401.
-- NOT applied: `trim-pm-task-overgeneration.sql` (deletes rows; DB team approval needed). Dry run found 24,804 far-future Pending rows across 25 schedules (earliest 2027-11-14, latest 2109). Run STEP 1 again and set `@Expected` before deleting.
+- Applied `trim-pm-task-overgeneration.sql` on the user's approval: deleted exactly 24,804 far-future Pending rows (tasks 26,563 → 1,759; latest Pending due now 2027-11-13). The deleted rows are backed up as JSON in the Copilot session `files/trimmed-pm-tasks-backup.json` (not in the repo).
 - `create-pm-types-table.sql` backfill report: legacy duplicate monthly schedules for `SRV-P2-01` (3) and `THC-P1-01` (6); only the earliest got a claim. DB team to decide what to retire.
 - `cmms_pm_tasks.id` is NVARCHAR(1000), so the long task ids fit.
 
 ## Next steps
 1. ~~Smoke-test Master Plan end to end~~ Done against the dev backend (18/18 passed; test data removed afterwards): engineer create asset → draft PM type → Send card → admin approve → tasks generated with new ids and bounded horizon → duplicate PM 409 → deactivate card → approve → open tasks Cancelled; technician gets 403 on changes; engineer cannot approve (403). Test accounts used: `ADM001`/`ENG-TST-1`/`TECH-TST-1` (see `backend/test/*.e2e-spec.ts`). Merge of two open cards for one machine and Reject/Withdraw were not exercised live.
-2. DB team: run the trim cleanup and resolve the duplicate schedules.
+2. DB team: resolve the duplicate schedules.
 3. Merge/push when the user is satisfied (feature workflow: `/code-review` against `main` was skipped at the user's request).
 
 ## Known issues / deferred
-- `PUT /pm-tasks/schedule/:seriesId` has no technician role block (pre-existing; more impactful now that checklist edits reach in-flight tasks).
+- `PUT /pm-tasks/schedule/:seriesId` now rejects technicians unless they hold a `pm.create.submit` or `pm.assign.submit` delegation on the product (fixed, redeployed, verified live: technician 403, admin 200).
 - Submit/merge of a Master Plan card is a read-modify-write (no locking).
 - A paused deactivated asset's PM-type claim remains.
 - `PmStore.loadData()` loads tasks excluding Done, so a reload (e.g. after approve) drops loaded Done history.
