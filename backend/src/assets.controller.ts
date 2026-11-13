@@ -84,6 +84,10 @@ export class AssetsController {
     }
 
     const targetLocation: string = body.location ?? asset.location;
+    // A machine with an open Send is read-only until the request is approved, rejected or withdrawn.
+    if (!asset.isInMasterPlan && (await this.prisma.masterPlanChange.count({ where: { assetId: id, status: 'pending' } })) > 0) {
+      throw new ConflictException('This machine is waiting for approval. Withdraw the request to change it.');
+    }
     for (const productId of new Set([asset.location, targetLocation])) {
       this.assertCanManageAssets(user, productId);
       await this.cmms.checkProductOwnership(user, productId, 'pm.create.submit');

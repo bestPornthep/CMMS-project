@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { AssetsController } from './assets.controller';
 
 const baseAsset = {
@@ -24,6 +24,7 @@ function build(asset: any = baseAsset) {
   const prisma: any = {
     asset: { findUnique: jest.fn().mockResolvedValue(asset) },
     product: { findUnique: jest.fn().mockResolvedValue({ id: 'P2' }) },
+    masterPlanChange: { count: jest.fn().mockResolvedValue(0) },
     $transaction: jest.fn((fn: any) => fn(tx)),
   };
   const cmms: any = {
@@ -79,6 +80,12 @@ describe('AssetsController.update (PATCH /assets/:id)', () => {
     expect(cancel.data).toMatchObject({ status: 'Cancelled', cancelledReason: 'Machine deactivated' });
     expect(cancel.data.cancelledAt).toBeInstanceOf(Date);
     expect(cmms.logAction.mock.calls.map((c: any[]) => c[0])).toEqual(['Machine Deactivated']);
+  });
+
+  it('409s while the machine has an open Send to Master Plan', async () => {
+    const { controller, prisma } = build();
+    prisma.masterPlanChange.count.mockResolvedValue(1);
+    await expect(controller.update('CNC-014', { name: 'n' }, admin)).rejects.toBeInstanceOf(ConflictException);
   });
 
   it('reactivate: resumes only schedules still holding their PM type, keeps cancelled tasks cancelled', async () => {
