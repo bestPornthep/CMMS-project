@@ -26,6 +26,8 @@ applyTo: "backend/**"
 - **JSON-in-string columns**: `checklist`, `parts`, `permissions` are stored as JSON strings. Always `JSON.parse()` on read and `JSON.stringify()` on write.
 - Task IDs follow the pattern `PM-{assetId}-{periodCode}-{seq}` (e.g. `PM-THC-P1-01-1m-01`) — minted atomically via `CmmsService.createTaskInTx()` / `createTaskWithRetry()` (counter table `cmms_pm_id_sequences`). Never generate IDs manually.
 - One PM type (asset + normalized frequency) per asset, enforced by `cmms_pm_types`: call `assertPmTypeAvailable` then `claimPmType` inside the same transaction as the create. Conflicts return 409 with `conflict: { taskId, scheduleId, status, assignedTo }`.
+- Releasing a PM type (`retirePmType` in `asset-lifecycle.ts`, or `PUT /pm-tasks/schedule/:id {isActive:false}`) deletes its claim so the frequency can be added again; resuming claims it again (409 if re-added meanwhile). Machine deactivate/reactivate (`applyAssetUpdate`) only resumes schedules that still hold a claim.
+- Master Plan workflow lives in `masterplan.service.ts` (`/pm-masterplan/*`) and `draft-pm-types.controller.ts` (`/assets/:id/draft-pm-types`). One open card per machine (filtered unique index); approve runs one transaction per machine and creates PMs via `CmmsService.createScheduleInTx` / `createStandalonePmInTx`. A machine with an open Send is read-only (`PATCH /assets/:id` and draft edits return 409).
 - Use `CmmsService.logAction()` for all significant data mutations (create/update/delete/approve/reject).
 
 ## Auth
@@ -41,4 +43,3 @@ applyTo: "backend/**"
 ## Known Gaps (do not silently fix without a spec)
 
 - Schema changes for the legacy shared DB go through `backend/prisma/manual-sql/*.sql` (applied with `prisma db execute`) plus `schema.prisma`. Never use `prisma migrate` / `db push`.
-- Master Plan (`/pm-masterplan/*`, `/assets/:id/draft-pm-types`) is not implemented yet (see `.scratch/handoff.md`).
