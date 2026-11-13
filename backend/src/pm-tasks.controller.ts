@@ -467,63 +467,27 @@ export class PmTasksController {
       throw new BadRequestException('Start date cannot be in the past');
     }
 
-    // First occurrence lands exactly on the user-chosen start date; every
-    // later occurrence is startDate + N×frequency via the existing helper.
-    const dates = [startDate, ...this.cmms.calculateDates(body.frequency, startDate)];
-
-    // One transaction: PM-type claim + schedule row + every task. The claim's
-    // primary key makes duplicate (asset, frequency) creation race-safe, and a
-    // failure anywhere leaves no orphan claim or half-built series.
-    // The legacy [SeriesID: xxx] marker in `description` is kept because the
-    // frontend still parses it to group series.
+    // One transaction: PM-type claim + schedule row + every task (see createScheduleInTx).
     const createdTasks = await this.prisma.$transaction(
-      async (tx) => {
-        await this.cmms.assertPmTypeAvailable(tx, body.assetId, body.frequency);
-        await this.cmms.claimPmType(tx, body.assetId, body.frequency, { scheduleId: seriesId });
-
-        // A real PmSchedule row (id = seriesId) lets the nightly topUpSchedules()
-        // cron keep generating future tasks beyond the initial ~1 year batch.
-        await tx.pmSchedule.create({
-          data: {
-            id: seriesId,
+      (tx) =>
+        this.cmms.createScheduleInTx(
+          tx,
+          {
             title: body.title,
-            description: body.description || null,
+            description: body.description,
             frequency: body.frequency,
             assetId: body.assetId,
             productId: body.productId,
             department: body.department,
             estimatedHours: body.estimatedHours,
-            checklist: JSON.stringify(body.checklist || []),
-            partsRequired: JSON.stringify(body.partsRequired || []),
-            assignedTo: body.assignedTo || null,
+            checklist: body.checklist,
+            partsRequired: body.partsRequired,
+            assignedTo: body.assignedTo,
             createdBy: user.employeeId,
+            startDate,
           },
-        });
-
-        const tasks = [];
-        for (const date of dates) {
-          tasks.push(
-            await this.cmms.createTaskInTx(tx, {
-              title: body.title,
-              description: `[SeriesID: ${seriesId}]\n${body.description || ''}`,
-              frequency: body.frequency,
-              assetId: body.assetId,
-              productId: body.productId,
-              department: body.department,
-              nextDueDate: date,
-              estimatedHours: body.estimatedHours,
-              status: 'Pending',
-              checklist: JSON.stringify(body.checklist || []),
-              partsRequired: JSON.stringify(body.partsRequired || []),
-              partsUsed: '[]',
-              assignedTo: body.assignedTo || null,
-              createdBy: user.employeeId,
-              scheduleId: seriesId,
-            }),
-          );
-        }
-        return tasks;
-      },
+          seriesId,
+        ),
       { timeout: 120000, maxWait: 10000 },
     );
 

@@ -1,12 +1,9 @@
 import { Controller, Get, Post, Patch, Param, Body, Query, UseGuards, ConflictException, ForbiddenException, BadRequestException, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 import { PrismaService } from './prisma.service';
 import { CmmsService } from './cmms.service';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { CurrentUser } from './auth/current-user.decorator';
-
-// Done tasks are history and are never touched by a machine deactivation.
-const ASSET_CASCADE_CANCEL_STATUSES = ['Pending', 'In Progress', 'Pending Approval', 'Overdue'] as const;
+import { applyAssetUpdate, AssetUpdate } from './asset-lifecycle';
 
 @UseGuards(JwtAuthGuard)
 @Controller('api/v1/assets')
@@ -98,33 +95,21 @@ export class AssetsController {
       }
     }
 
-    const data: Prisma.AssetUpdateInput = {};
+    const fields: AssetUpdate['fields'] = {};
     for (const field of ['name', 'department', 'location', 'workCenter'] as const) {
       if (body[field] !== undefined && body[field] !== asset[field]) {
-        data[field] = body[field];
+        fields[field] = body[field];
       }
     }
     const activeChanged = body.isActive !== undefined && body.isActive !== asset.isActive;
-    const fieldsChanged = Object.keys(data).length > 0;
+    const fieldsChanged = Object.keys(fields).length > 0;
     if (!fieldsChanged && !activeChanged) {
       return asset;
     }
 
-    const now = new Date();
-    const updated = await this.prisma.$transaction(async (tx) => {
-      if (activeChanged) {
-        data.isActive = body.isActive;
-        data.deactivatedAt = body.isActive ? null : now;
-        await tx.pmSchedule.updateMany({ where: { assetId: id }, data: { isActive: body.isActive } });
-        if (!body.isActive) {
-          await tx.pmTask.updateMany({
-            where: { assetId: id, status: { in: [...ASSET_CASCADE_CANCEL_STATUSES] } },
-            data: { status: 'Cancelled', cancelledReason: 'Machine deactivated', cancelledAt: now },
-          });
-        }
-      }
-      return tx.asset.update({ where: { id }, data });
-    });
+    const updated = await this.prisma.$transaction((tx) =>
+      applyAssetUpdate(tx, id, { fields, isActive: activeChanged ? body.isActive : undefined }, new Date()),
+    );
 
     const actor = { id: user.employeeId, name: user.name };
     const target = { id: updated.id, name: updated.name, isUser: false };

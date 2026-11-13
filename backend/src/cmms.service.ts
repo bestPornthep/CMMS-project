@@ -3,6 +3,21 @@ import { PrismaService } from './prisma.service';
 import { Prisma } from '@prisma/client';
 import { addFrequency, normalizeFrequency, periodCode } from './frequency.util';
 
+export interface PmDefinition {
+  title: string;
+  description?: string | null;
+  frequency: string;
+  assetId: string;
+  productId: string;
+  department: string;
+  estimatedHours: number;
+  checklist?: unknown[];
+  partsRequired?: unknown[];
+  assignedTo?: string | null;
+  createdBy: string;
+  startDate: Date;
+}
+
 @Injectable()
 export class CmmsService {
   constructor(private prisma: PrismaService) {}
@@ -114,6 +129,85 @@ export class CmmsService {
   async createTaskInTx(tx: Prisma.TransactionClient, data: Omit<Prisma.PmTaskCreateInput, 'id'>) {
     const id = await this.nextTaskId(tx, data.assetId, data.frequency);
     return tx.pmTask.create({ data: { ...data, id } });
+  }
+
+  /**
+   * Creates a recurring PM series in the caller's transaction: PM-type claim, PmSchedule row and
+   * the initial tasks (first on `startDate`, the rest one year ahead). A failure anywhere rolls
+   * back the claim and any partial series. The legacy [SeriesID: x] marker in `description` is
+   * kept because the frontend still parses it to group a series.
+   */
+  async createScheduleInTx(tx: Prisma.TransactionClient, def: PmDefinition, seriesId: string) {
+    await this.assertPmTypeAvailable(tx, def.assetId, def.frequency);
+    await this.claimPmType(tx, def.assetId, def.frequency, { scheduleId: seriesId });
+
+    const checklist = JSON.stringify(def.checklist || []);
+    const partsRequired = JSON.stringify(def.partsRequired || []);
+
+    // A real PmSchedule row (id = seriesId) lets the nightly topUpSchedules() keep generating tasks.
+    await tx.pmSchedule.create({
+      data: {
+        id: seriesId,
+        title: def.title,
+        description: def.description || null,
+        frequency: def.frequency,
+        assetId: def.assetId,
+        productId: def.productId,
+        department: def.department,
+        estimatedHours: def.estimatedHours,
+        checklist,
+        partsRequired,
+        assignedTo: def.assignedTo || null,
+        createdBy: def.createdBy,
+      },
+    });
+
+    const tasks = [];
+    for (const date of [def.startDate, ...this.calculateDates(def.frequency, def.startDate)]) {
+      tasks.push(
+        await this.createTaskInTx(tx, {
+          title: def.title,
+          description: `[SeriesID: ${seriesId}]\n${def.description || ''}`,
+          frequency: def.frequency,
+          assetId: def.assetId,
+          productId: def.productId,
+          department: def.department,
+          nextDueDate: date,
+          estimatedHours: def.estimatedHours,
+          status: 'Pending',
+          checklist,
+          partsRequired,
+          partsUsed: '[]',
+          assignedTo: def.assignedTo || null,
+          createdBy: def.createdBy,
+          scheduleId: seriesId,
+        }),
+      );
+    }
+    return tasks;
+  }
+
+  /** One-off PM (not recurring): claims the PM type with the task and creates the single task. */
+  async createStandalonePmInTx(tx: Prisma.TransactionClient, def: PmDefinition) {
+    await this.assertPmTypeAvailable(tx, def.assetId, def.frequency);
+    const task = await this.createTaskInTx(tx, {
+      title: def.title,
+      description: def.description || '',
+      frequency: def.frequency,
+      assetId: def.assetId,
+      productId: def.productId,
+      department: def.department,
+      nextDueDate: def.startDate,
+      estimatedHours: def.estimatedHours,
+      status: 'Pending',
+      checklist: JSON.stringify(def.checklist || []),
+      partsRequired: JSON.stringify(def.partsRequired || []),
+      partsUsed: '[]',
+      assignedTo: def.assignedTo || null,
+      createdBy: def.createdBy,
+    });
+    await this.claimPmType(tx, def.assetId, def.frequency, { taskId: task.id });
+    return task;
   }
 
   /** Single-task create in its own transaction; retries transient conflicts. */
