@@ -47,4 +47,4 @@ Run these to verify work before marking a ticket done:
 
 ## Language
 
-User writes in Thai or English. Always respond in English.
+User writes in Thai or English. Reply in the language the user wrote in: Thai question → Thai answer, English question → English answer. Keep code, identifiers, commit messages and docs in English.
