@@ -1,94 +1,94 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import {
-  Asset, AuditLog, DraftPmType, MasterPlanEditHistoryEntry, MasterPlanVersionSnapshot, NewPmTypeDetail, PendingMasterPlanChange,
+  Asset, DraftPmType, MasterPlanVersionSnapshot, NewPmTypeDetail, PendingMasterPlanChange,
   PMTask, PMTaskStatus, PmTypeSummary, ProposedMasterPlanState, User
 } from '../models/pm.model';
 import { ApiService } from './api.service';
+import { apiErrorMessage } from './api-error.util';
 import { AuthService } from './auth.service';
 import { PmStore } from './pm-store.service';
-import { PmTaskService } from './pm-task.service';
-import { reconcileMasterPlanChange, ReconcileResult } from './pm-masterplan-reconcile.util';
 import { frequencyRank, normalizeFrequency } from './pm-frequency.util';
-import { copyPmTypeDetail, isAssetInMasterPlan, SERIES_MARKER, SERIES_MARKER_G } from './pm-plan.util';
-import { generateOccurrenceDates } from './pm-preview-occurrences.util';
-import { buildMockMasterPlanChanges } from './pm-masterplan-mock';
+import { isAssetInMasterPlan, SERIES_MARKER, SERIES_MARKER_G } from './pm-plan.util';
 
 @Injectable({ providedIn: 'root' })
 export class MasterPlanService {
   private api = inject(ApiService);
   private authService = inject(AuthService);
   private store = inject(PmStore);
-  private taskService = inject(PmTaskService);
 
-  // ── PM Master Plan approval workflow — first-version, mock-only state ────
-  // No backend endpoint exists for any of this yet (see docs/backend_fixes_needed_combined.html#masterplan)
-  // so it lives purely in these in-memory signals — never persisted, lost on refresh.
+  // ── PM Master Plan approval workflow ─────────────────────────────────────
+  // The backend owns the requests, versions, drafts and audit entries; these signals mirror what it
+  // last sent. Every mutation is an API call followed by a re-sync, so the UI never drifts from the server.
   private pendingMasterPlanChangesSignal = signal<PendingMasterPlanChange[]>([]);
   private masterPlanVersionsSignal = signal<MasterPlanVersionSnapshot[]>([]);
-  private localAuditLogsSignal = signal<AuditLog[]>([]);
-  private requestSeq = 0;
   // Requests whose approval is still running, so a second approve/reject cannot apply them twice.
   private processingMasterPlanChangeIdsSignal = signal<ReadonlySet<string>>(new Set());
-
-  private previewSeq = 0;
 
   // PM types defined on machines that are not in the Master Plan yet, by machine id (see DraftPmType).
   private draftPmTypesSignal = signal<Record<string, DraftPmType[]>>({});
 
   readonly pendingMasterPlanChanges = computed(() => this.pendingMasterPlanChangesSignal());
   readonly masterPlanVersions = computed(() => this.masterPlanVersionsSignal());
-  readonly localAuditLogs = computed(() => this.localAuditLogsSignal());
 
-  // `mock: true` skips the real API call entirely (purely local signal update) — lets the
-  // Machines page be exercised end-to-end before the backend supports isActive/PATCH (see
-  // docs/backend_fixes_needed_combined.html#machine). Never used in production builds.
-  // A new machine always starts out of the Master Plan; a mock one also never leaves this browser session.
-  createAsset(asset: { id: string, name: string, location: string, department: string, workCenter?: string }, opts?: { mock?: boolean }): Promise<void> {
+  // Loads requests, versions and drafts. Run after the machines are loaded (app start and login).
+  // Technicians cannot see the Master Plan, so nothing is requested for them.
+  async load(): Promise<void> {
+    if (!this.canProposeMasterPlanChange()) return;
+    await Promise.all([this.refreshChanges(), this.refreshVersions(), this.refreshDrafts()]);
+  }
+
+  private async refreshChanges(): Promise<void> {
+    this.pendingMasterPlanChangesSignal.set(await this.api.listMasterPlanChanges());
+  }
+
+  private async refreshVersions(): Promise<void> {
+    this.masterPlanVersionsSignal.set(await this.api.getMasterPlanVersions());
+  }
+
+  // Only machines outside the plan can have drafts.
+  private async refreshDrafts(): Promise<void> {
+    const ids = this.store.assets().filter(a => !isAssetInMasterPlan(a)).map(a => a.id);
+    const lists = await Promise.all(ids.map(id => this.api.getDraftPmTypes(id)));
+    this.draftPmTypesSignal.set(Object.fromEntries(ids.map((id, i) => [id, lists[i]]).filter(([, l]) => (l as DraftPmType[]).length > 0)));
+  }
+
+  // A new machine always starts out of the Master Plan.
+  createAsset(asset: { id: string, name: string, location: string, department: string, workCenter?: string }): Promise<void> {
     const user = this.authService.currentUser();
     if (!user || !this.authService.hasPermission('pm.create.submit')) {
       return Promise.reject(new Error('Unauthorized to create assets.'));
     }
-    const newAsset: Asset = { ...asset, isActive: true, isInMasterPlan: false, ...(opts?.mock ? { isLocalOnly: true } : {}) };
-    if (opts?.mock) {
-      this.store.updateAssets(assets => [...assets, newAsset]);
-      return Promise.resolve();
-    }
+    const newAsset: Asset = { ...asset, isActive: true, isInMasterPlan: false };
     return this.api.createAsset(asset).then(() => {
       this.store.updateAssets(assets => [...assets, newAsset]);
-    });
+    }, e => { throw new Error(apiErrorMessage(e)); });
   }
 
-  // Edits a machine's own fields and/or its active status. Deactivating cascades locally to
-  // cancel that machine's not-yet-Done tasks so the UI reflects the effect immediately — the
-  // backend is the source of truth for actually pausing the recurring schedule (see
-  // docs/backend_fixes_needed_combined.html#machine); this local mirror is a best-effort UI preview.
-  private updateAsset(id: string, patch: Partial<Pick<Asset, 'name' | 'department' | 'location' | 'workCenter' | 'isActive'>>, opts?: { mock?: boolean }): Promise<void> {
+  // Edits a machine's own fields and/or its active status through PATCH /assets/:id. The backend
+  // cancels the machine's open tasks when it is deactivated; the same cancel is mirrored locally so
+  // the UI shows it at once, and the machine itself is taken from the response.
+  private async updateAsset(id: string, patch: Partial<Pick<Asset, 'name' | 'department' | 'location' | 'workCenter' | 'isActive'>>): Promise<void> {
     const user = this.authService.currentUser();
     if (!user || !this.authService.hasPermission('pm.create.submit')) {
-      return Promise.reject(new Error('Unauthorized to update assets.'));
+      throw new Error('Unauthorized to update assets.');
     }
-    const applyLocally = () => {
+    let saved: Asset;
+    try {
+      saved = await this.api.updateAsset(id, patch);
+    } catch (e) {
+      throw new Error(apiErrorMessage(e));
+    }
+    const deactivatedAt = saved.deactivatedAt ? new Date(saved.deactivatedAt) : undefined;
+    this.store.updateAssets(assets => assets.map(a => a.id === id ? { ...a, ...saved, deactivatedAt } : a));
+    if (patch.isActive === false) {
       const now = new Date();
-      // Track when deactivation happened so PM Master Plan can tell "deactivated this year"
-      // (still show, with cutoff) from "deactivated a past year" (exclude entirely).
-      const withTimestamp = { ...patch } as typeof patch & { deactivatedAt?: Date };
-      if (patch.isActive === false) withTimestamp.deactivatedAt = now;
-      else if (patch.isActive === true) withTimestamp.deactivatedAt = undefined;
-      this.store.updateAssets(assets => assets.map(a => a.id === id ? { ...a, ...withTimestamp } : a));
-      if (patch.isActive === false) {
-        const cancelOpen = (tasks: PMTask[]) => tasks.map(t => {
-          if (t.assetId !== id || t.status === 'Done' || t.status === 'Cancelled') return t;
-          return { ...t, status: 'Cancelled' as PMTaskStatus, cancelledReason: 'Machine deactivated', cancelledAt: now };
-        });
-        this.store.updatePmTasks(cancelOpen);
-        this.store.updatePreviewTasks(cancelOpen);
-      }
-    };
-    if (opts?.mock) {
-      applyLocally();
-      return Promise.resolve();
+      const cancelOpen = (tasks: PMTask[]) => tasks.map(t => {
+        if (t.assetId !== id || t.status === 'Done' || t.status === 'Cancelled') return t;
+        return { ...t, status: 'Cancelled' as PMTaskStatus, cancelledReason: 'Machine deactivated', cancelledAt: now };
+      });
+      this.store.updatePmTasks(cancelOpen);
+      this.store.updatePreviewTasks(cancelOpen);
     }
-    return this.api.updateAsset(id, patch).then(() => applyLocally());
   }
 
   createProduct(product: { id: string, name: string }): Promise<void> {
@@ -109,8 +109,8 @@ export class MasterPlanService {
     return this.pendingMasterPlanChangesSignal().find(c => c.assetId === assetId && c.status === 'pending');
   }
 
-  // A new machine is created at once, with no approval: Not in plan and local-only (never sent to
-  // the backend). It joins the Master Plan later through Send to Master Plan.
+  // A new machine is created at once, with no approval, and starts Not in plan. It joins the Master
+  // Plan later through Send to Master Plan.
   async addMachine(input: { id: string; name: string; location: string; department: string; workCenter: string }): Promise<void> {
     const user = this.authService.currentUser();
     if (!user || !this.authService.hasPermission('pm.create.submit')) {
@@ -129,7 +129,7 @@ export class MasterPlanService {
     if (this.store.assets().some(a => a.id.toLowerCase() === machine.id.toLowerCase())) {
       throw new Error('A machine with this ID already exists. Machine IDs must be unique.');
     }
-    await this.createAsset(machine, { mock: true });
+    await this.createAsset(machine);
   }
 
   // Edits a machine's own fields. Not in plan: applied at once. In plan: becomes an approval request.
@@ -155,10 +155,10 @@ export class MasterPlanService {
     if (Object.keys(diff).length === 0) return 'unchanged';
 
     if (!this.isInMasterPlan(assetId)) {
-      await this.updateAsset(assetId, diff, { mock: true });
+      await this.updateAsset(assetId, diff);
       return 'applied';
     }
-    this.submitMasterPlanChange({ assetId, assetName: current.name, department: current.department, changes: { editFields: diff }, note });
+    await this.submitMasterPlanChange({ assetId, assetName: current.name, department: current.department, changes: { editFields: diff }, note });
     return this.openRequestFor(assetId) ? 'submitted' : 'unchanged';
   }
 
@@ -170,10 +170,10 @@ export class MasterPlanService {
 
     if (!this.isInMasterPlan(assetId)) {
       if ((current.isActive !== false) === active) return 'unchanged';
-      await this.updateAsset(assetId, { isActive: active }, { mock: true });
+      await this.updateAsset(assetId, { isActive: active });
       return 'applied';
     }
-    this.submitMasterPlanChange({
+    await this.submitMasterPlanChange({
       assetId,
       assetName: current.name,
       department: current.department,
@@ -212,9 +212,9 @@ export class MasterPlanService {
     return machine;
   }
 
-  // Saves a draft at once: no approval, no task, nothing sent to the backend. It becomes real PM tasks
-  // only when the machine is approved into the plan.
-  addDraftPmType(assetId: string, frequency: string, detail: NewPmTypeDetail): void {
+  // Saves a draft at once: no approval and no task. It becomes real PM tasks only when the machine is
+  // approved into the plan.
+  async addDraftPmType(assetId: string, frequency: string, detail: NewPmTypeDetail): Promise<void> {
     const machine = this.draftableMachine(assetId, 'added');
     if (machine.isActive === false) throw new Error('Reactivate this machine before adding PM types.');
 
@@ -232,9 +232,9 @@ export class MasterPlanService {
       throw new Error(`This machine already has a ${label} PM. You cannot create another PM of the same type for this machine.`);
     }
 
-    const draft: DraftPmType = {
-      frequency: label,
-      detail: {
+    let saved: DraftPmType;
+    try {
+      saved = await this.api.saveDraftPmType(assetId, label, {
         title,
         description: detail.description?.trim() || undefined,
         estimatedHours: detail.estimatedHours,
@@ -244,20 +244,26 @@ export class MasterPlanService {
           .map(item => ({ text: item.text.trim(), requiresPhoto: item.requiresPhoto, requiresValue: item.requiresValue })),
         startDate: detail.startDate ? new Date(detail.startDate) : undefined,
         isRecurring: detail.isRecurring
-      }
-    };
-    this.draftPmTypesSignal.update(all => ({ ...all, [assetId]: [...(all[assetId] ?? []), draft] }));
+      });
+    } catch (e) {
+      throw new Error(apiErrorMessage(e));
+    }
+    this.draftPmTypesSignal.update(all => ({ ...all, [assetId]: [...(all[assetId] ?? []), saved] }));
   }
 
-  removeDraftPmType(assetId: string, frequency: string): void {
+  async removeDraftPmType(assetId: string, frequency: string): Promise<void> {
     this.draftableMachine(assetId, 'removed');
     const target = normalizeFrequency(frequency);
-    if (!this.draftPmTypesFor(assetId).some(d => normalizeFrequency(d.frequency) === target)) {
-      throw new Error('This PM type is not a draft on this machine.');
+    const draft = this.draftPmTypesFor(assetId).find(d => normalizeFrequency(d.frequency) === target);
+    if (!draft) throw new Error('This PM type is not a draft on this machine.');
+    try {
+      await this.api.deleteDraftPmType(assetId, draft.frequency);
+    } catch (e) {
+      throw new Error(apiErrorMessage(e));
     }
     this.draftPmTypesSignal.update(all => ({
       ...all,
-      [assetId]: (all[assetId] ?? []).filter(d => normalizeFrequency(d.frequency) !== target)
+      [assetId]: (all[assetId] ?? []).filter(d => d !== draft)
     }));
   }
 
@@ -271,15 +277,15 @@ export class MasterPlanService {
   }
 
   // Removes a PM type. Not in plan: the draft goes at once. In plan: becomes an approval request.
-  removePmType(assetId: string, frequency: string): 'applied' | 'submitted' | 'unchanged' {
+  async removePmType(assetId: string, frequency: string): Promise<'applied' | 'submitted' | 'unchanged'> {
     const machine = this.store.assets().find(a => a.id === assetId);
     if (!machine) throw new Error('Machine not found.');
     this.assertNotWaiting(assetId);
     if (!isAssetInMasterPlan(machine)) {
-      this.removeDraftPmType(assetId, frequency);
+      await this.removeDraftPmType(assetId, frequency);
       return 'applied';
     }
-    this.submitMasterPlanChange({
+    await this.submitMasterPlanChange({
       assetId,
       assetName: machine.name,
       department: machine.department,
@@ -319,9 +325,9 @@ export class MasterPlanService {
     return null;
   }
 
-  // One open request carrying the machine and a copy of all its drafts. The drafts stay on the machine
-  // while it waits (it is locked) and are cleared only when the request is approved.
-  sendToMasterPlan(assetId: string): void {
+  // One open request carrying the machine; the backend builds its PM types from the machine's drafts.
+  // The drafts stay on the machine while it waits (it is locked) and are cleared once it is approved.
+  async sendToMasterPlan(assetId: string): Promise<void> {
     const user = this.authService.currentUser();
     if (!user || !this.canProposeMasterPlanChange()) {
       throw new Error('Unauthorized to propose PM Master Plan changes.');
@@ -330,33 +336,21 @@ export class MasterPlanService {
     if (blocked) throw new Error(blocked);
 
     const machine = this.store.assets().find(a => a.id === assetId)!;
-    const request = this.buildSendRequest(machine, this.draftPmTypesFor(assetId), user.employeeId, new Date());
-    this.pendingMasterPlanChangesSignal.update(list => [request, ...list]);
-  }
-
-  private buildSendRequest(machine: Asset, drafts: DraftPmType[], submittedBy: string, at: Date): PendingMasterPlanChange {
-    const note = `Send ${machine.name} to the Master Plan`;
-    return {
-      id: this.newRequestId(),
-      assetId: machine.id,
-      assetName: machine.name,
-      department: machine.department,
-      proposedState: {
-        addToPlan: true,
-        addPmTypes: drafts.map(d => d.frequency),
-        newPmTypeDetails: Object.fromEntries(drafts.map(d => [d.frequency, copyPmTypeDetail(d.detail)]))
-      },
-      submittedBy,
-      submittedAt: at,
-      note,
-      history: [{ timestamp: at, by: submittedBy, note }],
-      status: 'pending'
-    };
+    try {
+      await this.api.submitMasterPlanChange({
+        assetId,
+        proposedState: { addToPlan: true },
+        note: `Send ${machine.name} to the Master Plan`
+      });
+    } catch (e) {
+      throw new Error(apiErrorMessage(e));
+    }
+    await this.refreshChanges();
   }
 
   // Deletes the open Send request (it was never decided, so no audit entry). The machine is unlocked
   // and keeps its drafts.
-  withdrawSendRequest(assetId: string): void {
+  async withdrawSendRequest(assetId: string): Promise<void> {
     const user = this.authService.currentUser();
     if (!user) throw new Error('Unauthorized to withdraw this request.');
     const open = this.openRequestFor(assetId);
@@ -366,7 +360,12 @@ export class MasterPlanService {
     if (open.submittedBy !== user.employeeId && !this.canApproveMasterPlanChange()) {
       throw new Error('Only the sender or an approver can withdraw this request.');
     }
-    this.pendingMasterPlanChangesSignal.update(list => list.filter(c => c.id !== open.id));
+    try {
+      await this.api.withdrawMasterPlanChange(open.id);
+    } catch (e) {
+      throw new Error(apiErrorMessage(e));
+    }
+    await this.refreshChanges();
   }
 
   // The rejection to show on a Not-in-plan machine: only while its newest request is a rejected Send.
@@ -387,101 +386,6 @@ export class MasterPlanService {
       at: new Date(latest.resolvedAt),
       reason: latest.rejectReason ?? ''
     };
-  }
-
-  // Removes a PM type from a machine already in the plan: cancels its open tasks locally (same as
-  // updateAsset's deactivate cascade) and pauses the series so the generator stops. Only
-  // FUTURE tasks are affected — Done/Cancelled history is never touched.
-  private async removePmScheduleType(assetId: string, frequency: string, opts?: { mock?: boolean }): Promise<void> {
-    const user = this.authService.currentUser();
-    if (!user || !this.authService.hasPermission('pm.create.submit')) {
-      throw new Error('Unauthorized to update PM schedules.');
-    }
-    const target = normalizeFrequency(frequency);
-    // Only a real series is ever paused on the backend; a preview series was never saved there.
-    const seriesId = this.store.pmTasks().find(t => t.assetId === assetId && normalizeFrequency(t.frequency) === target)?.scheduleId;
-
-    if (opts?.mock || !seriesId) {
-      this.cancelOpenTasksOfType(assetId, frequency);
-      return;
-    }
-    // Backend support for isActive on schedules is unconfirmed — see
-    // docs/backend_fixes_needed_combined.html#masterplan. Falls back to local-only on failure so the
-    // demo still works while that's verified/built.
-    try {
-      await this.api.updateSchedule(seriesId, { isActive: false });
-    } catch {
-      // fall through to local-only apply
-    }
-    this.cancelOpenTasksOfType(assetId, frequency);
-  }
-
-  private cancelOpenTasksOfType(assetId: string, frequency: string): void {
-    const target = normalizeFrequency(frequency);
-    const now = new Date();
-    const cancelType = (tasks: PMTask[]) => tasks.map(t => {
-      if (t.assetId !== assetId || normalizeFrequency(t.frequency) !== target) return t;
-      if (t.status === 'Done' || t.status === 'Cancelled') return t;
-      return { ...t, status: 'Cancelled' as PMTaskStatus, cancelledReason: 'PM type removed', cancelledAt: now };
-    });
-    this.store.updatePmTasks(cancelType);
-    this.store.updatePreviewTasks(cancelType);
-  }
-
-  // Creates the preview tasks of a PM type that was just approved into the plan: one per occurrence
-  // (see generateOccurrenceDates). Purely in memory — never sent to the API, and only plan views see
-  // them. `detail` is absent for dev-seed cards, which carry no PM definition.
-  private addPreviewPmType(asset: { id: string; location?: string; department?: string }, frequency: string, detail?: NewPmTypeDetail, createdBy?: string): void {
-    const dates = generateOccurrenceDates({ frequency, firstDue: detail?.startDate, isRecurring: detail?.isRecurring });
-    const seq = ++this.previewSeq;
-    const stamp = Date.now();
-    const scheduleId = detail?.isRecurring === false ? undefined : `PREVIEW-SCH-${stamp}-${seq}`;
-    const createdAt = new Date();
-    const tasks: PMTask[] = dates.map((due, i) => ({
-      id: `PREVIEW-${stamp}-${seq}-${i}`,
-      title: detail?.title ?? `${frequency} PM (added via Master Plan approval)`,
-      description: detail?.description ?? '[PREVIEW — nothing is saved to the backend]',
-      frequency,
-      assetId: asset.id,
-      nextDueDate: due,
-      estimatedHours: detail?.estimatedHours ?? 1,
-      status: 'Pending' as PMTaskStatus,
-      productId: asset.location,
-      department: asset.department,
-      scheduleId,
-      partsRequired: detail?.partsRequired ? [...detail.partsRequired] : undefined,
-      checklist: detail?.checklist?.map(item => ({ text: item.text, done: false, requiresPhoto: item.requiresPhoto, requiresValue: item.requiresValue })),
-      createdBy,
-      createdAt,
-      isPreview: true
-    }));
-    this.store.updatePreviewTasks(list => [...tasks, ...list]);
-  }
-
-  // Real create (unlike addPreviewPmType): only reached when Create PM captured full detail.
-  private async createPmFromProposal(asset: Asset, frequency: string, d: NewPmTypeDetail, createdBy: string): Promise<void> {
-    const common = {
-      title: d.title,
-      description: d.description ?? '',
-      frequency,
-      assetId: asset.id,
-      productId: asset.location,
-      department: asset.department,
-      estimatedHours: d.estimatedHours ?? 1,
-      partsRequired: d.partsRequired ?? [],
-      createdBy
-    };
-    const start = d.startDate ?? new Date();
-    if (d.isRecurring === false) {
-      await this.taskService.addPmTask({
-        ...common,
-        nextDueDate: start,
-        status: 'Pending',
-        checklist: (d.checklist ?? []).map(i => ({ text: i.text, done: false, requiresPhoto: i.requiresPhoto, requiresValue: i.requiresValue }))
-      });
-    } else {
-      await this.taskService.addPmSchedule({ id: '', ...common, startDate: start, checklist: d.checklist });
-    }
   }
 
   // A not-yet-approved "add PM type" for this asset+frequency, so Create PM can block a second submission.
@@ -588,42 +492,16 @@ export class MasterPlanService {
     return types.sort((a, b) => (frequencyRank(a.frequency) - frequencyRank(b.frequency)) || a.frequency.localeCompare(b.frequency));
   }
 
-  // True when a proposed net state resolves to no actual change against the live current state —
-  // e.g. a field was edited then edited back, or Save was clicked with nothing changed. Used to
-  // auto-clear a pending card instead of leaving a trustworthiness-eroding "approved nothing"
-  // entry in the audit log (see handoff: empty-delta ⇒ no submission).
-  private isMasterPlanChangeEmpty(assetId: string, proposed: ProposedMasterPlanState): boolean {
-    const currentAsset = this.store.assets().find(a => a.id === assetId);
-    if (!currentAsset) return false; // can't verify against a live asset — don't auto-clear
-    const diff = reconcileMasterPlanChange({
-      proposed,
-      currentAssetInPlan: isAssetInMasterPlan(currentAsset),
-      currentAssetActive: currentAsset.isActive !== false,
-      currentActiveFrequencies: this.activeFrequenciesForAsset(assetId),
-      currentAssetFields: { name: currentAsset.name, department: currentAsset.department, location: currentAsset.location, workCenter: currentAsset.workCenter }
-    });
-    return this.isEmptyDiff(diff);
-  }
-
-  private isEmptyDiff(diff: ReconcileResult): boolean {
-    return !diff.setInPlan && diff.setAssetActive === undefined && diff.addFrequencies.length === 0
-      && diff.removeFrequencies.length === 0 && !diff.editFields;
-  }
-
-  private newRequestId(): string {
-    return `PMC-${Date.now()}-${++this.requestSeq}`;
-  }
-
-  // Every engineer can propose — no department scoping (unlike Templates). One open pending
-  // card per machine: repeated edits before approval merge into the same card's `proposedState`
-  // (reducer pattern) instead of queuing separate cards, so the approver never sees duplicates.
-  submitMasterPlanChange(input: {
+  // Every engineer can propose — no department scoping (unlike Templates). One open card per machine:
+  // the backend merges repeated edits into that card, and drops the card when the edits net out to no
+  // change (re-sent edits, or an edit made and then undone).
+  async submitMasterPlanChange(input: {
     assetId: string;
     assetName: string;
     department: string;
     changes: Partial<ProposedMasterPlanState>;
     note: string;
-  }): void {
+  }): Promise<void> {
     const user = this.authService.currentUser();
     if (!user || !this.canProposeMasterPlanChange()) {
       throw new Error('Unauthorized to propose PM Master Plan changes.');
@@ -637,104 +515,17 @@ export class MasterPlanService {
       throw new Error('This machine is not in the Master Plan yet, so its changes apply directly and need no approval.');
     }
 
-    const now = new Date();
-    const historyEntry: MasterPlanEditHistoryEntry = { timestamp: now, by: user.employeeId, note: input.note };
-
-    this.pendingMasterPlanChangesSignal.update(list => {
-      const existing = list.find(c => c.assetId === input.assetId && c.status === 'pending');
-
-      if (existing) {
-        const merged: ProposedMasterPlanState = { ...existing.proposedState };
-        if (input.changes.setActive !== undefined) merged.setActive = input.changes.setActive;
-        if (input.changes.editFields) merged.editFields = { ...(merged.editFields || {}), ...input.changes.editFields };
-
-        // Contradicting edits collapse to the latest intent — e.g. add-then-remove-then-add
-        // again nets out to just "add" (never queued as a log of operations).
-        if (input.changes.addPmTypes?.length) {
-          const adding = new Set(input.changes.addPmTypes.map(f => f.toLowerCase()));
-          merged.removePmTypes = (merged.removePmTypes || []).filter(f => !adding.has(f.toLowerCase()));
-          merged.addPmTypes = Array.from(new Set([...(merged.addPmTypes || []), ...input.changes.addPmTypes]));
-        }
-        if (input.changes.removePmTypes?.length) {
-          const removing = new Set(input.changes.removePmTypes.map(f => f.toLowerCase()));
-          merged.addPmTypes = (merged.addPmTypes || []).filter(f => !removing.has(f.toLowerCase()));
-          merged.removePmTypes = Array.from(new Set([...(merged.removePmTypes || []), ...input.changes.removePmTypes]));
-        }
-        if (input.changes.newPmTypeDetails) {
-          merged.newPmTypeDetails = { ...(merged.newPmTypeDetails || {}), ...input.changes.newPmTypeDetails };
-        }
-        if (merged.newPmTypeDetails) {
-          const kept = new Set(merged.addPmTypes || []);
-          merged.newPmTypeDetails = Object.fromEntries(Object.entries(merged.newPmTypeDetails).filter(([f]) => kept.has(f)));
-        }
-
-        // Net delta collapsed back to "no change" — discard the card entirely, edit history
-        // included, rather than keep a submission that would approve into nothing auditable.
-        if (this.isMasterPlanChangeEmpty(input.assetId, merged)) {
-          return list.filter(c => c.id !== existing.id);
-        }
-
-        const updated: PendingMasterPlanChange = {
-          ...existing,
-          proposedState: merged,
-          note: input.note,
-          history: [...existing.history, historyEntry]
-        };
-        return list.map(c => c.id === existing.id ? updated : c);
-      }
-
-      // First submission for this machine nets to no real change — never create a card for it.
-      if (this.isMasterPlanChangeEmpty(input.assetId, input.changes)) {
-        return list;
-      }
-
-      const created: PendingMasterPlanChange = {
-        id: this.newRequestId(),
-        assetId: input.assetId,
-        assetName: input.assetName,
-        department: input.department,
-        proposedState: { ...input.changes },
-        submittedBy: user.employeeId,
-        submittedAt: now,
-        note: input.note,
-        history: [historyEntry],
-        status: 'pending'
-      };
-      return [created, ...list];
-    });
+    try {
+      await this.api.submitMasterPlanChange({ assetId: input.assetId, proposedState: input.changes, note: input.note });
+    } catch (e) {
+      throw new Error(apiErrorMessage(e));
+    }
+    await this.refreshChanges();
   }
 
-  private appendAuditLog(entry: Omit<AuditLog, 'id'>): void {
-    const log: AuditLog = { id: `LOCAL-${Date.now()}-${Math.floor(Math.random() * 1000)}`, ...entry };
-    this.localAuditLogsSignal.update(logs => [log, ...logs]);
-  }
-
-  private static readonly VERSION_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-
-  private nextVersionLabel(): string {
-    const n = this.masterPlanVersionsSignal().length;
-    return MasterPlanService.VERSION_LETTERS[n] ?? `V${n + 1}`;
-  }
-
-  private saveMasterPlanVersionSnapshot(label: string): void {
-    const snapshot: MasterPlanVersionSnapshot = {
-      id: `MPV-${Date.now()}`,
-      label,
-      createdAt: new Date(),
-      assets: this.store.assets().map(a => ({ ...a }))
-    };
-    this.masterPlanVersionsSignal.update(list => [...list, snapshot]);
-  }
-
-  // Diffs the pending card's net `proposedState` against ACTUAL current state and applies only
-  // the delta (reconcile, never replay) — see pm-masterplan-reconcile.util.ts. Idempotent: a
-  // second call (double-click, or two approvers racing) on an already-resolved id is a no-op.
-  //
-  // One call to this = one revision, whether it's a single-item approve or a bulk-approve of N
-  // items: the version label is reserved ONCE up front and the snapshot is saved ONCE at the
-  // end, after every item in the batch has been applied — never one snapshot per item. This
-  // mirrors the audit log's "one batchTime per bulk action" rule so Version history and Audit
-  // Log both describe the same discrete approval events.
+  // Applies the approved cards on the backend, which diffs each card against the machine's live state,
+  // creates and cancels the PMs, writes the audit rows and saves one version snapshot per batch.
+  // Each request is applied on its own, so one failing card does not stop the others.
   async approveMasterPlanChanges(ids: string[]): Promise<{ id: string; ok: boolean; error?: any }[]> {
     const user = this.authService.currentUser();
     if (!user || !this.canApproveMasterPlanChange()) {
@@ -746,7 +537,7 @@ export class MasterPlanService {
     const claimed = new Set(ids.filter(id => !this.isProcessingMasterPlanChange(id)));
     this.processingMasterPlanChangeIdsSignal.update(set => new Set([...set, ...claimed]));
     try {
-      return await this.applyMasterPlanApprovals(ids, claimed, user);
+      return await this.applyMasterPlanApprovals(ids, claimed);
     } finally {
       this.processingMasterPlanChangeIdsSignal.update(set => new Set([...set].filter(id => !claimed.has(id))));
     }
@@ -756,210 +547,50 @@ export class MasterPlanService {
     return this.processingMasterPlanChangeIdsSignal().has(id);
   }
 
-  private async applyMasterPlanApprovals(ids: string[], claimed: ReadonlySet<string>, user: User): Promise<{ id: string; ok: boolean; error?: any }[]> {
-    const batchTime = new Date();
-    const versionLabel = this.nextVersionLabel();
-    const results: { id: string; ok: boolean; error?: any }[] = [];
-    let appliedAny = false;
-    // Removals are local-only, but a real add reloads every task from the backend, which brings
-    // back tasks cancelled earlier in the batch — so those removals are re-applied after each reload.
-    const removedInBatch: { assetId: string; frequency: string }[] = [];
-
-    // Sequential, not Promise.allSettled(...map) — items in the same batch must see each
-    // other's effects (e.g. two cards touching related state) and must share one reserved
-    // version label without racing on `nextVersionLabel()`.
-    for (const id of ids) {
-      if (!claimed.has(id)) {
-        results.push({ id, ok: false, error: new Error('This request is already being processed.') });
-        continue;
-      }
-      const record = this.pendingMasterPlanChangesSignal().find(c => c.id === id);
-      if (!record || record.status !== 'pending') {
-        results.push({ id, ok: false, error: new Error('Already resolved.') });
-        continue;
-      }
-      const before = this.captureMachineState(record.assetId);
-      let wroteBackend = false;
-
+  private async applyMasterPlanApprovals(ids: string[], claimed: ReadonlySet<string>): Promise<{ id: string; ok: boolean; error?: any }[]> {
+    let outcome = new Map<string, { ok: boolean; error?: string }>();
+    if (claimed.size > 0) {
       try {
-        const currentAsset = before.asset;
-        if (!currentAsset) throw new Error('Machine not found.');
-
-        const isSend = this.isSendRequest(record);
-        const reconciled = reconcileMasterPlanChange({
-          proposed: record.proposedState,
-          currentAssetInPlan: isAssetInMasterPlan(currentAsset),
-          currentAssetActive: currentAsset.isActive !== false,
-          currentActiveFrequencies: this.activeFrequenciesForAsset(record.assetId),
-          currentAssetFields: { name: currentAsset.name, department: currentAsset.department, location: currentAsset.location, workCenter: currentAsset.workCenter }
-        });
-        // A Send whose machine is already in plan (it got there some other way) applies nothing; only its
-        // drafts, which an In-plan machine can no longer use, are cleared below.
-        const diff: ReconcileResult = isSend && !reconciled.setInPlan
-          ? { addFrequencies: [], removeFrequencies: [] }
-          : reconciled;
-
-        if (diff.setInPlan) {
-          this.store.updateAssets(list => list.map(a => a.id === record.assetId ? { ...a, isInMasterPlan: true } : a));
-        }
-        // Combined into one updateAsset call so the local apply (and its deactivatedAt bookkeeping) runs once.
-        if (diff.setAssetActive !== undefined || diff.editFields) {
-          await this.updateAsset(record.assetId, {
-            ...diff.editFields,
-            ...(diff.setAssetActive !== undefined ? { isActive: diff.setAssetActive } : {})
-          }, { mock: true });
-        }
-        // Re-read: PM types added below must carry the machine's new customer/department, not the old ones.
-        const machine = this.store.assets().find(a => a.id === record.assetId) ?? currentAsset;
-        // Adds run before removals: a real add reloads every task from the backend, which would undo a
-        // local-only removal made before it.
-        for (const freq of diff.addFrequencies) {
-          const detail = record.proposedState.newPmTypeDetails?.[freq];
-          // A Send (its snapshot of drafts) and a local-only machine never reach the backend.
-          if (detail && !isSend && !machine.isLocalOnly) {
-            await this.createPmFromProposal(machine, freq, detail, record.submittedBy);
-            wroteBackend = true;
-            for (const r of removedInBatch) this.cancelOpenTasksOfType(r.assetId, r.frequency);
-          } else {
-            this.addPreviewPmType(
-              { id: record.assetId, location: machine.location, department: machine.department },
-              freq, detail, record.submittedBy);
-          }
-        }
-        for (const freq of diff.removeFrequencies) {
-          await this.removePmScheduleType(record.assetId, freq, { mock: true });
-        }
-        if (isSend) {
-          this.draftPmTypesSignal.update(all => {
-            const rest = { ...all };
-            delete rest[record.assetId];
-            return rest;
-          });
-        }
-
-        this.pendingMasterPlanChangesSignal.update(list => list.map(c =>
-          c.id === id ? { ...c, status: 'approved' as const, resolvedBy: user.employeeId, resolvedAt: batchTime } : c));
-
-        // A diff that reconciled to nothing (state already matched some other way since submit)
-        // is resolved as approved but never written to the audit log or counted toward a new
-        // version snapshot — an "approved" audit entry must mean a real change happened.
-        if (!this.isEmptyDiff(diff)) {
-          this.appendAuditLog({
-            timestamp: batchTime,
-            action: 'Approved PM Master Plan',
-            actor: { name: user.name, id: user.employeeId },
-            target: { name: `Rev ${versionLabel} · ${record.assetId}`, id: record.id, isUser: false },
-            product: currentAsset.location,
-            type: 'data',
-            changes: this.describeMasterPlanDiff(diff)
-          });
-          appliedAny = true;
-        }
-
-        removedInBatch.push(...diff.removeFrequencies.map(frequency => ({ assetId: record.assetId, frequency })));
-        results.push({ id, ok: true });
-      } catch (error) {
-        this.restoreMachineState(record.assetId, before, wroteBackend);
-        results.push({ id, ok: false, error });
+        const response = await this.api.approveMasterPlanChanges(ids.filter(id => claimed.has(id)));
+        outcome = new Map(response.results.map(r => [r.id, r]));
+      } catch (e) {
+        throw new Error(apiErrorMessage(e, 'Failed to approve. Please try again.'));
       }
+      // The backend created, cancelled and changed PMs and machines, so everything is read again. The
+      // approval is already saved, so a failed read must not be reported as a failed approval.
+      await Promise.all([this.store.loadData(), this.refreshChanges(), this.refreshVersions()])
+        .then(() => this.refreshDrafts())
+        .catch(e => console.error('Reload after approval failed', e));
     }
-
-    if (appliedAny) this.saveMasterPlanVersionSnapshot(versionLabel);
-    return results;
-  }
-
-  // What approving one request may change for its machine, so a failure part-way can be undone.
-  private captureMachineState(assetId: string) {
-    return {
-      asset: this.store.assets().find(a => a.id === assetId),
-      tasks: new Map(this.store.pmTasks().filter(t => t.assetId === assetId).map(t => [t.id, t])),
-      previews: new Map(this.store.previewTasks().filter(t => t.assetId === assetId).map(t => [t.id, t])),
-      drafts: this.draftPmTypesSignal()[assetId]
-    };
-  }
-
-  // Undoes a failed approval for one machine only, leaving the rest of the batch alone. After a real
-  // create the task list was reloaded from the backend, which cannot be undone from here, so it is kept.
-  private restoreMachineState(assetId: string, before: ReturnType<MasterPlanService['captureMachineState']>, keepTasks: boolean): void {
-    const { asset, tasks, previews, drafts } = before;
-    if (asset) this.store.updateAssets(list => list.map(a => a.id === assetId ? asset : a));
-    if (!keepTasks) this.store.updatePmTasks(list => list.map(t => tasks.get(t.id) ?? t));
-    this.store.updatePreviewTasks(list => list
-      .filter(t => t.assetId !== assetId || previews.has(t.id))
-      .map(t => previews.get(t.id) ?? t));
-    this.draftPmTypesSignal.update(all => {
-      const rest = { ...all };
-      delete rest[assetId];
-      return drafts ? { ...rest, [assetId]: drafts } : rest;
+    return ids.map(id => {
+      if (!claimed.has(id)) return { id, ok: false, error: new Error('This request is already being processed.') };
+      const r = outcome.get(id);
+      if (r?.ok) return { id, ok: true };
+      return { id, ok: false, error: new Error(r?.error ?? 'Failed to approve. Please try again.') };
     });
   }
 
-  // Single-item convenience wrapper around approveMasterPlanChanges — a lone approve is just a
-  // batch of one, so it goes through the exact same one-revision-per-batch logic above.
+  // Single-item convenience wrapper around approveMasterPlanChanges.
   async approveMasterPlanChange(id: string): Promise<void> {
     const [result] = await this.approveMasterPlanChanges([id]);
     if (!result.ok) throw result.error;
   }
 
-  rejectMasterPlanChange(id: string, reason: string, opts?: { batchTime?: Date }): void {
-    const user = this.authService.currentUser();
-    if (!user || !this.canApproveMasterPlanChange()) {
+  async rejectMasterPlanChange(id: string, reason: string): Promise<void> {
+    if (!this.canApproveMasterPlanChange()) {
       throw new Error('Unauthorized to reject PM Master Plan changes.');
     }
     if (!reason.trim()) {
       throw new Error('A rejection reason is required.');
     }
-
-    const record = this.pendingMasterPlanChangesSignal().find(c => c.id === id);
-    if (!record || record.status !== 'pending') return;
     if (this.isProcessingMasterPlanChange(id)) {
       throw new Error('This request is already being processed.');
     }
-
-    const now = opts?.batchTime ?? new Date();
-    this.pendingMasterPlanChangesSignal.update(list => list.map(c =>
-      c.id === id ? { ...c, status: 'rejected' as const, resolvedBy: user.employeeId, resolvedAt: now, rejectReason: reason } : c));
-
-    this.appendAuditLog({
-      timestamp: now,
-      action: 'Rejected PM Master Plan',
-      actor: { name: user.name, id: user.employeeId },
-      target: { name: record.assetId, id: record.id, isUser: false },
-      product: this.store.assets().find(a => a.id === record.assetId)?.location ?? '',
-      type: 'data',
-      changes: [`Rejected: ${reason}`]
-    });
-  }
-
-  private describeMasterPlanDiff(diff: ReconcileResult): string[] {
-    const lines: string[] = [];
-    if (diff.setInPlan) lines.push('Added machine to Master Plan');
-    if (diff.setAssetActive === false) lines.push('Deactivated machine');
-    if (diff.setAssetActive === true) lines.push('Reactivated machine');
-    if (diff.editFields?.name) lines.push(`Renamed to "${diff.editFields.name}"`);
-    if (diff.editFields?.department) lines.push(`Changed department to ${diff.editFields.department}`);
-    if (diff.editFields?.location) lines.push(`Changed customer to ${diff.editFields.location}`);
-    if (diff.editFields?.workCenter) lines.push(`Changed work center to ${diff.editFields.workCenter}`);
-    for (const f of diff.addFrequencies) lines.push(`Added ${f} PM`);
-    for (const f of diff.removeFrequencies) lines.push(`Removed ${f} PM`);
-    return lines;
-  }
-
-  // Dev-only: seeds one pending/resolved card per distinct change type the Approvals page can
-  // render (a Send to Master Plan, each editFields key, deactivate/reactivate, add/remove PM type, a
-  // combined multi-field+multi-history card, plus one approved and one rejected resolved
-  // example) so every tag/section/modal path can be reviewed without a backend. Purely
-  // client-side — never sent to the API. Change cards only target In-plan machines (the only ones
-  // whose changes need approval); the Send card targets a seeded Not-in-plan machine.
-  seedMockMasterPlanChanges(): void {
-    if (this.pendingMasterPlanChangesSignal().length > 0) return;
-    this.pendingMasterPlanChangesSignal.set(buildMockMasterPlanChanges({
-      assets: () => this.store.assets(),
-      updateAssets: fn => this.store.updateAssets(fn),
-      activeFrequenciesForAsset: assetId => this.activeFrequenciesForAsset(assetId),
-      draftPmTypesFor: assetId => this.draftPmTypesFor(assetId),
-      setDraftPmTypes: (assetId, drafts) => this.draftPmTypesSignal.update(all => ({ ...all, [assetId]: drafts })),
-      buildSendRequest: (machine, drafts, submittedBy, at) => this.buildSendRequest(machine, drafts, submittedBy, at)
-    }));
+    try {
+      await this.api.rejectMasterPlanChange(id, reason.trim());
+    } catch (e) {
+      throw new Error(apiErrorMessage(e, 'Failed to reject. Please try again.'));
+    }
+    await this.refreshChanges();
   }
 }

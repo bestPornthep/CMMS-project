@@ -4,10 +4,6 @@
       <h1 class="page-title">{{ 'Manage Machines' | tr }}</h1>
       <p class="page-sub">{{ 'Add new machines and manage existing ones' | tr }}</p>
     </div>
-    <label class="mock-toggle" *ngIf="isDevBuild">
-      <input type="checkbox" [checked]="useMockData()" (change)="useMockData.set(!useMockData())" />
-      {{ 'Test with mock data (dev only, no real save)' | tr }}
-    </label>
   </div>
 
   <!-- Add Machine -->

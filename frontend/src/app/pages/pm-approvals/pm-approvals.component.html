@@ -3,9 +3,6 @@
     <h1 class="page-title">{{ 'PM Master Plan Approvals' | tr }}</h1>
     <p class="page-sub">{{ 'Structural changes to the Master Plan (machines, PM types) wait here until a Manager/Admin approves.' | tr }}</p>
   </div>
-  <div class="header-actions" *ngIf="isDevBuild">
-    <button class="btn btn-ghost" (click)="seedMockData()">{{ 'Load mock pending changes (dev only)' | tr }}</button>
-  </div>
 </div>
 
 <div class="card" data-enter>

@@ -7,7 +7,6 @@ import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
 import { TranslatePipe } from '../../shared/pipes/translate.pipe';
 import { PendingMasterPlanChange } from '../../core/models/pm.model';
-import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-pm-approvals',
@@ -21,10 +20,6 @@ export class PmApprovalsComponent {
   private masterPlan = inject(MasterPlanService);
   private authService = inject(AuthService);
   private toast = inject(ToastService);
-
-  // Dev-only: seeds a couple of pending cards so this page can be reviewed/tested before a
-  // backend exists for PendingMasterPlanChange (see docs/backend_fixes_needed_combined.html#masterplan).
-  isDevBuild = !environment.production;
 
   canApprove = computed(() => this.authService.hasPermission('pm.masterplan.approve'));
 
@@ -43,8 +38,9 @@ export class PmApprovalsComponent {
   // True while an approve/reject runs, so its buttons cannot fire it twice.
   processing = signal(false);
 
-  seedMockData() {
-    this.masterPlan.seedMockMasterPlanChanges();
+  // Requests are decided by other people too, so every visit reads them again.
+  constructor() {
+    this.masterPlan.load().catch(() => this.toast.error('Failed to load requests. Please refresh the page.'));
   }
 
   openDetail(record: PendingMasterPlanChange) {
@@ -142,19 +138,22 @@ export class PmApprovalsComponent {
     this.rejectReason.set('');
   }
 
-  confirmReject(record: PendingMasterPlanChange) {
+  async confirmReject(record: PendingMasterPlanChange) {
     if (this.processing()) return;
     if (!this.rejectReason().trim()) {
       this.toast.warning('Please enter a reason for rejecting this change.');
       return;
     }
+    this.processing.set(true);
     try {
-      this.masterPlan.rejectMasterPlanChange(record.id, this.rejectReason());
+      await this.masterPlan.rejectMasterPlanChange(record.id, this.rejectReason());
       this.toast.success(`Rejected changes for ${record.assetId}.`);
       this.cancelReject();
       if (this.detailId() === record.id) this.closeDetail();
     } catch (e: any) {
       this.toast.error(e?.message || 'Failed to reject. Please try again.');
+    } finally {
+      this.processing.set(false);
     }
   }
 

@@ -4,11 +4,12 @@ import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { authInterceptor } from './core/interceptors/auth.interceptor';
 import { AuthService } from './core/services/auth.service';
 import { PmStore } from './core/services/pm-store.service';
+import { MasterPlanService } from './core/services/master-plan.service';
 import { ThemeService } from './core/services/theme.service';
 
 import { routes } from './app.routes';
 
-export function initializeApp(authService: AuthService, pmStore: PmStore, themeService: ThemeService) {
+export function initializeApp(authService: AuthService, pmStore: PmStore, masterPlan: MasterPlanService, themeService: ThemeService) {
   return async () => {
     // ThemeService constructor already applied the theme; nothing extra needed.
     void themeService;
@@ -19,6 +20,7 @@ export function initializeApp(authService: AuthService, pmStore: PmStore, themeS
     }
     try {
       await pmStore.loadData();
+      await masterPlan.load();
     } catch (e) {
       console.error('PM data load failed', e);
     }
@@ -33,7 +35,7 @@ export const appConfig: ApplicationConfig = {
     {
       provide: APP_INITIALIZER,
       useFactory: initializeApp,
-      deps: [AuthService, PmStore, ThemeService],
+      deps: [AuthService, PmStore, MasterPlanService, ThemeService],
       multi: true
     }
   ]

@@ -10,7 +10,6 @@ import { ToastService } from '../../core/services/toast.service';
 import { Asset, PendingMasterPlanChange, PmTypeSummary } from '../../core/models/pm.model';
 import { isAssetInMasterPlan } from '../../core/services/pm-plan.util';
 import { TranslatePipe } from '../../shared/pipes/translate.pipe';
-import { environment } from '../../../environments/environment';
 
 type StatusFilter = 'all' | 'active' | 'inactive';
 type PlanFilter = 'all' | 'in' | 'out';
@@ -29,12 +28,6 @@ export class PmMachinesComponent {
   private toast = inject(ToastService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
-
-  // Only shown/usable outside production builds — lets this page be tested end-to-end
-  // (create + deactivate/reactivate) before the backend supports isActive/PATCH /assets/:id
-  // (see docs/backend_fixes_needed_combined.html#machine).
-  readonly isDevBuild = !environment.production;
-  useMockData = signal(false);
 
   get currentUser() { return this.authService.currentUser(); }
   get canChangeDept() {
@@ -121,8 +114,7 @@ export class PmMachinesComponent {
       return;
     }
 
-    const mock = this.isDevBuild && this.useMockData();
-    const isNewProduct = !mock && !this.products().includes(productId);
+    const isNewProduct = !this.products().includes(productId);
 
     this.isSubmitting.set(true);
     try {
@@ -373,12 +365,12 @@ export class PmMachinesComponent {
     return this.removePmTarget ? this.masterPlan.removablePmTypeFrequencies(this.removePmTarget.id) : [];
   }
 
-  confirmRemovePm() {
+  async confirmRemovePm() {
     const asset = this.removePmTarget;
     const frequency = this.removePmType;
     if (!asset || !frequency) return;
     try {
-      const result = this.masterPlan.removePmType(asset.id, frequency);
+      const result = await this.masterPlan.removePmType(asset.id, frequency);
       if (result === 'applied') this.toast.success('Draft PM type removed.');
       else if (result === 'submitted') this.toast.success(`Removal of ${frequency} PM for "${asset.name}" submitted for approval.`);
       else this.toast.show('No changes to save.');
@@ -408,9 +400,9 @@ export class PmMachinesComponent {
     return this.sendDisabledReason(machine.id);
   }
 
-  sendToMasterPlan(machine: Asset) {
+  async sendToMasterPlan(machine: Asset) {
     try {
-      this.masterPlan.sendToMasterPlan(machine.id);
+      await this.masterPlan.sendToMasterPlan(machine.id);
       this.toast.success('Sent to the Master Plan for approval. The machine is locked until a manager decides.');
     } catch (e: any) {
       this.toast.error(e?.message || 'Failed to send the machine to the Master Plan. Please try again.');
@@ -422,9 +414,9 @@ export class PmMachinesComponent {
     return request.submittedBy === this.currentUser?.employeeId || this.masterPlan.canApproveMasterPlanChange();
   }
 
-  withdrawRequest(machine: Asset) {
+  async withdrawRequest(machine: Asset) {
     try {
-      this.masterPlan.withdrawSendRequest(machine.id);
+      await this.masterPlan.withdrawSendRequest(machine.id);
       this.toast.success('Request withdrawn. You can edit the machine again.');
     } catch (e: any) {
       this.toast.error(e?.message || 'Failed to withdraw the request. Please try again.');

@@ -10,8 +10,8 @@ export interface Asset {
   // can tell "deactivated this year" (still show with cutoff) from "deactivated a past year"
   // (exclude entirely).
   deactivatedAt?: Date;
-  // Frontend-only plan status (see docs/backend_fixes_needed_combined.html#masterplan). Absent means
-  // "in the Master Plan", so machines from a backend that does not send this field behave as before.
+  // Plan status, stored by the backend. Absent means "in the Master Plan", so machines from a
+  // backend that does not send this field behave as before.
   isInMasterPlan?: boolean;
   // Frontend-only: the machine exists just in this browser session and must never be sent to the backend.
   isLocalOnly?: boolean;
@@ -140,8 +140,8 @@ export interface AuditLog {
 }
 
 // ── PM Master Plan approval workflow ──────────────────────────────────────
-// Backend has no support for any of this yet — see docs/backend_fixes_needed_combined.html#masterplan.
-// All state lives client-side only (MasterPlanService signals) until that's built.
+// The backend owns requests, versions and drafts (/pm-masterplan, /assets/:id/draft-pm-types);
+// MasterPlanService mirrors them in signals.
 
 export type MasterPlanChangeType = 'add-machine' | 'edit-machine' | 'deactivate-machine' | 'reactivate-machine' | 'add-pm-type' | 'remove-pm-type';
 
@@ -170,9 +170,7 @@ export interface ProposedMasterPlanState {
   editFields?: { name?: string; department?: string; location?: string; workCenter?: string };
   addPmTypes?: string[];    // frequency labels to add, e.g. 'Monthly'
   removePmTypes?: string[]; // frequency labels to remove (isActive:false + cascade-cancel)
-  // Keyed by frequency label in addPmTypes. Filled by Create PM; absent for dev-seed cards, where the
-  // approval modal shows a "defined separately after approval" caption instead of fabricated detail
-  // (see docs/backend_fixes_needed_combined.html#masterplan).
+  // Keyed by frequency label in addPmTypes. Filled by Create PM and by Send to Master Plan.
   newPmTypeDetails?: Record<string, NewPmTypeDetail>;
 }
 
@@ -186,8 +184,8 @@ export interface NewPmTypeDetail {
   isRecurring?: boolean; // false = one-off task, otherwise a recurring schedule
 }
 
-// A PM type defined on a machine that is not in the Master Plan yet. In memory only; it creates no
-// tasks until the machine is approved into the plan.
+// A PM type defined on a machine that is not in the Master Plan yet. Stored by the backend; it creates
+// no tasks until the machine is approved into the plan.
 export interface DraftPmType {
   frequency: string;
   detail: NewPmTypeDetail;
@@ -217,8 +215,7 @@ export interface PendingMasterPlanChange {
 
 // Snapshot of "which machines were active" at the moment a batch of changes was approved —
 // browsing history means picking a version, not replaying events. Only covers Asset active
-// state for now — there is no local PMSchedule store to snapshot which PM types were active
-// per machine (see docs/backend_fixes_needed_combined.html#masterplan).
+// state for now.
 export interface MasterPlanVersionSnapshot {
   id: string;
   label: string; // 'A', 'B', 'C', ...

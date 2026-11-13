@@ -3,14 +3,6 @@
 
   .card + .card { margin-top:16px; }
 
-  .mock-toggle {
-    display:flex; align-items:center; gap:6px;
-    font-size:11.5px; font-weight:600; color:var(--color-warning-text, #B45309);
-    background:var(--color-warning-bg, #FEF3C7); border:1px solid rgba(180,83,9,0.25);
-    padding:6px 10px; border-radius:var(--radius-md); cursor:pointer;
-  }
-  .mock-toggle input { cursor:pointer; }
-
   .add-form {
     display:grid; grid-template-columns:1fr 1fr 1fr 1fr 1fr auto; gap:14px; align-items:start;
   }
@@ -191,7 +183,6 @@
 
   /* Tablet (<=1023px): 40px touch targets, stacked row actions, modal kept inside the viewport */
   @media(max-width:1023px) {
-    .mock-toggle { max-width:100%; }
     .add-form { gap:12px; }
     .add-form .form-actions { grid-column:1 / -1; justify-content:flex-end; }
     .text-input, .c-dropdown-trigger, .fixed-field { min-height:40px; }

@@ -3,7 +3,6 @@ import { Component, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../../core/services/auth.service';
 import { ApiService } from '../../core/services/api.service';
-import { MasterPlanService } from '../../core/services/master-plan.service';
 import { ToastService } from '../../core/services/toast.service';
 import { AuditLog } from '../../core/models/pm.model';
 
@@ -17,14 +16,10 @@ import { AuditLog } from '../../core/models/pm.model';
 export class PmAuditComponent {
   private authService = inject(AuthService);
   private api = inject(ApiService);
-  private masterPlan = inject(MasterPlanService);
   private toast = inject(ToastService);
 
   private apiAuditLogs = signal<AuditLog[]>([]);
-  // PM Master Plan approve/reject rows aren't backend-persisted yet (see
-  // docs/backend_fixes_needed_combined.html#masterplan) — merge the client-only log entries in so they
-  // show up here too, newest first.
-  auditLogs = computed(() => [...this.masterPlan.localAuditLogs(), ...this.apiAuditLogs()]
+  auditLogs = computed(() => [...this.apiAuditLogs()]
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
 
   constructor() {

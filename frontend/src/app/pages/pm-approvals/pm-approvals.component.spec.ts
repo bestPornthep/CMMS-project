@@ -8,6 +8,7 @@ import { PmStore } from '../../core/services/pm-store.service';
 import { MasterPlanService } from '../../core/services/master-plan.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ApiService } from '../../core/services/api.service';
+import { createMasterPlanApiFake } from '../../core/services/master-plan-api.fake';
 import { ToastService } from '../../core/services/toast.service';
 import { Asset, NewPmTypeDetail, PMTask, User } from '../../core/models/pm.model';
 
@@ -58,8 +59,8 @@ async function render() {
     getTasks: vi.fn(async () => backend.tasks.map(t => ({ ...t }))),
     getTemplates: vi.fn(async () => []),
     createAsset: vi.fn(async () => undefined),
-    updateAsset: vi.fn(async () => ({}) as Asset),
     createProduct: vi.fn(async () => undefined),
+    ...createMasterPlanApiFake(backend, () => userSignal().employeeId),
   };
   const auth = {
     currentUser: () => userSignal(),
@@ -102,9 +103,9 @@ async function render() {
 type Rendered = Awaited<ReturnType<typeof render>>;
 
 // Drafts the given PM types on a machine and sends it, as the current (engineer) user.
-function sendMachine(pm: MasterPlanService, assetId: string, drafts: [string, NewPmTypeDetail][] = [['Weekly', WEEKLY_DRAFT], ['Monthly', MONTHLY_DRAFT]]) {
-  for (const [frequency, detail] of drafts) pm.addDraftPmType(assetId, frequency, detail);
-  pm.sendToMasterPlan(assetId);
+async function sendMachine(pm: MasterPlanService, assetId: string, drafts: [string, NewPmTypeDetail][] = [['Weekly', WEEKLY_DRAFT], ['Monthly', MONTHLY_DRAFT]]) {
+  for (const [frequency, detail] of drafts) await pm.addDraftPmType(assetId, frequency, detail);
+  await pm.sendToMasterPlan(assetId);
 }
 const openRequestFor = (pm: MasterPlanService, assetId: string) =>
   pm.pendingMasterPlanChanges().find(c => c.assetId === assetId && c.status === 'pending');
@@ -135,7 +136,7 @@ function typeReason(host: HTMLElement, reason: string) {
 }
 
 async function pageWithSentMachines(ctx: Rendered, assetIds: string[] = ['N']) {
-  for (const id of assetIds) sendMachine(ctx.pm, id);
+  for (const id of assetIds) await sendMachine(ctx.pm, id);
   ctx.setUser(manager);
   return ctx.openPage();
 }
@@ -156,7 +157,7 @@ describe('PmApprovalsComponent — Send to Master Plan requests', () => {
 
   it('does not tag a change request on an In-plan machine as a Send', async () => {
     const ctx = await render();
-    ctx.pm.removePmType('A', 'Weekly');
+    await ctx.pm.removePmType('A', 'Weekly');
     ctx.setUser(manager);
     const { host } = await ctx.openPage();
 
@@ -198,7 +199,7 @@ describe('PmApprovalsComponent — Send to Master Plan requests', () => {
 
   it('does not show the Send banner for a change request on an In-plan machine', async () => {
     const ctx = await render();
-    ctx.pm.removePmType('A', 'Weekly');
+    await ctx.pm.removePmType('A', 'Weekly');
     ctx.setUser(manager);
     const { host, settle } = await ctx.openPage();
 
@@ -262,7 +263,7 @@ describe('PmApprovalsComponent — Send to Master Plan requests', () => {
 
     it('shows the real error and keeps the request listed when the machine no longer exists', async () => {
       const ctx = await render();
-      sendMachine(ctx.pm, 'N');
+      await sendMachine(ctx.pm, 'N');
       ctx.backend.assets = ctx.backend.assets.filter(a => a.id !== 'N');
       await TestBed.inject(PmStore).loadData();
       ctx.setUser(manager);
@@ -281,8 +282,8 @@ describe('PmApprovalsComponent — Send to Master Plan requests', () => {
 
     it('shows the real error of a failed item when bulk approving, and keeps that request listed', async () => {
       const ctx = await render();
-      sendMachine(ctx.pm, 'N');
-      sendMachine(ctx.pm, 'M');
+      await sendMachine(ctx.pm, 'N');
+      await sendMachine(ctx.pm, 'M');
       ctx.backend.assets = ctx.backend.assets.filter(a => a.id !== 'N');
       await TestBed.inject(PmStore).loadData();
       ctx.setUser(manager);
@@ -344,7 +345,6 @@ describe('PmApprovalsComponent — Send to Master Plan requests', () => {
       expect(toastsOf(ctx.toast, 'warning')).toEqual(['Please enter a reason for rejecting this change.']);
       expect(openRequestFor(ctx.pm, 'N')).toBeDefined();
       expect(ctx.pm.lastRejectionFor('N')).toBeUndefined();
-      expect(ctx.pm.localAuditLogs().length).toBe(0);
       expect(isOpen(host)).toBe(true);
     });
 

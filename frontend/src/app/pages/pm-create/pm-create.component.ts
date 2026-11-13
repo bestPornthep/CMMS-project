@@ -364,6 +364,7 @@ export class PmCreateComponent {
 
   // Submit
   async submitForm() {
+    if (this.isGenerating()) return;
     if (!this.productId || !this.department || !this.assetId || !this.pmType) {
       this.toast.error('Please fill out all required fields (Product, Dept, Asset, Type).');
       return;
@@ -414,7 +415,7 @@ export class PmCreateComponent {
     }
 
     // Lock the button before any async work so a rapid double-click can't
-    // slip a second submission past the duplicate check above.
+    // slip a second submission past the duplicate check above (and the guard at the top).
     this.isGenerating.set(true);
 
     // First occurrence is due exactly on the chosen start date — no interval
@@ -436,13 +437,13 @@ export class PmCreateComponent {
 
       // A machine that is not in the Master Plan keeps its PM types as drafts: no approval, no tasks.
       if (!this.masterPlan.isInMasterPlan(this.assetId)) {
-        this.masterPlan.addDraftPmType(this.assetId, finalFrequency, detail);
+        await this.masterPlan.addDraftPmType(this.assetId, finalFrequency, detail);
         this.toast.success('PM type saved as a draft. Send the machine to the Master Plan when it is ready.');
         this.router.navigate(['/pm-machines'], { queryParams: { machine: this.assetId } });
         return;
       }
 
-      this.masterPlan.submitMasterPlanChange({
+      await this.masterPlan.submitMasterPlanChange({
         assetId: this.assetId,
         assetName: selectedAsset.name,
         department: this.department,

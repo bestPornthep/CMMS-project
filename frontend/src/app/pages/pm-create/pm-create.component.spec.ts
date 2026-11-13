@@ -12,6 +12,7 @@ import { PmTaskService } from '../../core/services/pm-task.service';
 import { TemplateService } from '../../core/services/template.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ApiService } from '../../core/services/api.service';
+import { createMasterPlanApiFake } from '../../core/services/master-plan-api.fake';
 import { ToastService } from '../../core/services/toast.service';
 import { Asset, NewPmTypeDetail, PMTask, User } from '../../core/models/pm.model';
 
@@ -213,15 +214,16 @@ const DRAFT_SAVED_TOAST = 'PM type saved as a draft. Send the machine to the Mas
 
 async function render(options: { user?: User; url?: string } = {}) {
   const currentUser = options.user ?? manager;
+  const backend = { assets: BACKEND_ASSETS.map(a => ({ ...a })), tasks: BACKEND_TASKS.map(t => ({ ...t })) };
   const api = {
-    getAssets: vi.fn(async () => BACKEND_ASSETS.map(a => ({ ...a }))),
-    getTasks: vi.fn(async () => BACKEND_TASKS.map(t => ({ ...t }))),
+    getAssets: vi.fn(async () => backend.assets.map(a => ({ ...a }))),
+    getTasks: vi.fn(async () => backend.tasks.map(t => ({ ...t }))),
     getTemplates: vi.fn(async () => []),
     createAsset: vi.fn(async () => undefined),
-    updateAsset: vi.fn(async () => ({}) as Asset),
     createProduct: vi.fn(async () => undefined),
     createTask: vi.fn(async (t: PMTask) => t),
     createSchedule: vi.fn(async () => undefined),
+    ...createMasterPlanApiFake(backend, () => currentUser.employeeId),
   };
   const auth = {
     currentUser: () => currentUser,
@@ -453,7 +455,7 @@ describe('PmCreateComponent — draft PM types and machine link', () => {
 
     it('counts an existing draft, including its Custom alias, but not another frequency', async () => {
       const { component, pm, settle } = await render({ url: '/create?machine=N' });
-      draftMonthly(pm);
+      await draftMonthly(pm);
       await settle();
 
       component.pmType = 'Monthly';
@@ -470,7 +472,7 @@ describe('PmCreateComponent — draft PM types and machine link', () => {
 
     it('warns, disables the submit button and refuses to add a second draft', async () => {
       const { component, host, pm, toast, settle } = await render({ url: '/create?machine=N' });
-      draftMonthly(pm);
+      await draftMonthly(pm);
       fillDetails(component);
       await settle();
 

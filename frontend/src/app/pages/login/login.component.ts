@@ -3,6 +3,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { PmStore } from '../../core/services/pm-store.service';
+import { MasterPlanService } from '../../core/services/master-plan.service';
 import { CommonModule } from '@angular/common';
 
 @Component({
@@ -16,6 +17,7 @@ export class LoginComponent {
   private fb = inject(FormBuilder);
   private authService = inject(AuthService);
   private pmStore = inject(PmStore);
+  private masterPlan = inject(MasterPlanService);
   private router = inject(Router);
 
   loginForm = this.fb.group({
@@ -44,6 +46,7 @@ export class LoginComponent {
     try {
       if (await this.authService.login(employeeId!, password!)) {
         await this.pmStore.loadData();
+        await this.masterPlan.load().catch(e => console.error('Master Plan load failed', e));
         this.router.navigate(['/dashboard']);
       } else {
         this.errorMessage.set('Invalid credentials. Please try again.');

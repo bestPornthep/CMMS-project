@@ -9,6 +9,7 @@ import { PmStore } from '../../core/services/pm-store.service';
 import { MasterPlanService } from '../../core/services/master-plan.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ApiService } from '../../core/services/api.service';
+import { createMasterPlanApiFake } from '../../core/services/master-plan-api.fake';
 import { ToastService } from '../../core/services/toast.service';
 import { Asset, NewPmTypeDetail, PMTask, User } from '../../core/models/pm.model';
 
@@ -55,8 +56,8 @@ async function render(options: { user?: User; url?: string } = {}) {
     getTasks: vi.fn(async () => backend.tasks.map(t => ({ ...t }))),
     getTemplates: vi.fn(async () => []),
     createAsset: vi.fn(async () => undefined),
-    updateAsset: vi.fn(async () => ({}) as Asset),
     createProduct: vi.fn(async () => undefined),
+    ...createMasterPlanApiFake(backend, () => userSignal().employeeId),
   };
   const auth = {
     currentUser: () => userSignal(),
@@ -82,7 +83,11 @@ async function render(options: { user?: User; url?: string } = {}) {
   const harness = await RouterTestingHarness.create();
   const component = await harness.navigateByUrl(options.url ?? '/machines', PmMachinesComponent);
   const host: HTMLElement = harness.routeNativeElement as HTMLElement;
-  const settle = async () => { harness.detectChanges(); await harness.fixture.whenStable(); harness.detectChanges(); };
+  const settle = async () => {
+    // The page actions are async but not tracked by Angular, so let their promises finish first.
+    await new Promise(resolve => setTimeout(resolve));
+    harness.detectChanges(); await harness.fixture.whenStable(); harness.detectChanges();
+  };
   await settle();
   return { harness, component, host, pm, api, backend, settle, setUser, toast: TestBed.inject(ToastService) };
 }
@@ -275,9 +280,9 @@ const MONTHLY_DRAFT: NewPmTypeDetail = {
   checklist: [{ text: 'Drain tank' }], startDate: new Date(2026, 6, 1), isRecurring: false
 };
 // Added Monthly first on purpose: the detail window must still order Weekly before Monthly.
-const addTwoDrafts = (pm: MasterPlanService) => {
-  pm.addDraftPmType('N', 'Monthly', MONTHLY_DRAFT);
-  pm.addDraftPmType('N', 'Weekly', WEEKLY_DRAFT);
+const addTwoDrafts = async (pm: MasterPlanService) => {
+  await pm.addDraftPmType('N', 'Monthly', MONTHLY_DRAFT);
+  await pm.addDraftPmType('N', 'Weekly', WEEKLY_DRAFT);
 };
 
 const pmTypeBlocks = (host: HTMLElement) => Array.from(host.querySelectorAll<HTMLElement>('.pm-type-block'));
@@ -312,7 +317,7 @@ async function chooseRemoveOption({ host, settle }: Rendered, frequency: string)
 describe('PmMachinesComponent — draft PM types in the detail window', () => {
   it('lists the drafts of a Not-in-plan machine, each tagged Draft, most frequent first', async () => {
     const { host, settle, pm } = await render();
-    addTwoDrafts(pm);
+      await addTwoDrafts(pm);
     rowOf(host, 'N').click();
     await settle();
 
@@ -327,7 +332,7 @@ describe('PmMachinesComponent — draft PM types in the detail window', () => {
 
   it('shows the details the user entered for each draft', async () => {
     const { host, settle, pm } = await render();
-    addTwoDrafts(pm);
+      await addTwoDrafts(pm);
     rowOf(host, 'N').click();
     await settle();
 
@@ -349,7 +354,7 @@ describe('PmMachinesComponent — draft PM types in the detail window', () => {
 
   it('expands the checklist of one draft without opening the other', async () => {
     const { host, settle, pm } = await render();
-    addTwoDrafts(pm);
+      await addTwoDrafts(pm);
     rowOf(host, 'N').click();
     await settle();
     expect(dialog(host).textContent).not.toContain('Wipe spindle');
@@ -374,12 +379,12 @@ describe('PmMachinesComponent — draft PM types in the detail window', () => {
     expect(dialog(host).textContent).toContain('No PM types yet. Add one, then send this machine to the Master Plan.');
     expect(host.querySelector('.tag-draft')).toBeNull();
 
-    pm.addDraftPmType('N', 'Weekly', WEEKLY_DRAFT);
+    await pm.addDraftPmType('N', 'Weekly', WEEKLY_DRAFT);
     await settle();
     expect(dialog(host).textContent).toContain('PM Types (1)');
     expect(dialog(host).textContent).not.toContain('No PM types yet');
 
-    pm.removeDraftPmType('N', 'Weekly');
+    await pm.removeDraftPmType('N', 'Weekly');
     await settle();
     expect(dialog(host).textContent).toContain('No PM types yet. Add one, then send this machine to the Master Plan.');
   });
@@ -435,7 +440,7 @@ describe('PmMachinesComponent — Remove PM Type', () => {
     it('offers each draft and removes only the chosen one at once, with no approval request', async () => {
       const ctx = await render();
       const { host, settle, pm, toast } = ctx;
-      addTwoDrafts(pm);
+          await addTwoDrafts(pm);
       await openRemoveModal(ctx, 'N');
 
       expect(removeModal(host)!.textContent).toContain('Remove PM Type?');
@@ -457,7 +462,7 @@ describe('PmMachinesComponent — Remove PM Type', () => {
     it('shows the remaining draft in the detail window after one is removed', async () => {
       const ctx = await render();
       const { host, settle, pm } = ctx;
-      addTwoDrafts(pm);
+          await addTwoDrafts(pm);
       await openRemoveModal(ctx, 'N');
       await chooseRemoveOption(ctx, 'Weekly');
       confirmRemoveButton(host).click();
@@ -472,7 +477,7 @@ describe('PmMachinesComponent — Remove PM Type', () => {
     it('clears the earlier choice when the window is cancelled and opened again', async () => {
       const ctx = await render();
       const { host, settle, pm } = ctx;
-      addTwoDrafts(pm);
+          await addTwoDrafts(pm);
       await openRemoveModal(ctx, 'N');
       await chooseRemoveOption(ctx, 'Monthly');
       buttonIn(removeModal(host)!, 'Cancel').click();
@@ -571,7 +576,7 @@ async function openDetailOf({ host, settle }: Rendered, id: string) {
 }
 // Drafts two PM types on N, opens its detail and sends it as the current user.
 async function sendMachineN(ctx: Rendered) {
-  addTwoDrafts(ctx.pm);
+  await addTwoDrafts(ctx.pm);
   await openDetailOf(ctx, 'N');
   sendButton(ctx.host).click();
   await ctx.settle();
@@ -588,7 +593,7 @@ describe('PmMachinesComponent — Send to Master Plan button', () => {
 
   it('is disabled for an inactive machine, and says why', async () => {
     const ctx = await render();
-    ctx.pm.addDraftPmType('N', 'Weekly', WEEKLY_DRAFT);
+    await ctx.pm.addDraftPmType('N', 'Weekly', WEEKLY_DRAFT);
     await ctx.pm.setMachineActive('N', false);
     await ctx.settle();
     await openDetailOf(ctx, 'N');
@@ -611,7 +616,7 @@ describe('PmMachinesComponent — Send to Master Plan button', () => {
 
   it('is disabled with a hint for a user who is not allowed to send', async () => {
     const ctx = await render();
-    ctx.pm.addDraftPmType('N', 'Weekly', WEEKLY_DRAFT);
+    await ctx.pm.addDraftPmType('N', 'Weekly', WEEKLY_DRAFT);
     ctx.setUser(technician);
     await openDetailOf(ctx, 'N');
 
@@ -622,7 +627,7 @@ describe('PmMachinesComponent — Send to Master Plan button', () => {
 
   it('is enabled, with no hint, for an active Not-in-plan machine that has a draft', async () => {
     const ctx = await render();
-    ctx.pm.addDraftPmType('N', 'Weekly', WEEKLY_DRAFT);
+    await ctx.pm.addDraftPmType('N', 'Weekly', WEEKLY_DRAFT);
     await openDetailOf(ctx, 'N');
 
     expect(sendButton(ctx.host).disabled).toBe(false);
@@ -667,7 +672,7 @@ describe('PmMachinesComponent — Send to Master Plan button', () => {
   it('leaves the buttons of an In-plan machine with a change waiting enabled, with no banner', async () => {
     const ctx = await render({ user: engineer });
     const { host, settle, pm } = ctx;
-    pm.removePmType('A', 'Weekly');
+    await pm.removePmType('A', 'Weekly');
     await settle();
     await openDetailOf(ctx, 'A');
 
@@ -695,12 +700,12 @@ describe('PmMachinesComponent — Send to Master Plan button', () => {
   it('disables Save in an open Edit row once the machine starts waiting', async () => {
     const ctx = await render({ user: engineer });
     const { host, settle, pm } = ctx;
-    pm.addDraftPmType('N', 'Weekly', WEEKLY_DRAFT);
+    await pm.addDraftPmType('N', 'Weekly', WEEKLY_DRAFT);
     rowButton(host, 'N', 'Edit').click();
     await settle();
     expect((buttonIn(host.querySelector<HTMLElement>('tr.edit-row')!, 'Save') as HTMLButtonElement).disabled).toBe(false);
 
-    pm.sendToMasterPlan('N');
+    await pm.sendToMasterPlan('N');
     await settle();
 
     const save = buttonIn(host.querySelector<HTMLElement>('tr.edit-row')!, 'Save') as HTMLButtonElement;
@@ -711,11 +716,11 @@ describe('PmMachinesComponent — Send to Master Plan button', () => {
   it('shows the real error and creates no second request when the service refuses a stale click', async () => {
     const ctx = await render({ user: engineer });
     const { host, settle, pm, toast } = ctx;
-    pm.addDraftPmType('N', 'Weekly', WEEKLY_DRAFT);
+    await pm.addDraftPmType('N', 'Weekly', WEEKLY_DRAFT);
     await openDetailOf(ctx, 'N');
     expect(sendButton(host).disabled).toBe(false);
 
-    pm.sendToMasterPlan('N'); // another tab or a quick double click: the button on screen is still enabled
+    await pm.sendToMasterPlan('N'); // another tab or a quick double click: the button on screen is still enabled
     sendButton(host).click();
     await settle();
 
@@ -753,7 +758,6 @@ describe('PmMachinesComponent — Withdraw', () => {
     expect(waitingBanner(host)).toBeNull();
     expect(openRequestsFor(pm, 'N')).toEqual([]);
     expect(successMessages(toast)).toContain(WITHDRAWN_TOAST);
-    expect(pm.localAuditLogs().length).toBe(0);
     expect(pm.draftPmTypesFor('N').length).toBe(2);
     expect(dialog(host).textContent).toContain('PM Types (2)');
     expect(frequencyTags(host)).toEqual(['Weekly', 'Monthly']);
@@ -802,7 +806,7 @@ describe('PmMachinesComponent — rejection and approval', () => {
     await sendMachineN(ctx);
 
     setUser(manager);
-    pm.rejectMasterPlanChange(openRequestsFor(pm, 'N')[0].id, 'Checklist is missing torque values');
+    await pm.rejectMasterPlanChange(openRequestsFor(pm, 'N')[0].id, 'Checklist is missing torque values');
     setUser(engineer);
     await settle();
 

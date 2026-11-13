@@ -26,6 +26,7 @@ export function parseFrequency(label: string): { count: number; unit: FrequencyU
 const FREQUENCY_ALIASES: Record<string, string> = {
   '1 day(s)': 'Daily',
   '7 day(s)': 'Weekly',
+  '1 week(s)': 'Weekly',
   '1 month(s)': 'Monthly',
   '3 month(s)': 'Quarterly',
   '12 month(s)': 'Yearly',

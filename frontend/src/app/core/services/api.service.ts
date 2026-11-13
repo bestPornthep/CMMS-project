@@ -1,7 +1,10 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
-import { Asset, AuditLog, NewUserPayload, PMTask, Template, User } from '../models/pm.model';
+import {
+  Asset, AuditLog, DraftPmType, MasterPlanVersionSnapshot, NewPmTypeDetail, NewUserPayload, PendingMasterPlanChange,
+  PMTask, ProposedMasterPlanState, Template, User
+} from '../models/pm.model';
 import { environment } from '../../../environments/environment';
 
 @Injectable({ providedIn: 'root' })
@@ -19,7 +22,6 @@ export class ApiService {
     return firstValueFrom(this.http.get<Asset[]>(url));
   }
 
-  // Requires backend support not yet deployed — see docs/backend_fixes_needed_combined.html#machine.
   updateAsset(id: string, patch: Partial<Pick<Asset, 'name' | 'department' | 'location' | 'workCenter' | 'isActive'>>): Promise<Asset> {
     return firstValueFrom(this.http.patch<Asset>(`${this.baseUrl}/assets/${id}`, patch));
   }
@@ -136,4 +138,75 @@ export class ApiService {
   updateSchedule(seriesId: string, updates: Partial<import('../models/pm.model').PMSchedule>): Promise<void> {
     return firstValueFrom(this.http.put<void>(`${this.baseUrl}/pm-tasks/schedule/${seriesId}`, updates));
   }
+
+  // ── PM Master Plan ──────────────────────────────────────────────────────
+  // The backend sends dates as ISO strings; these methods hand back real Dates.
+  async listMasterPlanChanges(): Promise<PendingMasterPlanChange[]> {
+    const rows = await firstValueFrom(this.http.get<any[]>(`${this.baseUrl}/pm-masterplan/changes`));
+    return rows.map(reviveChange);
+  }
+
+  // `{ dropped: true }` = the edits netted out to no change, so the backend kept no card.
+  async submitMasterPlanChange(body: { assetId: string; proposedState: ProposedMasterPlanState; note: string }): Promise<PendingMasterPlanChange | { dropped: true }> {
+    const res = await firstValueFrom(this.http.post<any>(`${this.baseUrl}/pm-masterplan/changes`, body));
+    return res?.dropped ? { dropped: true } : reviveChange(res);
+  }
+
+  approveMasterPlanChanges(ids: string[]): Promise<MasterPlanApproveResponse> {
+    return firstValueFrom(this.http.post<MasterPlanApproveResponse>(`${this.baseUrl}/pm-masterplan/changes/approve`, { ids }));
+  }
+
+  async rejectMasterPlanChange(id: string, reason: string): Promise<PendingMasterPlanChange> {
+    return reviveChange(await firstValueFrom(this.http.post<any>(`${this.baseUrl}/pm-masterplan/changes/${id}/reject`, { reason })));
+  }
+
+  withdrawMasterPlanChange(id: string): Promise<void> {
+    return firstValueFrom(this.http.post<void>(`${this.baseUrl}/pm-masterplan/changes/${id}/withdraw`, {}));
+  }
+
+  async getMasterPlanVersions(): Promise<MasterPlanVersionSnapshot[]> {
+    const rows = await firstValueFrom(this.http.get<any[]>(`${this.baseUrl}/pm-masterplan/versions`));
+    return rows.map(v => ({ ...v, createdAt: new Date(v.createdAt) }));
+  }
+
+  async getDraftPmTypes(assetId: string): Promise<DraftPmType[]> {
+    const rows = await firstValueFrom(this.http.get<any[]>(`${this.baseUrl}/assets/${assetId}/draft-pm-types`));
+    return rows.map(r => ({ frequency: r.frequency, detail: reviveDetail(r.detail) }));
+  }
+
+  async saveDraftPmType(assetId: string, frequency: string, detail: NewPmTypeDetail): Promise<DraftPmType> {
+    const url = `${this.baseUrl}/assets/${assetId}/draft-pm-types/${encodeURIComponent(frequency)}`;
+    const r = await firstValueFrom(this.http.put<any>(url, detail));
+    return { frequency: r.frequency, detail: reviveDetail(r.detail) };
+  }
+
+  deleteDraftPmType(assetId: string, frequency: string): Promise<void> {
+    return firstValueFrom(this.http.delete<void>(`${this.baseUrl}/assets/${assetId}/draft-pm-types/${encodeURIComponent(frequency)}`));
+  }
+}
+
+export interface MasterPlanApproveResponse {
+  revision?: { id: string; label: string };
+  results: { id: string; ok: boolean; error?: string }[];
+}
+
+const toDate = (v: unknown): Date | undefined => (v ? new Date(v as string) : undefined);
+
+function reviveDetail(d: any): NewPmTypeDetail {
+  return { ...d, startDate: toDate(d?.startDate) };
+}
+
+function reviveChange(c: any): PendingMasterPlanChange {
+  const state = c.proposedState ?? {};
+  const details = state.newPmTypeDetails;
+  return {
+    ...c,
+    submittedAt: new Date(c.submittedAt),
+    resolvedAt: toDate(c.resolvedAt),
+    history: (c.history ?? []).map((h: any) => ({ ...h, timestamp: new Date(h.timestamp) })),
+    proposedState: {
+      ...state,
+      ...(details && { newPmTypeDetails: Object.fromEntries(Object.entries(details).map(([f, d]) => [f, reviveDetail(d)])) })
+    }
+  };
 }
