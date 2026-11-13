@@ -3,7 +3,10 @@
   "version": 1,
   "cli": {
     "packageManager": "npm",
-    "analytics": "11f35d61-2866-424f-9be4-f0f665381d28"
+    "analytics": "11f35d61-2866-424f-9be4-f0f665381d28",
+    "schematicCollections": [
+      "angular-eslint"
+    ]
   },
   "newProjectRoot": "projects",
   "projects": {
@@ -31,6 +34,15 @@
               }
             ],
             "styles": [
+              "node_modules/@fontsource/plus-jakarta-sans/400.css",
+              "node_modules/@fontsource/plus-jakarta-sans/400-italic.css",
+              "node_modules/@fontsource/plus-jakarta-sans/500.css",
+              "node_modules/@fontsource/plus-jakarta-sans/600.css",
+              "node_modules/@fontsource/plus-jakarta-sans/700.css",
+              "node_modules/@fontsource/plus-jakarta-sans/800.css",
+              "node_modules/@fontsource/jetbrains-mono/400.css",
+              "node_modules/@fontsource/jetbrains-mono/500.css",
+              "node_modules/material-symbols/outlined.css",
               "src/styles.scss"
             ]
           },
@@ -72,6 +84,15 @@
         },
         "test": {
           "builder": "@angular/build:unit-test"
+        },
+        "lint": {
+          "builder": "@angular-eslint/builder:lint",
+          "options": {
+            "lintFilePatterns": [
+              "src/**/*.ts",
+              "src/**/*.html"
+            ]
+          }
         }
       }
     }

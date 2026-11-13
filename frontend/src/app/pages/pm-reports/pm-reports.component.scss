@@ -48,6 +48,13 @@ input[type="date"].filter-input {
 .ms-wrapper {
   position: relative;
   z-index: 11;
+
+  // Equal z-index siblings stack by DOM order, so a later field would otherwise
+  // paint over an earlier one's open menu in a vertically-stacked layout (e.g. the
+  // export modal). Lift whichever wrapper currently has its menu open above the rest.
+  &:has(.ms-menu.open) {
+    z-index: 50;
+  }
 }
 
 .ms-trigger {
@@ -491,14 +498,48 @@ input[type="date"].filter-input {
 }
 
 /* ── Responsive ──────────────────────────────────── */
-@media (max-width: 768px) {
+@media screen and (max-width: 1023px) {
+  .filter-bar {
+    padding: 16px;
+    gap: 12px;
+  }
+
+  .filter-group {
+    flex: 1 1 calc(50% - 6px);
+    min-width: 0;
+    max-width: none;
+  }
+
+  .data-table {
+    min-width: 720px;
+
+    th { white-space: nowrap; }
+  }
+
+  .ms-item {
+    min-height: 40px;
+  }
+
+  .modal-content {
+    max-width: calc(100vw - 32px);
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+
+    .modal-header { padding: 16px 20px; }
+    .modal-body { padding: 20px; }
+    .modal-footer { padding: 14px 20px; flex-wrap: wrap; }
+    .close-btn { min-width: 40px; min-height: 40px; }
+  }
+}
+
+@media screen and (max-width: 599px) {
   .filter-bar {
     flex-direction: column;
     align-items: stretch;
   }
 
   .filter-group {
-    max-width: 100%;
+    flex: 0 0 auto;
     min-width: 100%;
   }
 }

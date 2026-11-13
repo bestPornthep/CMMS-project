@@ -3,6 +3,7 @@ import { Component, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../../core/services/auth.service';
 import { ApiService } from '../../core/services/api.service';
+import { MasterPlanService } from '../../core/services/master-plan.service';
 import { ToastService } from '../../core/services/toast.service';
 import { AuditLog } from '../../core/models/pm.model';
 
@@ -16,15 +17,21 @@ import { AuditLog } from '../../core/models/pm.model';
 export class PmAuditComponent {
   private authService = inject(AuthService);
   private api = inject(ApiService);
+  private masterPlan = inject(MasterPlanService);
   private toast = inject(ToastService);
 
-  auditLogs = signal<AuditLog[]>([]);
+  private apiAuditLogs = signal<AuditLog[]>([]);
+  // PM Master Plan approve/reject rows aren't backend-persisted yet (see
+  // docs/backend_fixes_needed_combined.html#masterplan) — merge the client-only log entries in so they
+  // show up here too, newest first.
+  auditLogs = computed(() => [...this.masterPlan.localAuditLogs(), ...this.apiAuditLogs()]
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
 
   constructor() {
     const user = this.authService.currentUser();
     if (user) {
       this.api.getAuditLogs(user.employeeId, user.baseRole, user.department)
-        .then(logs => this.auditLogs.set(logs))
+        .then(logs => this.apiAuditLogs.set(logs))
         .catch(() => this.toast.error('Failed to load audit logs. Please refresh the page.'));
     }
   }
@@ -45,6 +52,20 @@ export class PmAuditComponent {
 
   updateSearch(event: Event) {
     this.searchQuery.set((event.target as HTMLInputElement).value);
+  }
+
+  expandedLogId = signal<string | null>(null);
+
+  toggleExpanded(log: AuditLog) {
+    if (!log.changes?.length) return;
+    this.expandedLogId.set(this.expandedLogId() === log.id ? null : log.id);
+  }
+
+  changeTagClass(change: string): string {
+    if (change.includes('requirement')) return 'tag-flag';
+    if (change.startsWith('Added')) return 'tag-added';
+    if (change.startsWith('Removed')) return 'tag-removed';
+    return 'tag-flag';
   }
 }
 

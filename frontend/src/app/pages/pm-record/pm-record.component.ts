@@ -1,7 +1,8 @@
 import { Component, computed, inject, OnInit, OnDestroy, signal, DestroyRef, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { PmService } from '../../core/services/pm.service';
+import { PmStore } from '../../core/services/pm-store.service';
+import { PmTaskService } from '../../core/services/pm-task.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
 import { PMTask } from '../../core/models/pm.model';
@@ -18,7 +19,8 @@ import { TranslatePipe } from '../../shared/pipes/translate.pipe';
   styleUrl: './pm-record.component.scss'
 })
 export class PmRecordComponent implements OnInit, OnDestroy {
-  private pmService = inject(PmService);
+  private pmStore = inject(PmStore);
+  private pmTaskService = inject(PmTaskService);
   private authService = inject(AuthService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
@@ -34,7 +36,7 @@ export class PmRecordComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     // Lazy load historical data, then re-check route param in case target task is a Done task
-    this.pmService.loadHistoricalTasks()
+    this.pmStore.loadHistoricalTasks()
       .then(() => {
         const taskId = this.route.snapshot.queryParams['task'];
         if (taskId) this.resolveTaskFromParam(taskId);
@@ -48,7 +50,7 @@ export class PmRecordComponent implements OnInit, OnDestroy {
   }
 
   private resolveTaskFromParam(taskId: string) {
-    const task = this.pmService.pmTasks().find(t => t.id === taskId);
+    const task = this.pmStore.pmTasks().find(t => t.id === taskId);
     if (!task) return;
 
     const user = this.authService.currentUser();
@@ -107,7 +109,7 @@ export class PmRecordComponent implements OnInit, OnDestroy {
   // Get tasks based on role: Techs execute, Eng/Mgr approve
   availableTasks = computed(() => {
     const user = this.authService.currentUser();
-    const tasks = this.pmService.pmTasks();
+    const tasks = this.pmStore.pmTasks();
     if (!user) return [];
     
     if (user.baseRole === 'technician') {
@@ -178,7 +180,7 @@ export class PmRecordComponent implements OnInit, OnDestroy {
 
   historyTasks = computed(() => {
     const user = this.authService.currentUser();
-    const tasks = this.pmService.pmTasks();
+    const tasks = this.pmStore.pmTasks();
     const filter = this.historyFilter();
     if (!user) return [];
     
@@ -234,11 +236,11 @@ export class PmRecordComponent implements OnInit, OnDestroy {
   actualHours = 0;
 
   viewTaskDetails(task: PMTask) {
-    this.pmService.viewedTaskGlobal.set(task);
+    this.pmStore.viewedTaskGlobal.set(task);
   }
 
   closeTaskDetails() {
-    this.pmService.viewedTaskGlobal.set(null);
+    this.pmStore.viewedTaskGlobal.set(null);
   }
 
   getRejectionReason(notes?: string): string {
@@ -346,6 +348,14 @@ export class PmRecordComponent implements OnInit, OnDestroy {
   selectTask(task: PMTask) {
     this.selectedTask = task;
     this.actualHours = task.actualHours || task.estimatedHours || 0;
+  }
+
+  // In the single-column layout the detail card sits below the list, so bring it into view
+  scrollToDetail() {
+    if (!window.matchMedia('(max-width: 1199px)').matches) return;
+    setTimeout(() => {
+      document.getElementById('pm-exec-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
   }
 
   toggleChecklist(index: number) {
@@ -541,7 +551,7 @@ export class PmRecordComponent implements OnInit, OnDestroy {
         updatedNotes = updatedNotes.split(/\n\n(?=\[(?:Rejected|Approver|Tech)(?:\|[^\]]+)?\])/).filter(n => !n.startsWith('[Tech')).join('\n\n');
       }
       
-      this.pmService.updateTask({
+      this.pmTaskService.updateTask({
         ...this.selectedTask,
         status: 'Pending Approval',
         completedAt: new Date(),
@@ -553,7 +563,7 @@ export class PmRecordComponent implements OnInit, OnDestroy {
     } else {
       const ts = new Date().toISOString();
       const newNote = `[Approver|${ts}]: ${this.completionNotes}`;
-      this.pmService.updateTask({
+      this.pmTaskService.updateTask({
         ...this.selectedTask,
         status: 'Done',
         approvedAt: new Date(),
@@ -587,7 +597,7 @@ export class PmRecordComponent implements OnInit, OnDestroy {
       done: false
     })) : undefined;
 
-    this.pmService.updateTask({
+    this.pmTaskService.updateTask({
       ...this.selectedTask,
       checklist: updatedChecklist,
       status: 'In Progress',

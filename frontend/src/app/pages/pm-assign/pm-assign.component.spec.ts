@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { PmAssignComponent } from './pm-assign.component';
 import { By } from '@angular/platform-browser';
 import { FormsModule } from '@angular/forms';
-import { PmService } from '../../core/services/pm.service';
+import { PmStore } from '../../core/services/pm-store.service';
 import { AuthService } from '../../core/services/auth.service';
 
 const flush = () => new Promise(r => setTimeout(r, 0));
@@ -46,8 +46,8 @@ describe('PmAssignComponent', () => {
   });
 
   it('should filter pending tasks by selected department', () => {
-    const pmService = TestBed.inject(PmService);
-    (pmService as any).pmTasksSignal.set([
+    const pmStore = TestBed.inject(PmStore);
+    (pmStore as any).pmTasksSignal.set([
       { id: 'PM-1', title: 'Task 1', department: 'Facility', status: 'Pending', productId: 'CUST-001', frequency: 'Weekly', nextDueDate: new Date(), assetId: 'CH-P1-01' } as any,
       { id: 'PM-2', title: 'Task 2', department: 'Mechanic', status: 'Pending', productId: 'CUST-001', frequency: 'Monthly', nextDueDate: new Date(), assetId: 'CM-P1-01' } as any,
     ]);
@@ -63,10 +63,10 @@ describe('PmAssignComponent', () => {
   });
 
   it('should allow bulk assigning tasks to a technician and clear selection', async () => {
-    const pmService = TestBed.inject(PmService);
+    const pmStore = TestBed.inject(PmStore);
 
     // Use REAL pending tasks from seed data (they exist in ApiService too)
-    const pending = pmService.pmTasks().filter(t => t.status === 'Pending');
+    const pending = pmStore.pmTasks().filter(t => t.status === 'Pending');
     expect(pending.length).toBeGreaterThanOrEqual(2);
 
     const taskId1 = pending[0].id;
@@ -87,7 +87,7 @@ describe('PmAssignComponent', () => {
     component.confirmBulkAssign();
     await flush();
 
-    const tasks = pmService.pmTasks();
+    const tasks = pmStore.pmTasks();
     const t1 = tasks.find(t => t.id === taskId1);
     const t2 = tasks.find(t => t.id === taskId2);
 

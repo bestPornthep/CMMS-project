@@ -1,24 +1,57 @@
-<div class="dropdown-backdrop" *ngIf="productDropdownOpen() || assetDropdownOpen()" (click)="closeDropdowns()"></div>
+<div class="dropdown-backdrop" *ngIf="yearDropdownOpen() || productDropdownOpen() || assetDropdownOpen()" (click)="closeDropdowns()"></div>
 
 <!-- Export PM Form Modal -->
 <div class="modal-backdrop" *ngIf="exportModalOpen()" (click)="closeExportModal()"></div>
 <div class="modal-content" *ngIf="exportModalOpen()">
   <div class="modal-header">
-    <h3>Export Machine PM Forms</h3>
+    <h3>{{ 'Export Machine PM Forms' | tr }}</h3>
     <button class="close-btn" (click)="closeExportModal()"><span class="material-symbols-outlined">close</span></button>
   </div>
   <div class="modal-body">
+    <div class="dropdown-backdrop" *ngIf="modalYearDropdownOpen() || modalTypeDropdownOpen()" (click)="closeModalDropdowns()"></div>
     <div class="form-group">
-      <label>Form Year</label>
-      <select class="form-input" [ngModel]="exportYear()" (ngModelChange)="exportYear.set($event)">
-        <option [ngValue]="exportYear() - 1">{{ exportYear() - 1 }}</option>
-        <option [ngValue]="exportYear()">{{ exportYear() }}</option>
-        <option [ngValue]="exportYear() + 1">{{ exportYear() + 1 }}</option>
-        <option [ngValue]="exportYear() + 2">{{ exportYear() + 2 }}</option>
-      </select>
+      <label>{{ 'Form Year' | tr }}</label>
+      <div class="ms-wrapper">
+        <div class="form-input ms-trigger" (click)="toggleModalYearDropdown()">
+          <span class="ms-trigger-text">{{ exportYear() }}</span>
+          <span class="material-symbols-outlined">expand_more</span>
+        </div>
+        <div class="ms-menu" [class.open]="modalYearDropdownOpen()">
+          <div class="ms-list">
+            <div class="ms-item" *ngFor="let y of exportYearOptions()" (click)="selectExportYear(y)">
+              <div class="ms-checkbox" [class.checked]="exportYear() === y">
+                <span class="material-symbols-outlined" *ngIf="exportYear() === y">check</span>
+              </div>
+              <span>{{ y }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
     <div class="form-group">
-      <label>Machines to Export</label>
+      <label>{{ 'PM Type' | tr }}</label>
+      <div class="ms-wrapper" [style.opacity]="exportAvailableTypes().length === 0 ? '0.5' : '1'" [style.pointer-events]="exportAvailableTypes().length === 0 ? 'none' : 'auto'">
+        <div class="form-input ms-trigger" (click)="toggleModalTypeDropdown()">
+          <span class="ms-trigger-text">{{ effectiveExportType() ? (effectiveExportType() | tr) : ('-- Select PM Type --' | tr) }}</span>
+          <span class="material-symbols-outlined">expand_more</span>
+        </div>
+        <div class="ms-menu" [class.open]="modalTypeDropdownOpen()">
+          <div class="ms-list">
+            <div class="ms-item" *ngFor="let t of exportAvailableTypes()" (click)="selectExportType(t)">
+              <div class="ms-checkbox" [class.checked]="effectiveExportType() === t">
+                <span class="material-symbols-outlined" *ngIf="effectiveExportType() === t">check</span>
+              </div>
+              <span>{{ t | tr }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div *ngIf="exportAvailableTypes().length === 0" style="color:var(--color-text-muted); font-size:12px; margin-top:4px;">
+        {{ 'No PM types found for the selected machines/year.' | tr }}
+      </div>
+    </div>
+    <div class="form-group">
+      <label>{{ 'Machines to Export' | tr }}</label>
       <div class="export-asset-list">
         <div class="ms-item" *ngFor="let a of availableAssets()" (click)="toggleExportAsset(a)">
           <div class="ms-checkbox" [class.checked]="exportSelectedAssets().includes(a)">
@@ -27,15 +60,15 @@
           <span>{{ getAssetName(a) }} ({{ a }})</span>
         </div>
         <div *ngIf="availableAssets().length === 0" style="color:var(--color-text-muted); font-size:12px; padding:10px;">
-          No machines available.
+          {{ 'No machines available.' | tr }}
         </div>
       </div>
     </div>
   </div>
   <div class="modal-footer">
-    <button class="btn btn-outline" (click)="closeExportModal()">Cancel</button>
-    <button class="btn btn-primary" (click)="generatePdf()" [disabled]="exportSelectedAssets().length === 0 || !historyLoaded()">
-      {{ historyLoaded() ? 'Generate PDF' : 'Loading data...' }}
+    <button class="btn btn-outline" (click)="closeExportModal()">{{ 'Cancel' | tr }}</button>
+    <button class="btn btn-primary" (click)="generatePdf()" [disabled]="exportSelectedAssets().length === 0 || !effectiveExportType() || !historyLoaded()">
+      {{ historyLoaded() ? ('Generate PDF' | tr) : ('Loading data...' | tr) }}
     </button>
   </div>
 </div>
@@ -48,6 +81,10 @@
       <p class="page-sub">{{ 'Pull approved PM records for audit evidence.' | tr }}</p>
     </div>
     <div class="header-actions">
+      <button class="btn btn-outline" *ngIf="isDevBuild" (click)="loadMockPreviewData()">
+        <span class="material-symbols-outlined">science</span>
+        {{ (mockTasks().length > 0 ? 'Clear Mock Preview Data' : 'Load Mock Preview Data') | tr }}
+      </button>
       <button class="btn btn-outline" (click)="printReport()">
         <span class="material-symbols-outlined">table_view</span> {{ 'Print Table' | tr }}
       </button>
@@ -58,6 +95,31 @@
   </div>
 
   <div class="filter-bar card no-print" data-enter>
+    <div class="filter-group">
+      <label class="filter-label">{{ 'Year' | tr }}</label>
+      <div class="ms-wrapper">
+        <div class="form-input ms-trigger" (click)="toggleYearDropdown()">
+          <span class="ms-trigger-text">{{ selectedYear() === '' ? ('All years' | tr) : selectedYear() }}</span>
+          <span class="material-symbols-outlined">expand_more</span>
+        </div>
+        <div class="ms-menu" [class.open]="yearDropdownOpen()">
+          <div class="ms-list">
+            <div class="ms-item" (click)="selectYear('')">
+              <div class="ms-checkbox" [class.checked]="selectedYear() === ''">
+                <span class="material-symbols-outlined" *ngIf="selectedYear() === ''">check</span>
+              </div>
+              <span>{{ 'All years' | tr }}</span>
+            </div>
+            <div class="ms-item" *ngFor="let y of availableYears()" (click)="selectYear(y)">
+              <div class="ms-checkbox" [class.checked]="selectedYear() === y">
+                <span class="material-symbols-outlined" *ngIf="selectedYear() === y">check</span>
+              </div>
+              <span>{{ y }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
     <div class="filter-group">
       <label class="filter-label">{{ 'Start Date' | tr }}</label>
       <input type="date" [ngModel]="startDate()" (ngModelChange)="startDate.set($event)" class="form-input filter-input">
@@ -177,47 +239,51 @@
         <strong>Kimball Electronics</strong><br>
         <span>THAILAND, LTD.</span>
       </div>
-      <div class="kpm-title">MONTHLY PREVENTIVE MAINTENANCE CHECK SHEET</div>
-      <div class="kpm-year">Year : {{ page.year }}</div>
+      <div class="kpm-title">{{ page.frequency | uppercase }} PREVENTIVE MAINTENANCE CHECK SHEET</div>
+      <div class="kpm-year">Year : {{ page.year }} &nbsp;&nbsp; Month : {{ page.monthLabel }} &nbsp;&nbsp; Type : {{ page.frequency }}</div>
     </div>
 
-    <!-- ── Main check sheet table ── -->
+    <!-- ── Main check sheet table (grid: checklist rows × period columns) ── -->
     <!--
-      Column layout (9 cols):
-      1: #/label   2: Description   3: Month/WW/Date label   4-9: 6 month columns
+      Column layout: 1: #/label   2: Description   3: axis label   4+: N data columns
+      (N = 1 for most types; Weekly/Daily/Hourly get one column per work-week/day/completion)
     -->
     <table class="kpm-table">
-      <!-- Fixed column widths: #(25) | Desc(210) | label(48) | 6×month(52 each) -->
+      <!-- Fixed column widths: #(25) | Desc(210) | label(48) | N×data(52 each) -->
       <colgroup>
         <col style="width:25px">
         <col style="width:210px">
         <col style="width:48px">
-        <col *ngFor="let m of page.months" style="width:52px">
+        <col *ngFor="let c of page.columns" style="width:52px">
       </colgroup>
       <thead>
         <!-- Row 1: Machine Name + "Work Week" spanning header -->
         <tr>
           <th class="kpm-meta-label" colspan="2">MACHINE NAME : {{ page.assetName }}</th>
-          <th class="kpm-ww-header" colspan="7">Work Week of Month / Maintenance Date</th>
+          <th class="kpm-ww-header" [attr.colspan]="1 + page.columns.length">Work Week of Month / Maintenance Date</th>
         </tr>
-        <!-- Row 2: Machine No + Month labels -->
+        <!-- Row 2: Machine No + axis labels -->
         <tr>
           <th class="kpm-meta-label" colspan="1">MACHINE NO. :</th>
           <th class="kpm-meta-value">{{ page.assetId }}</th>
-          <th class="kpm-month-label">Month</th>
-          <th class="kpm-month-col" *ngFor="let m of page.months">{{ MONTH_NAMES[m] }}</th>
+          <th class="kpm-month-label">{{ page.columnAxisLabel }}</th>
+          <th class="kpm-month-col" *ngFor="let c of page.columns">{{ c.label }}</th>
         </tr>
-        <!-- Row 3: WW row -->
-        <tr>
+        <!-- Row 3: WW row (omitted for Weekly — its column header already shows the same number) -->
+        <tr *ngIf="page.showWwRow">
           <th class="kpm-col-num" rowspan="2"></th>
           <th class="kpm-col-desc" rowspan="2">Description</th>
           <th class="kpm-ww-date-label">WW</th>
-          <th class="kpm-ww-date-val" *ngFor="let m of page.months">{{ page.wwByMonth[m] || '' }}</th>
+          <th class="kpm-ww-date-val" *ngFor="let c of page.columns">{{ c.ww }}</th>
         </tr>
         <!-- Row 4: Date row -->
         <tr>
+          <ng-container *ngIf="!page.showWwRow">
+            <th class="kpm-col-num"></th>
+            <th class="kpm-col-desc">Description</th>
+          </ng-container>
           <th class="kpm-ww-date-label">Date</th>
-          <th class="kpm-ww-date-val" *ngFor="let m of page.months">{{ page.dateByMonth[m] || '' }}</th>
+          <th class="kpm-ww-date-val" *ngFor="let c of page.columns">{{ c.date }}</th>
         </tr>
       </thead>
 
@@ -226,23 +292,23 @@
         <tr *ngFor="let row of page.checklistRows; let i = index">
           <td class="kpm-col-num">{{ i + 1 }}</td>
           <td class="kpm-col-desc" colspan="2">{{ row.text }}</td>
-          <td class="kpm-check-cell" *ngFor="let m of page.months">{{ row.marks[m] || '' }}</td>
+          <td class="kpm-check-cell" *ngFor="let c of page.columns">{{ row.marks[c.key] || '' }}</td>
         </tr>
         <!-- Empty filler rows to keep the form a standard height -->
         <tr *ngFor="let _ of [].constructor(Math.max(0, 12 - page.checklistRows.length))" class="kpm-empty-row">
           <td class="kpm-col-num"></td>
           <td colspan="2"></td>
-          <td *ngFor="let m of page.months"></td>
+          <td *ngFor="let c of page.columns"></td>
         </tr>
 
         <!-- Signature / Approved -->
         <tr class="kpm-footer-row">
           <td colspan="3" class="kpm-footer-label">Signature</td>
-          <td *ngFor="let m of page.months"></td>
+          <td *ngFor="let c of page.columns"></td>
         </tr>
         <tr class="kpm-footer-row">
           <td colspan="3" class="kpm-footer-label">Approved</td>
-          <td *ngFor="let m of page.months"></td>
+          <td *ngFor="let c of page.columns"></td>
         </tr>
       </tbody>
     </table>

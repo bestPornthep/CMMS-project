@@ -1,9 +1,9 @@
 import { TranslatePipe } from '../../shared/pipes/translate.pipe';
-import { Component, computed, inject, signal, HostListener, OnDestroy, DestroyRef } from '@angular/core';
+import { Component, computed, inject, signal, HostListener, OnInit, OnDestroy, DestroyRef } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
-import { PmService } from '../../core/services/pm.service';
+import { PmStore } from '../../core/services/pm-store.service';
 import { AuthService } from '../../core/services/auth.service';
 import { PMTask } from '../../core/models/pm.model';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -16,8 +16,8 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
   templateUrl: './pm-calendar.component.html',
   styleUrl: './pm-calendar.component.scss'
 })
-export class PmCalendarComponent implements OnDestroy {
-  private pmService = inject(PmService);
+export class PmCalendarComponent implements OnInit, OnDestroy {
+  private pmStore = inject(PmStore);
   private authService = inject(AuthService);
   private datePipe = inject(DatePipe);
   private router = inject(Router);
@@ -52,6 +52,12 @@ export class PmCalendarComponent implements OnDestroy {
         this.highlightedTaskId.set(null);
       }
     });
+  }
+
+  ngOnInit() {
+    // Lazy load historical data, same as pm-record/pm-reports, so Done tasks
+    // show on the calendar even without having visited those pages first.
+    this.pmStore.loadHistoricalTasks().catch(console.error);
   }
 
   get currentUser() {
@@ -97,7 +103,7 @@ export class PmCalendarComponent implements OnDestroy {
   }
   
   goToRecord(taskId: string, fromSidebar: boolean = false) {
-    const task = this.pmService.pmTasks().find(t => t.id === taskId);
+    const task = this.pmStore.pmTasks().find(t => t.id === taskId);
     if (!task) return;
     
     // Authorization check: Engineers can see all dept tasks on calendar, but can only click/open tasks they own
@@ -126,7 +132,7 @@ export class PmCalendarComponent implements OnDestroy {
         this.router.navigate(['/pm-record'], { queryParams: { task: taskId } });
       } else if (task.status === 'Done') {
         // Only Done task gets the modal
-        this.pmService.viewedTaskGlobal.set(task);
+        this.pmStore.viewedTaskGlobal.set(task);
       } else if (fromSidebar) {
         // Scheduled and Overdue, clicked from the sidebar — stay on the calendar and
         // just scroll/highlight the matching day cell, no modal, no navigation.
@@ -134,7 +140,7 @@ export class PmCalendarComponent implements OnDestroy {
       } else {
         // Scheduled and Overdue, clicked in the grid — show details/assign in the modal
         // instead of leaving the page.
-        this.pmService.viewedTaskGlobal.set(task);
+        this.pmStore.viewedTaskGlobal.set(task);
       }
       return;
     }
@@ -142,7 +148,7 @@ export class PmCalendarComponent implements OnDestroy {
     // Technicians: Done tasks are read-only history, shown in the same shared modal as
     // every other role. Anything still in flight is executed in Record PM.
     if (task.status === 'Done') {
-      this.pmService.viewedTaskGlobal.set(task);
+      this.pmStore.viewedTaskGlobal.set(task);
       return;
     }
     this.router.navigate(['/pm-record'], { queryParams: { task: taskId } });
@@ -154,7 +160,7 @@ export class PmCalendarComponent implements OnDestroy {
 
   highlightTask(taskId: string) {
     this.highlightedTaskId.set(taskId);
-    const task = this.pmService.pmTasks().find(t => t.id === taskId);
+    const task = this.pmStore.pmTasks().find(t => t.id === taskId);
     if (task && task.nextDueDate) {
       const d = new Date(task.nextDueDate);
       this.currentDate.set(new Date(d.getFullYear(), d.getMonth(), 1));
@@ -183,7 +189,7 @@ export class PmCalendarComponent implements OnDestroy {
     const user = this.currentUser;
     if (!user) return [];
     
-    let tasks = this.pmService.pmTasks();
+    let tasks = this.pmStore.pmTasks();
 
     // 1. Role Based Department/Product Filtering
     if (user.baseRole === 'technician') {
@@ -282,6 +288,17 @@ export class PmCalendarComponent implements OnDestroy {
              d.getMonth() === today.getMonth() && 
              d.getDate() === today.getDate();
     });
+  });
+
+  // Earliest future task, shown as a hint when nothing is due today (so an
+  // empty sidebar doesn't look like data failed to load).
+  nextUpcomingTask = computed(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const upcoming = this.filteredTasks()
+      .filter(t => t.status !== 'Done' && new Date(t.nextDueDate) > today)
+      .sort((a, b) => new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime());
+    return upcoming[0] ?? null;
   });
 
   monthSummary = computed(() => {

@@ -1,5 +1,7 @@
 import { TestBed } from '@angular/core/testing';
-import { PmService } from './pm.service';
+import { PmStore } from './pm-store.service';
+import { PmTaskService } from './pm-task.service';
+import { TemplateService } from './template.service';
 import { AuthService } from './auth.service';
 import { ApiService } from './api.service';
 import { PMTask } from '../models/pm.model';
@@ -8,7 +10,9 @@ import { PMTask } from '../models/pm.model';
 const flush = () => new Promise(r => setTimeout(r, 0));
 
 describe('PmService', () => {
-  let pmService: PmService;
+  let pmStore: PmStore;
+  let pmTaskService: PmTaskService;
+  let templateService: TemplateService;
   let authService: AuthService;
   let apiService: ApiService;
 
@@ -17,7 +21,9 @@ describe('PmService', () => {
     TestBed.configureTestingModule({});
     apiService = TestBed.inject(ApiService);
     authService = TestBed.inject(AuthService);
-    pmService = TestBed.inject(PmService);
+    pmStore = TestBed.inject(PmStore);
+    pmTaskService = TestBed.inject(PmTaskService);
+    templateService = TestBed.inject(TemplateService);
     await flush(); // resolve constructor Promise.all
   });
 
@@ -30,15 +36,15 @@ describe('PmService', () => {
 
   describe('Initialization', () => {
     it('should load assets from ApiService on init', () => {
-      expect(pmService.assets().length).toBeGreaterThan(0);
+      expect(pmStore.assets().length).toBeGreaterThan(0);
     });
 
     it('should load tasks from ApiService on init', () => {
-      expect(pmService.pmTasks().length).toBeGreaterThan(0);
+      expect(pmStore.pmTasks().length).toBeGreaterThan(0);
     });
 
     it('should load templates from ApiService on init', () => {
-      expect(pmService.templates()).toBeDefined();
+      expect(templateService.templates()).toBeDefined();
     });
   });
 
@@ -46,48 +52,48 @@ describe('PmService', () => {
 
   describe('addPmTask() — Authorization', () => {
     it('should throw when no user is logged in', () => {
-      expect(() => pmService.addPmTask({ productId: 'CUST-001' }))
+      expect(() => pmTaskService.addPmTask({ productId: 'CUST-001' }))
         .toThrowError(/Unauthorized/);
     });
 
     it('should throw when technician tries to create (no permission)', async () => {
       await authService.login('TECH-TST-1', 'tech123');
-      expect(() => pmService.addPmTask({ productId: 'CUST-001', department: 'Test', assetId: 'THC-P1-01' }))
+      expect(() => pmTaskService.addPmTask({ productId: 'CUST-001', department: 'Test', assetId: 'THC-P1-01' }))
         .toThrowError(/Unauthorized/);
     });
 
     it('should throw when engineer creates for product they do not own', async () => {
       await authService.login('ENG-TST-1', 'eng123');
       // ENG-TST-1 owns CUST-001, CUST-002 only
-      expect(() => pmService.addPmTask({ productId: 'CUST-003', department: 'Test', assetId: 'THC-P3-01' }))
+      expect(() => pmTaskService.addPmTask({ productId: 'CUST-003', department: 'Test', assetId: 'THC-P3-01' }))
         .toThrowError(/Product access denied/);
     });
 
     it('should throw when asset does not match product', async () => {
       await authService.login('ENG-TST-1', 'eng123');
       // CH-P1-01 belongs to CUST-001 Facility, not CUST-002
-      expect(() => pmService.addPmTask({ productId: 'CUST-002', department: 'Facility', assetId: 'CH-P1-01' }))
+      expect(() => pmTaskService.addPmTask({ productId: 'CUST-002', department: 'Facility', assetId: 'CH-P1-01' }))
         .toThrowError(/Invalid Product-Asset/);
     });
 
     it('should throw when asset department does not match task department', async () => {
       await authService.login('ENG-TST-1', 'eng123');
       // THC-P1-01 is in Test department, not Facility
-      expect(() => pmService.addPmTask({ productId: 'CUST-001', department: 'Facility', assetId: 'THC-P1-01' }))
+      expect(() => pmTaskService.addPmTask({ productId: 'CUST-001', department: 'Facility', assetId: 'THC-P1-01' }))
         .toThrowError(/Invalid Product-Asset/);
     });
 
     it('should throw when assetId does not exist', async () => {
       await authService.login('ENG-TST-1', 'eng123');
-      expect(() => pmService.addPmTask({ productId: 'CUST-001', department: 'Test', assetId: 'FAKE-ASSET' }))
+      expect(() => pmTaskService.addPmTask({ productId: 'CUST-001', department: 'Test', assetId: 'FAKE-ASSET' }))
         .toThrowError(/Invalid Product-Asset/);
     });
 
     it('should succeed with valid data as engineer', async () => {
       await authService.login('ENG-TST-1', 'eng123');
-      const before = pmService.pmTasks().length;
+      const before = pmStore.pmTasks().length;
 
-      pmService.addPmTask({
+      pmTaskService.addPmTask({
         productId: 'CUST-001',
         department: 'Test',
         assetId: 'THC-P1-01',
@@ -100,14 +106,14 @@ describe('PmService', () => {
       });
       await flush(); // resolve createTask promise
 
-      expect(pmService.pmTasks().length).toBe(before + 1);
+      expect(pmStore.pmTasks().length).toBe(before + 1);
     });
 
     it('should succeed as manager for any product', async () => {
       await authService.login('MGR001', 'mgr123');
-      const before = pmService.pmTasks().length;
+      const before = pmStore.pmTasks().length;
 
-      pmService.addPmTask({
+      pmTaskService.addPmTask({
         productId: 'CUST-005',
         department: 'Maintenance',
         assetId: 'GEN-P5-01',
@@ -120,7 +126,7 @@ describe('PmService', () => {
       });
       await flush();
 
-      expect(pmService.pmTasks().length).toBe(before + 1);
+      expect(pmStore.pmTasks().length).toBe(before + 1);
     });
   });
 
@@ -129,42 +135,42 @@ describe('PmService', () => {
   describe('updateTask() — Authorization', () => {
     it('should throw when no user is logged in', () => {
       const fakeTask = { id: 'PM-TST-0001', productId: 'CUST-001' } as PMTask;
-      expect(() => pmService.updateTask(fakeTask)).toThrowError(/Unauthorized/);
+      expect(() => pmTaskService.updateTask(fakeTask)).toThrowError(/Unauthorized/);
     });
 
     it('should throw when engineer updates task for product they do not own and are not assigned', async () => {
       await authService.login('ENG-TST-1', 'eng123');
 
-      const task = pmService.pmTasks().find(t =>
+      const task = pmStore.pmTasks().find(t =>
         t.productId === 'CUST-003' || t.productId === 'CUST-004' || t.productId === 'CUST-005'
       );
       if (task) {
-        expect(() => pmService.updateTask({ ...task, title: 'Hacked' }))
+        expect(() => pmTaskService.updateTask({ ...task, title: 'Hacked' }))
           .toThrowError(/Unauthorized/);
       }
     });
 
     it('should allow engineer to update task for owned product', async () => {
       await authService.login('ENG-TST-1', 'eng123');
-      const task = pmService.pmTasks().find(t => t.productId === 'CUST-001');
+      const task = pmStore.pmTasks().find(t => t.productId === 'CUST-001');
       if (task) {
-        expect(() => pmService.updateTask({ ...task, title: 'Updated' })).not.toThrow();
+        expect(() => pmTaskService.updateTask({ ...task, title: 'Updated' })).not.toThrow();
         await flush();
       }
     });
 
     it('should allow manager to update any task', async () => {
       await authService.login('MGR001', 'mgr123');
-      const task = pmService.pmTasks()[0];
-      expect(() => pmService.updateTask({ ...task, title: 'Manager Update' })).not.toThrow();
+      const task = pmStore.pmTasks()[0];
+      expect(() => pmTaskService.updateTask({ ...task, title: 'Manager Update' })).not.toThrow();
       await flush();
     });
 
     it('should allow technician to update task assigned to them', async () => {
       await authService.login('TECH-TST-1', 'tech123');
-      const task = pmService.pmTasks().find(t => t.assignedTo === 'TECH-TST-1');
+      const task = pmStore.pmTasks().find(t => t.assignedTo === 'TECH-TST-1');
       if (task) {
-        expect(() => pmService.updateTask({ ...task, recordNotes: 'Done' })).not.toThrow();
+        expect(() => pmTaskService.updateTask({ ...task, recordNotes: 'Done' })).not.toThrow();
         await flush();
       }
     });
@@ -174,18 +180,18 @@ describe('PmService', () => {
 
   describe('deleteTask()', () => {
     it('should remove a task from the list', async () => {
-      const tasks = pmService.pmTasks();
+      const tasks = pmStore.pmTasks();
       const id = tasks[0].id;
-      pmService.deleteTask(id);
+      pmTaskService.deleteTask(id);
       await flush();
-      expect(pmService.pmTasks().find(t => t.id === id)).toBeUndefined();
+      expect(pmStore.pmTasks().find(t => t.id === id)).toBeUndefined();
     });
 
     it('should handle deleting non-existent task gracefully', async () => {
-      const before = pmService.pmTasks().length;
-      pmService.deleteTask('PM-FAKE-9999');
+      const before = pmStore.pmTasks().length;
+      pmTaskService.deleteTask('PM-FAKE-9999');
       await flush();
-      expect(pmService.pmTasks().length).toBe(before);
+      expect(pmStore.pmTasks().length).toBe(before);
     });
   });
 
@@ -193,40 +199,40 @@ describe('PmService', () => {
 
   describe('saveTemplate()', () => {
     it('should throw when not logged in', () => {
-      expect(() => pmService.saveTemplate({ name: 'T', department: 'Test', checklist: [] }))
+      expect(() => templateService.saveTemplate({ name: 'T', department: 'Test', checklist: [] }))
         .toThrowError(/Unauthorized/);
     });
 
     it('should throw when engineer saves template for different department', async () => {
       await authService.login('ENG-TST-1', 'eng123');
-      expect(() => pmService.saveTemplate({ name: 'X', department: 'Facility', checklist: [] }))
+      expect(() => templateService.saveTemplate({ name: 'X', department: 'Facility', checklist: [] }))
         .toThrowError(/your own department/);
     });
 
     it('should allow engineer to save template for own department', async () => {
       await authService.login('ENG-TST-1', 'eng123');
-      pmService.saveTemplate({ name: 'My Template', department: 'Test', checklist: [{ text: 'Step 1' }] });
+      templateService.saveTemplate({ name: 'My Template', department: 'Test', checklist: [{ text: 'Step 1' }] });
       await flush();
-      expect(pmService.templates().some(t => t.name === 'My Template')).toBe(true);
+      expect(templateService.templates().some(t => t.name === 'My Template')).toBe(true);
     });
 
     it('should allow manager to save template for any department', async () => {
       await authService.login('MGR001', 'mgr123');
-      pmService.saveTemplate({ name: 'Mgr Template', department: 'Facility', checklist: [] });
+      templateService.saveTemplate({ name: 'Mgr Template', department: 'Facility', checklist: [] });
       await flush();
-      expect(pmService.templates().some(t => t.name === 'Mgr Template')).toBe(true);
+      expect(templateService.templates().some(t => t.name === 'Mgr Template')).toBe(true);
     });
   });
 
   describe('deleteTemplate()', () => {
     it('should throw when not logged in', () => {
-      expect(() => pmService.deleteTemplate({ id: '1', name: 'T', department: 'Test', checklist: [] }))
+      expect(() => templateService.deleteTemplate({ id: '1', name: 'T', department: 'Test', checklist: [] }))
         .toThrowError(/Unauthorized/);
     });
 
     it('should throw when engineer deletes template from different department', async () => {
       await authService.login('ENG-TST-1', 'eng123');
-      expect(() => pmService.deleteTemplate({ id: '1', name: 'X', department: 'Facility', checklist: [] }))
+      expect(() => templateService.deleteTemplate({ id: '1', name: 'X', department: 'Facility', checklist: [] }))
         .toThrowError(/your own department/);
     });
   });
@@ -235,19 +241,19 @@ describe('PmService', () => {
 
   describe('viewedTaskGlobal', () => {
     it('should start as null', () => {
-      expect(pmService.viewedTaskGlobal()).toBeNull();
+      expect(pmStore.viewedTaskGlobal()).toBeNull();
     });
 
     it('should hold a task when set', () => {
-      const task = pmService.pmTasks()[0];
-      pmService.viewedTaskGlobal.set(task);
-      expect(pmService.viewedTaskGlobal()).toBe(task);
+      const task = pmStore.pmTasks()[0];
+      pmStore.viewedTaskGlobal.set(task);
+      expect(pmStore.viewedTaskGlobal()).toBe(task);
     });
 
     it('should be clearable', () => {
-      pmService.viewedTaskGlobal.set(pmService.pmTasks()[0]);
-      pmService.viewedTaskGlobal.set(null);
-      expect(pmService.viewedTaskGlobal()).toBeNull();
+      pmStore.viewedTaskGlobal.set(pmStore.pmTasks()[0]);
+      pmStore.viewedTaskGlobal.set(null);
+      expect(pmStore.viewedTaskGlobal()).toBeNull();
     });
   });
 });

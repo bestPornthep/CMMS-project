@@ -51,6 +51,10 @@ const PERMISSION_CATALOG: PermissionCatalogItem[] = [
   { key: 'pm.permission.delegate', label: 'Delegate Permissions to Technicians' },
 ];
 
+// Granted via its own dedicated toggle button (below), not the generic checklist —
+// so it can be flipped independently of role, e.g. for a senior engineer.
+const MASTERPLAN_APPROVE_PERMISSION = 'pm.masterplan.approve';
+
 const DEPARTMENT_OPTIONS = ['Facility', 'Mechanic', 'Manufacturing', 'Maintenance', 'Test', 'All'];
 const PRODUCT_OPTIONS = ['CUST-001', 'CUST-002', 'CUST-003', 'CUST-004', 'CUST-005', 'CUST-006'];
 
@@ -117,6 +121,14 @@ export class ProfileConfigComponent {
     event.stopPropagation();
     this.formDepartment = d;
     this.deptDropdownOpen = false;
+    // Technician/Engineer can't see across departments, so "All" needs a manager/admin role.
+    if (d === 'All' && (this.formBaseRole === 'technician' || this.formBaseRole === 'engineer')) {
+      this.selectRoleTemplate('manager');
+    }
+  }
+
+  isRoleTemplateDisabled(_role: Role): boolean {
+    return false; // switching to/from any role template is always allowed — department auto-adjusts instead of blocking
   }
 
   constructor() {
@@ -173,6 +185,14 @@ export class ProfileConfigComponent {
     this.formBaseRole = role;
     this.formRoleLabel = ROLE_LABELS[role];
     this.formPermissions = []; // switching templates resets any extras from the previous role
+    // Manager/Admin oversee every department; Technician/Engineer are scoped to one.
+    if (role === 'manager' || role === 'admin') {
+      this.formDepartment = 'All';
+    } else if (this.formDepartment === 'All') {
+      // Revert case: coming back down from Manager/Admin to Technician/Engineer —
+      // 'All' isn't a valid department for them, so fall back to a real one.
+      this.formDepartment = DEPARTMENT_OPTIONS[0];
+    }
   }
 
   isStandardPermission(key: string): boolean {
@@ -189,6 +209,23 @@ export class ProfileConfigComponent {
     const idx = this.formPermissions.indexOf(key);
     if (idx >= 0) this.formPermissions.splice(idx, 1);
     else this.formPermissions.push(key);
+  }
+
+  // Master Plan approver right is its own toggle button, not the generic checklist —
+  // Manager/Admin already have it implicitly (they bypass all permission checks).
+  isMasterPlanApproverLocked(): boolean {
+    return this.formBaseRole === 'admin' || this.formBaseRole === 'manager';
+  }
+
+  isMasterPlanApprover(): boolean {
+    return this.isMasterPlanApproverLocked() || this.formPermissions.includes(MASTERPLAN_APPROVE_PERMISSION);
+  }
+
+  toggleMasterPlanApprover() {
+    if (this.isMasterPlanApproverLocked()) return;
+    const idx = this.formPermissions.indexOf(MASTERPLAN_APPROVE_PERMISSION);
+    if (idx >= 0) this.formPermissions.splice(idx, 1);
+    else this.formPermissions.push(MASTERPLAN_APPROVE_PERMISSION);
   }
 
   toggleOwnedProduct(p: string) {

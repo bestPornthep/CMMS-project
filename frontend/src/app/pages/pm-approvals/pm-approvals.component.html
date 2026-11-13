@@ -1,0 +1,257 @@
+<div class="page-header" data-enter>
+  <div>
+    <h1 class="page-title">{{ 'PM Master Plan Approvals' | tr }}</h1>
+    <p class="page-sub">{{ 'Structural changes to the Master Plan (machines, PM types) wait here until a Manager/Admin approves.' | tr }}</p>
+  </div>
+  <div class="header-actions" *ngIf="isDevBuild">
+    <button class="btn btn-ghost" (click)="seedMockData()">{{ 'Load mock pending changes (dev only)' | tr }}</button>
+  </div>
+</div>
+
+<div class="card" data-enter>
+  <div class="card-header pending-header">
+    <div class="card-title">{{ 'Pending Approval' | tr }} ({{ pendingChanges().length }})</div>
+    <div class="bulk-bar" *ngIf="canApprove() && selectedIds().size > 0"
+         style="display:flex; align-items:center; gap:12px; background:var(--blue-light); padding:6px 14px; border-radius:var(--radius-lg); border:1px solid rgba(26,86,219,0.2);">
+      <span style="font-size:13px; font-weight:600;">{{ selectedIds().size }} {{ 'selected' | tr }}</span>
+      <button class="btn btn-primary bulk-approve-btn" style="padding:0 14px; height:30px;" [disabled]="processing()" (click)="bulkApprove()">{{ 'Approve Selected' | tr }}</button>
+    </div>
+  </div>
+
+  <div class="table-scroll" style="overflow-x:auto;">
+    <table class="data-table pending-table">
+      <thead>
+        <tr>
+          <th class="col-check" style="width:36px;" *ngIf="canApprove()">
+            <input type="checkbox" (change)="toggleAllSelection($event)"
+                   [checked]="selectedIds().size > 0 && selectedIds().size === pendingChanges().length" />
+          </th>
+          <th style="text-align:left;">{{ 'Machine' | tr }}</th>
+          <th>{{ 'Department' | tr }}</th>
+          <th>{{ 'Submitted By' | tr }}</th>
+          <th>{{ 'Changes' | tr }}</th>
+          <th class="col-actions" style="width:170px;" *ngIf="canApprove()">{{ 'Actions' | tr }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <ng-container *ngFor="let record of pendingChanges()">
+          <tr (click)="openDetail(record)" style="cursor:pointer;">
+            <td class="col-check" *ngIf="canApprove()" (click)="$event.stopPropagation()">
+              <input type="checkbox" [checked]="isSelected(record.id)" (change)="toggleSelection(record.id)" />
+            </td>
+            <td style="text-align:left;">
+              <div style="font-weight:600; color:var(--color-text-primary);">{{ record.assetName }}</div>
+              <div class="mono" style="font-size:11px; color:var(--color-text-muted);">{{ record.assetId }}</div>
+            </td>
+            <td>{{ record.department }}</td>
+            <td>{{ resolveName(record.submittedBy) }}</td>
+            <td>
+              <div class="changes-list" style="justify-content:center;">
+                <span *ngFor="let tag of changeTags(record)" class="change-tag" [ngClass]="tag.cls">{{ tag.text | tr }}</span>
+              </div>
+            </td>
+            <td class="col-actions" *ngIf="canApprove()" (click)="$event.stopPropagation()">
+              <div class="row-actions" style="display:flex; gap:6px; justify-content:center;">
+                <button class="btn btn-primary row-btn" style="padding:0 10px; height:28px; font-size:12px;" [disabled]="processing()" (click)="approveOne(record)">{{ 'Approve' | tr }}</button>
+                <button class="btn btn-ghost row-btn" style="padding:0 10px; height:28px; font-size:12px; color:var(--color-error-text);" [disabled]="processing()" (click)="rejectFromRow(record)">{{ 'Reject' | tr }}</button>
+              </div>
+            </td>
+          </tr>
+        </ng-container>
+        <tr *ngIf="pendingChanges().length === 0">
+          <td [attr.colspan]="canApprove() ? 6 : 4" style="text-align:center; padding:40px; color:var(--color-text-muted);">
+            {{ 'No pending Master Plan changes. Routine on-time work never lands here.' | tr }}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card" data-enter style="margin-top:16px;">
+  <div class="card-header" style="cursor:pointer;" (click)="showResolvedHistory.set(!showResolvedHistory())">
+    <div class="card-title">{{ 'Recently Resolved' | tr }} ({{ resolvedChanges().length }})</div>
+    <span class="material-symbols-outlined">{{ showResolvedHistory() ? 'expand_less' : 'expand_more' }}</span>
+  </div>
+  <div class="table-scroll" style="overflow-x:auto;" *ngIf="showResolvedHistory()">
+    <table class="data-table resolved-table">
+      <thead>
+        <tr>
+          <th style="text-align:left;">{{ 'Machine' | tr }}</th>
+          <th>{{ 'Status' | tr }}</th>
+          <th>{{ 'Resolved By' | tr }}</th>
+          <th>{{ 'Resolved At' | tr }}</th>
+          <th>{{ 'Detail' | tr }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let record of resolvedChanges()" (click)="openDetail(record)" style="cursor:pointer;">
+          <td style="text-align:left;">{{ record.assetName }} <span class="mono" style="color:var(--color-text-muted); font-size:11px;">({{ record.assetId }})</span></td>
+          <td>
+            <span class="badge" [class.badge-success]="record.status === 'approved'" [class.badge-error]="record.status === 'rejected'">
+              {{ record.status | uppercase }}
+            </span>
+          </td>
+          <td>{{ resolveName(record.resolvedBy) }}</td>
+          <td>{{ record.resolvedAt | date:'MMM d, y, h:mm a' }}</td>
+          <td style="text-align:left;">{{ record.status === 'rejected' ? record.rejectReason : record.note }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Change detail modal -->
+<div class="modal-overlay" [class.open]="detailRecord()" (click)="closeDetail()"></div><div class="detail-modal" [class.open]="detailRecord()">
+  <ng-container *ngIf="detailRecord() as record">
+    <div class="detail-modal-header">
+      <div>
+        <h2 class="modal-title">{{ record.assetName }}</h2>
+        <div class="mono detail-modal-subid">{{ record.assetId }} · {{ record.department | tr }}</div>
+      </div>
+      <button class="btn-icon-close" (click)="closeDetail()" [attr.aria-label]="'Close' | tr">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+
+    <div class="detail-modal-body">
+      <div class="detail-status-banner" *ngIf="record.status !== 'pending'" [class.approved]="record.status === 'approved'" [class.rejected]="record.status === 'rejected'">
+        <span class="badge" [class.badge-success]="record.status === 'approved'" [class.badge-error]="record.status === 'rejected'">{{ record.status | uppercase }}</span>
+        <span>{{ 'by' | tr }} {{ resolveName(record.resolvedBy) }} · {{ record.resolvedAt | date:'MMM d, y, h:mm a' }}</span>
+        <div class="reject-reason-text" *ngIf="record.status === 'rejected'">{{ 'Reason' | tr }}: {{ record.rejectReason }}</div>
+      </div>
+
+      <div class="detail-status-banner send-banner" *ngIf="isSendRequest(record)">
+        {{ 'This request adds the machine and all its PM types to the Master Plan. Approving puts the machine in the plan and creates a new revision.' | tr }}
+      </div>
+
+      <div class="detail-meta-line">
+        {{ 'Submitted by' | tr }} <strong>{{ resolveName(record.submittedBy) }}</strong>
+        <span class="mono" style="color:var(--color-text-muted);">({{ record.submittedBy }})</span>
+        · {{ record.submittedAt | date:'MMM d, y, h:mm a' }}
+      </div>
+
+      <div class="detail-section" *ngIf="record.proposedState.editFields as ef">
+        <h3>{{ 'Field Changes' | tr }}</h3>
+        <table class="diff-table">
+          <tr *ngIf="ef.name !== undefined">
+            <td>{{ 'Name' | tr }}</td>
+            <td class="from">{{ currentAssetOf(record)?.name }}</td><td class="arrow">→</td><td class="to">{{ ef.name }}</td>
+          </tr>
+          <tr *ngIf="ef.department !== undefined">
+            <td>{{ 'Department' | tr }}</td>
+            <td class="from">{{ (currentAssetOf(record)?.department || '') | tr }}</td><td class="arrow">→</td><td class="to">{{ ef.department | tr }}</td>
+          </tr>
+          <tr *ngIf="ef.location !== undefined">
+            <td>{{ 'Customer' | tr }}</td>
+            <td class="from">{{ currentAssetOf(record)?.location }}</td><td class="arrow">→</td><td class="to">{{ ef.location }}</td>
+          </tr>
+          <tr *ngIf="ef.workCenter !== undefined">
+            <td>{{ 'Work Center' | tr }}</td>
+            <td class="from">{{ currentAssetOf(record)?.workCenter || '—' }}</td><td class="arrow">→</td><td class="to">{{ ef.workCenter }}</td>
+          </tr>
+        </table>
+      </div>
+
+      <div class="detail-section" *ngIf="record.proposedState.setActive !== undefined">
+        <h3>{{ 'Status Change' | tr }}</h3>
+        <div class="diff-inline">
+          <span class="from">{{ (currentAssetOf(record)?.isActive !== false ? 'Active' : 'Inactive') | tr }}</span>
+          <span class="arrow">→</span>
+          <span [class.to]="record.proposedState.setActive" [class.removed-value]="!record.proposedState.setActive">{{ (record.proposedState.setActive ? 'Active' : 'Inactive') | tr }}</span>
+        </div>
+      </div>
+
+      <div class="detail-section" *ngIf="record.proposedState.addPmTypes?.length">
+        <h3>{{ 'PM Type Changes — Added' | tr }}</h3>
+        <div class="pm-type-block" *ngFor="let f of record.proposedState.addPmTypes || []">
+          <div class="pm-type-block-heading"><span class="change-tag tag-added">+ {{ f }} PM</span></div>
+          <ng-container *ngIf="record.proposedState.newPmTypeDetails?.[f] as detail; else noNewPmDetail">
+            <table class="diff-table">
+              <tr><td>{{ 'Title' | tr }}</td><td class="to">{{ detail.title }}</td></tr>
+              <tr><td>{{ 'Frequency' | tr }}</td><td class="to">{{ f }}</td></tr>
+              <tr *ngIf="detail.isRecurring !== undefined"><td>{{ 'Recurrence' | tr }}</td><td class="to">{{ (detail.isRecurring ? 'Recurring' : 'One-time') | tr }}</td></tr>
+              <tr *ngIf="detail.startDate"><td>{{ 'First due' | tr }}</td><td class="to">{{ detail.startDate | date:'mediumDate' }}</td></tr>
+              <tr *ngIf="detail.description"><td>{{ 'Description' | tr }}</td><td class="to">{{ detail.description }}</td></tr>
+              <tr *ngIf="detail.estimatedHours !== undefined"><td>{{ 'Est. Hours' | tr }}</td><td class="to">{{ detail.estimatedHours }}</td></tr>
+              <tr *ngIf="detail.partsRequired?.length"><td>{{ 'Parts' | tr }}</td><td class="to">{{ detail.partsRequired?.join(', ') }}</td></tr>
+            </table>
+            <table class="diff-table pm-checklist-table" *ngIf="detail.checklist?.length">
+              <tr><td colspan="2" class="pm-checklist-heading">{{ 'Checklist' | tr }} ({{ detail.checklist?.length }} {{ 'items' | tr }})</td></tr>
+              <tr *ngFor="let item of detail.checklist; let i = index">
+                <td class="pm-checklist-index to">{{ i + 1 }}.</td>
+                <td class="to">
+                  {{ item.text }}
+                  <span class="pm-req-tag" *ngIf="item.requiresPhoto"><span class="material-symbols-outlined">photo_camera</span>{{ 'Photo required' | tr }}</span>
+                  <span class="pm-req-tag" *ngIf="item.requiresValue"><span class="material-symbols-outlined">numbers</span>{{ 'Value required' | tr }}</span>
+                </td>
+              </tr>
+            </table>
+          </ng-container>
+          <ng-template #noNewPmDetail>
+            <p class="pm-type-note">{{ 'Checklist, hours, and parts will be defined separately after approval.' | tr }}</p>
+          </ng-template>
+        </div>
+      </div>
+
+      <div class="detail-section" *ngIf="record.proposedState.removePmTypes?.length">
+        <h3>{{ 'PM Type Changes — Removed' | tr }}</h3>
+        <div class="pm-type-block" *ngFor="let f of record.proposedState.removePmTypes || []">
+          <div class="pm-type-block-heading"><span class="change-tag tag-removed">− {{ f }} PM</span></div>
+          <ng-container *ngIf="existingPmFor(record.assetId, f) as pm; else noPmDetail">
+            <table class="diff-table">
+              <tr><td>{{ 'Title' | tr }}</td><td class="removed-value">{{ pm.title }}</td></tr>
+              <tr><td>{{ 'Frequency' | tr }}</td><td class="removed-value">{{ pm.frequency }}</td></tr>
+              <tr><td>{{ 'Est. Hours' | tr }}</td><td class="removed-value">{{ pm.estimatedHours }}</td></tr>
+              <tr *ngIf="pm.partsRequired?.length"><td>{{ 'Parts' | tr }}</td><td class="removed-value">{{ pm.partsRequired?.join(', ') }}</td></tr>
+            </table>
+            <table class="diff-table pm-checklist-table" *ngIf="pm.checklist?.length">
+              <tr><td colspan="2" class="pm-checklist-heading">{{ 'Checklist' | tr }} ({{ pm.checklist?.length }} {{ 'items' | tr }})</td></tr>
+              <tr *ngFor="let item of pm.checklist; let i = index">
+                <td class="pm-checklist-index removed-value">{{ i + 1 }}.</td>
+                <td class="removed-value">
+                  {{ item.text }}
+                  <span class="pm-req-tag" *ngIf="item.requiresPhoto"><span class="material-symbols-outlined">photo_camera</span>{{ 'Photo required' | tr }}</span>
+                  <span class="pm-req-tag" *ngIf="item.requiresValue"><span class="material-symbols-outlined">numbers</span>{{ 'Value required' | tr }}</span>
+                </td>
+              </tr>
+            </table>
+          </ng-container>
+          <ng-template #noPmDetail>
+            <p class="pm-type-note-muted">{{ 'No active PM record found for this frequency on this machine.' | tr }}</p>
+          </ng-template>
+          <p class="pm-type-note">{{ 'Cancels its not-yet-completed tasks; completed history is kept.' | tr }}</p>
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <h3>{{ 'Latest Note' | tr }}</h3>
+        <p class="detail-note-text">{{ record.note }}</p>
+      </div>
+
+      <div class="detail-section" *ngIf="record.history.length > 1">
+        <h3>{{ 'Edit History' | tr }} ({{ record.history.length }})</h3>
+        <div class="history-row" *ngFor="let h of record.history">
+          <span class="mono">{{ h.timestamp | date:'MMM d, h:mm a' }}</span> · {{ resolveName(h.by) }}: {{ h.note }}
+        </div>
+      </div>
+
+      <div class="detail-section" *ngIf="rejectingId() === record.id">
+        <input type="text" class="input" style="width:100%;"
+               [placeholder]="'Reason for rejecting (required)' | tr"
+               [ngModel]="rejectReason()" (ngModelChange)="rejectReason.set($event)" />
+      </div>
+    </div>
+
+    <div class="detail-modal-actions" *ngIf="record.status === 'pending' && canApprove()">
+      <ng-container *ngIf="rejectingId() !== record.id">
+        <button class="btn btn-primary" [disabled]="processing()" (click)="approveOne(record)">{{ 'Approve' | tr }}</button>
+        <button class="btn btn-ghost" style="color:var(--color-error-text);" [disabled]="processing()" (click)="startReject(record.id)">{{ 'Reject' | tr }}</button>
+      </ng-container>
+      <ng-container *ngIf="rejectingId() === record.id">
+        <button class="btn btn-primary" [disabled]="processing()" (click)="confirmReject(record)">{{ 'Confirm Reject' | tr }}</button>
+        <button class="btn btn-ghost" (click)="cancelReject()">{{ 'Cancel' | tr }}</button>
+      </ng-container>
+    </div>
+  </ng-container>
+</div>

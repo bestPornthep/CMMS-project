@@ -1,6 +1,7 @@
 import { Component, computed, inject, signal, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { PmService } from '../../core/services/pm.service';
+import { PmStore } from '../../core/services/pm-store.service';
+import { PmTaskService } from '../../core/services/pm-task.service';
 import { PMTask } from '../../core/models/pm.model';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../core/services/auth.service';
@@ -15,7 +16,8 @@ import { TranslatePipe } from '../../shared/pipes/translate.pipe';
   styleUrl: './pm-assign.component.scss'
 })
 export class PmAssignComponent {
-  private pmService = inject(PmService);
+  private pmStore = inject(PmStore);
+  private pmTaskService = inject(PmTaskService);
   private authService = inject(AuthService);
   private toast = inject(ToastService);
 
@@ -39,7 +41,7 @@ export class PmAssignComponent {
 
   // Computed assigned tasks filtered by department
   assignedTasks = computed(() => {
-    let tasks = this.pmService.pmTasks().filter(t => t.status !== 'Pending' && this.canManageTask(t));
+    let tasks = this.pmStore.pmTasks().filter(t => t.status !== 'Pending' && this.canManageTask(t));
     const dept = this.deptFilter();
     if (dept !== 'All') tasks = tasks.filter(t => t.department === dept);
 
@@ -87,7 +89,7 @@ export class PmAssignComponent {
   });
 
   pendingTasks = computed(() => {
-    let tasks = this.pmService.pmTasks().filter(t => t.status === 'Pending' && this.canManageTask(t));
+    let tasks = this.pmStore.pmTasks().filter(t => t.status === 'Pending' && !t.assignedTo && this.canManageTask(t));
     const dept = this.deptFilter();
     if (dept !== 'All') tasks = tasks.filter(t => t.department === dept);
     
@@ -136,17 +138,17 @@ export class PmAssignComponent {
     return tech?.name || employeeId;
   }
 
-  // Delegates to PmService — single source of truth shared with the global PM Details modal.
+  // Delegates to PmTaskService — single source of truth shared with the global PM Details modal.
   getTaskTechnicians(task: PMTask) {
-    return this.pmService.getAssignableTechnicians(task);
+    return this.pmTaskService.getAssignableTechnicians(task);
   }
 
   getReassignTechnicians(task: PMTask) {
-    return this.pmService.getReassignableTechnicians(task);
+    return this.pmTaskService.getReassignableTechnicians(task);
   }
 
   canReassign(task: PMTask): boolean {
-    return this.pmService.canReassignTask(task);
+    return this.pmTaskService.canReassignTask(task);
   }
 
   getBulkTechnicians() {
@@ -192,7 +194,7 @@ export class PmAssignComponent {
     const cutoff = new Date();
     cutoff.setDate(today.getDate() + windowDays);
 
-    const tasks = this.pmService.pmTasks().filter((t: PMTask) => {
+    const tasks = this.pmStore.pmTasks().filter((t: PMTask) => {
       if (t.assignedTo !== techId || t.status === 'Done') return false;
       return new Date(t.nextDueDate) <= cutoff;
     });
@@ -294,11 +296,11 @@ export class PmAssignComponent {
   showBulkModal = signal<boolean>(false);
 
   canManageTask(task: PMTask): boolean {
-    return this.pmService.canManageTask(task);
+    return this.pmTaskService.canManageTask(task);
   }
 
   toggleSelection(taskId: string) {
-    const task = this.pmService.pmTasks().find(t => t.id === taskId);
+    const task = this.pmStore.pmTasks().find(t => t.id === taskId);
     if (task && !this.canManageTask(task)) {
       this.toast.error('You cannot manage or reassign work owned by another Engineer or outside your responsibility.');
       return;
@@ -315,7 +317,7 @@ export class PmAssignComponent {
   }
 
   viewTaskDetails(task: PMTask) {
-    this.pmService.viewedTaskGlobal.set(task);
+    this.pmStore.viewedTaskGlobal.set(task);
   }
 
   toggleAllSelection(event: any) {
@@ -351,9 +353,10 @@ export class PmAssignComponent {
     const tech = this.bulkAssignee();
     const taskIds = this.selectedTasks();
     
-    const allTasks = this.pmService.pmTasks();
+    const allTasks = this.pmStore.pmTasks();
     const seenSeries = new Set<string>();
-    const tasksToAssign: PMTask[] = [];
+    const tasksToAssign: PMTask[] = []; // earliest occurrence per series (or standalone) -> In Progress
+    const futureSeriesTasks: PMTask[] = []; // remaining not-Done Pending siblings -> pre-assigned, stay Pending
 
     for (const task of allTasks) {
       if (!taskIds.has(task.id)) continue;
@@ -364,19 +367,22 @@ export class PmAssignComponent {
         if (seenSeries.has(seriesId)) continue; // already handling this series
         seenSeries.add(seriesId);
 
-        // Only assign the NEXT (earliest) pending task in the series
-        const nextTask = allTasks
+        // Assigning is a one-time action per series: the earliest Pending occurrence
+        // starts now, every other Pending occurrence is pre-assigned to the same
+        // technician so the series doesn't reappear as "unassigned" later.
+        const [nextTask, ...futureTasks] = allTasks
           .filter(t => t.status === 'Pending' && t.description?.includes(`[SeriesID: ${seriesId}]`))
-          .sort((a, b) => new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime())[0];
+          .sort((a, b) => new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime());
 
         if (nextTask) tasksToAssign.push(nextTask);
+        futureSeriesTasks.push(...futureTasks);
       } else {
         tasksToAssign.push(task);
       }
     }
 
     const mismatchedTask = tasksToAssign.find(task => {
-      const asset = this.pmService.assets().find(a => a.id === task.assetId);
+      const asset = this.pmStore.assets().find(a => a.id === task.assetId);
       return !asset || asset.location !== task.productId;
     });
     if (mismatchedTask) {
@@ -384,15 +390,21 @@ export class PmAssignComponent {
       return;
     }
 
-    const results = await Promise.allSettled(
-      tasksToAssign.map(task => this.pmService.updateTask({
+    const results = await Promise.allSettled([
+      ...tasksToAssign.map(task => this.pmTaskService.updateTask({
         ...task,
         assignedTo: tech.employeeId,
         status: 'In Progress',
         assignedAt: new Date(),
         assignedBy: this.currentUser?.employeeId
+      })),
+      ...futureSeriesTasks.map(task => this.pmTaskService.updateTask({
+        ...task,
+        assignedTo: tech.employeeId,
+        assignedAt: new Date(),
+        assignedBy: this.currentUser?.employeeId
       }))
-    );
+    ]);
 
     const failures = results.filter(r => r.status === 'rejected');
     if (failures.length === 0) {
@@ -416,7 +428,7 @@ export class PmAssignComponent {
     }
 
     // Validate Product-Asset match before assignment
-    const asset = this.pmService.assets().find(a => a.id === task.assetId);
+    const asset = this.pmStore.assets().find(a => a.id === task.assetId);
     if (!asset || asset.location !== task.productId) {
       this.toast.error('Cannot assign task due to Product-Asset mismatch in the task record.');
       return;
@@ -429,7 +441,7 @@ export class PmAssignComponent {
     }
 
     try {
-      await this.pmService.assignTaskToTechnician(task, tech);
+      await this.pmTaskService.assignTaskToTechnician(task, tech);
       this.toast.success('Task assigned successfully.');
       this.selectedTech[task.id] = '';
     } catch (err: any) {
@@ -467,7 +479,7 @@ export class PmAssignComponent {
     if (!tech) return;
 
     try {
-      await this.pmService.reassignTask(task, tech);
+      await this.pmTaskService.reassignTask(task, tech);
       this.toast.success('Task reassigned successfully.');
       this.reassignSelectedTech[task.id] = '';
     } catch (err: any) {
