@@ -501,6 +501,7 @@ export class PmTasksController {
 
     if (schedule) {
       // Proper path: a PmSchedule row exists (series created after this fix).
+      this.assertTechnicianCanEditSchedule(user, schedule.productId);
       const isOwner =
         user.baseRole === 'admin' ||
         user.baseRole === 'manager' ||
@@ -562,6 +563,7 @@ export class PmTasksController {
 
     if (tasks.length === 0) return [];
 
+    this.assertTechnicianCanEditSchedule(user, tasks[0].productId);
     const isOwner =
       user.baseRole === 'admin' ||
       user.baseRole === 'manager' ||
@@ -577,6 +579,19 @@ export class PmTasksController {
     const updatedTasks = await this.applyScheduleUpdatesToTasks(tasks, seriesId, body);
     await this.logChecklistChange(user, seriesId, tasks[0].title, tasks[0].productId, tasks[0].department, checklistChanges);
     return updatedTasks;
+  }
+
+  // Technicians may edit a series only through a delegation on its product.
+  private assertTechnicianCanEditSchedule(user: any, productId: string) {
+    if (user.baseRole !== 'technician') return;
+    const delegated = user.delegatedProducts?.some(
+      (dp: any) =>
+        dp.productId === productId &&
+        (dp.permissions.includes('pm.create.submit') || dp.permissions.includes('pm.assign.submit')),
+    );
+    if (!delegated) {
+      throw new ForbiddenException('Technicians need a delegation on this product to edit PM schedules.');
+    }
   }
 
   private parseChecklist(raw: unknown): { text: string; requiresPhoto?: boolean; requiresValue?: boolean }[] {

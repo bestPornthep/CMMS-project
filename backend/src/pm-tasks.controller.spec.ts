@@ -89,6 +89,47 @@ describe('PmTasksController — cancellation & reassign cascade', () => {
   });
 });
 
+describe('PmTasksController.updateSchedule — technician access', () => {
+  const technician = (delegatedProducts: any[] = []) => ({
+    baseRole: 'technician', employeeId: 'T1', name: 'T', ownedProducts: [], delegatedProducts,
+  });
+
+  function setup() {
+    const { controller, prisma } = build(task('Pending'));
+    prisma.pmSchedule.findUnique.mockResolvedValue({
+      id: 'S1', title: 'Series', productId: 'P1', department: 'Fab', checklist: '[]', isActive: true,
+    });
+    prisma.pmTask.findMany = jest.fn().mockResolvedValue([]);
+    return { controller, prisma };
+  }
+
+  it('rejects a technician without a delegation on the schedule product', async () => {
+    const { controller, prisma } = setup();
+    await expect(controller.updateSchedule('S1', { title: 'X' }, technician())).rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.pmSchedule.update).not.toHaveBeenCalled();
+  });
+
+  it('rejects a technician delegated on a different product', async () => {
+    const { controller } = setup();
+    const user = technician([{ productId: 'P2', permissions: ['pm.assign.submit'] }]);
+    await expect(controller.updateSchedule('S1', { title: 'X' }, user)).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('allows a technician delegated pm.assign.submit on the product', async () => {
+    const { controller, prisma } = setup();
+    const user = technician([{ productId: 'P1', permissions: ['pm.assign.submit'] }]);
+    await controller.updateSchedule('S1', { title: 'X' }, user);
+    expect(prisma.pmSchedule.update).toHaveBeenCalled();
+  });
+
+  it('rejects a technician on the legacy (no PmSchedule row) path too', async () => {
+    const { controller, prisma } = setup();
+    prisma.pmSchedule.findUnique.mockResolvedValue(null);
+    prisma.pmTask.findMany = jest.fn().mockResolvedValue([task('Pending')]);
+    await expect(controller.updateSchedule('S1', { title: 'X' }, technician())).rejects.toBeInstanceOf(ForbiddenException);
+  });
+});
+
 describe('PmTasksController.updateSchedule — checklist edit', () => {
   const item = (text: string, extra: any = {}) => ({ text, requiresPhoto: false, requiresValue: false, ...extra });
 
