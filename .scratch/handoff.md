@@ -35,6 +35,7 @@ Frontend:
 - `cmms_pm_tasks.id` is NVARCHAR(1000), so the long task ids fit.
 
 ## Next steps
+0. Browser check done (admin, `npm start` on 4300 against the dev backend): login → dashboard, Manage Machines (real data, Active / In plan chips, no mock toggle), Master Plan Approvals (empty state, no dev seed button), Master Plan and Create PM routes load; no console/page errors. The only 401s are the pre-login data load on the login page. No CMMS frontend is hosted on this machine (nginx only proxies the backend), so "deploying" the frontend means running `cd frontend && npm start` or building with `npm run build` and hosting `dist/` where the team serves it. Not exercised in the browser: add machine / Send / approve clicks, technician and engineer views.
 1. ~~Smoke-test Master Plan end to end~~ Done against the dev backend (18/18 passed; test data removed afterwards): engineer create asset → draft PM type → Send card → admin approve → tasks generated with new ids and bounded horizon → duplicate PM 409 → deactivate card → approve → open tasks Cancelled; technician gets 403 on changes; engineer cannot approve (403). Test accounts used: `ADM001`/`ENG-TST-1`/`TECH-TST-1` (see `backend/test/*.e2e-spec.ts`). Merge of two open cards for one machine and Reject/Withdraw were not exercised live.
 2. DB team: resolve the duplicate schedules.
 3. Merge/push when the user is satisfied (feature workflow: `/code-review` against `main` was skipped at the user's request).
