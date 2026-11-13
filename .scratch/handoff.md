@@ -1,7 +1,7 @@
 # Handoff — Backend support for the frontend request doc (#1–#7)
 
 ## Branch
-`feature/backend-frontend-request` — not merged, not pushed. Backend commits `3a32672`…`4827585`, frontend commit `9735234`. The frontend base was restored from `origin/feature/pm-checklist-audit-diff` (`88dde7b`).
+`feature/backend-frontend-request` — pushed to origin, not merged into `main`. The frontend base was restored from `origin/feature/pm-checklist-audit-diff` (`88dde7b`).
 
 ## What was done
 Implemented topics #1–#7 of `backend_fixes_needed_combined 2 1.html` (repo root, untracked) and rewired the frontend.
@@ -25,26 +25,28 @@ Frontend:
 ## Verification
 - Backend: `npx tsc --noEmit` clean; `npx jest src` 12 suites passing.
 - Frontend: `npx tsc --noEmit -p tsconfig.app.json` and `-p tsconfig.spec.json` clean. `npm test`: pm-approvals, pm-machines, master-plan.service and others pass.
-- Still failing, pre-existing and unrelated: `api.service.spec`, `auth.service.spec`, `pm.service.spec`, `pm-assign.component.spec` and the "Checklist" block of `pm-create.component.spec`. They call the live backend at `10.144.15.76:3000` and get 401.
+- Still failing, pre-existing and unrelated (109 tests): `api.service.spec`, `auth.service.spec`, `pm.service.spec`, `pm-assign.component.spec` and the "Checklist" block of `pm-create.component.spec`. They were written for the old in-memory mock API, call the live backend at `10.144.15.76:3000` and get 401. Deliberately not fixed: logging in would make them create/delete tasks in the shared dev DB; they need rewriting against a fake API (like `master-plan-api.fake.ts`).
 
 ## Deployed (dev)
 - Applied to dev DB `KETL_Tester` (each script in its own transaction; never use `prisma migrate` / `db push`): `add-machine-lifecycle-fields`, `create-pm-id-sequences-table`, `add-audit-changes-column`, `create-masterplan-tables`, `create-pm-types-table`.
 - `cmms-backend` rebuilt with `docker compose up -d --build backend` (from `backend/`); all new routes mount under `/api/v1`; unauthenticated calls return 401.
 - Applied `trim-pm-task-overgeneration.sql` on the user's approval: deleted exactly 24,804 far-future Pending rows (tasks 26,563 → 1,759; latest Pending due now 2027-11-13). The deleted rows are backed up as JSON in the Copilot session `files/trimmed-pm-tasks-backup.json` (not in the repo).
-- `create-pm-types-table.sql` backfill report: legacy duplicate monthly schedules for `SRV-P2-01` (3) and `THC-P1-01` (6); only the earliest got a claim. DB team to decide what to retire.
+- `create-pm-types-table.sql` backfill report: legacy duplicate monthly schedules for `SRV-P2-01` (3) and `THC-P1-01` (6); only the earliest got a claim. **Resolved:** the 7 non-claim Monthly schedules were set `is_active=0` and their 84 untouched Pending tasks were Cancelled (reason `Duplicate schedule`). In Progress / Overdue / Done tasks were kept as history. Backup: session `files/dedup-backup.json`. The schedule that holds the PM-type claim stays active.
+- Fixed a Master Plan version label collision: labels were derived from the row count, so after a version was deleted the next approve silently returned no `revision`. `nextVersionLabel()` now skips taken labels. Verified live.
 - `cmms_pm_tasks.id` is NVARCHAR(1000), so the long task ids fit.
 
 ## Next steps
 0. Browser check done (admin, `npm start` on 4300 against the dev backend): login → dashboard, Manage Machines (real data, Active / In plan chips, no mock toggle), Master Plan Approvals (empty state, no dev seed button), Master Plan and Create PM routes load; no console/page errors. The only 401s are the pre-login data load on the login page. No CMMS frontend is hosted on this machine (nginx only proxies the backend), so "deploying" the frontend means running `cd frontend && npm start` or building with `npm run build` and hosting `dist/` where the team serves it. Not exercised in the browser: add machine / Send / approve clicks, technician and engineer views.
-1. ~~Smoke-test Master Plan end to end~~ Done against the dev backend (18/18 passed; test data removed afterwards): engineer create asset → draft PM type → Send card → admin approve → tasks generated with new ids and bounded horizon → duplicate PM 409 → deactivate card → approve → open tasks Cancelled; technician gets 403 on changes; engineer cannot approve (403). Test accounts used: `ADM001`/`ENG-TST-1`/`TECH-TST-1` (see `backend/test/*.e2e-spec.ts`). Merge of two open cards for one machine and Reject/Withdraw were not exercised live.
-2. DB team: resolve the duplicate schedules.
-3. Merge/push when the user is satisfied (feature workflow: `/code-review` against `main` was skipped at the user's request).
+1. ~~Smoke-test Master Plan end to end~~ Done against the dev backend, twice (18/18 and 21/21; test data removed afterwards). Covered: engineer create asset → draft PM type → Send card → admin approve → tasks generated with new ids and bounded horizon → duplicate PM 409 → deactivate card → approve → open tasks Cancelled; technician 403 on changes; engineer cannot approve/reject (403); merge of two edits into one card; duplicate pending add 409; withdraw (twice → 404/409); reject needs a reason, double reject 409; approve applies edits and adds Quarterly tasks next to Monthly; no-op edit dropped; unknown id reports a per-id error. Test accounts: `ADM001`/`ENG-TST-1`/`TECH-TST-1` (see `backend/test/*.e2e-spec.ts`).
+2. ~~DB team: resolve the duplicate schedules~~ Done (see Deployed).
+3. Open a PR / merge into `main` when the team agrees. The branch is pushed; `main` was deliberately not touched. `/code-review` against `main` was skipped at the user's request.
+4. Dev data created by the user while trying the app (left untouched): machine `CGT-001` (in plan, approved card `MPC-1794543400963-615`, 12 tasks) and Master Plan version `B`.
 
 ## Known issues / deferred
 - `PUT /pm-tasks/schedule/:seriesId` now rejects technicians unless they hold a `pm.create.submit` or `pm.assign.submit` delegation on the product (fixed, redeployed, verified live: technician 403, admin 200).
 - Submit/merge of a Master Plan card is a read-modify-write (no locking).
 - A paused deactivated asset's PM-type claim remains.
-- `PmStore.loadData()` loads tasks excluding Done, so a reload (e.g. after approve) drops loaded Done history.
+- Frontend `PmStore.loadData()` now keeps Done history already loaded (fixed, `pm-store.service.spec.ts`).
 - `isLocalOnly` on `Asset` and its handling in `pm-plan.util.ts` (`mergeLoadedAssets`) are now orphaned; left in place.
 - `api.service.spec.ts` (~l.107/141) asserts the old task id format `PM-FAC-\d{4}`; the new format is `PM-{assetId}-{periodCode}-{seq}`. The spec is a live-backend test, so it was not touched.
 - Pre-existing: `Rolling Due Dates on Approval` e2e fails by 1 day on some dates (`calculateDatesFromAnchor()` in `cmms.service.ts`).
