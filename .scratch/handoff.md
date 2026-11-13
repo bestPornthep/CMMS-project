@@ -35,7 +35,7 @@ Frontend:
 - `cmms_pm_tasks.id` is NVARCHAR(1000), so the long task ids fit.
 
 ## Next steps
-1. Smoke-test Master Plan end to end with a real login (approve/merge are only mock-tested; not yet exercised against the DB).
+1. ~~Smoke-test Master Plan end to end~~ Done against the dev backend (18/18 passed; test data removed afterwards): engineer create asset → draft PM type → Send card → admin approve → tasks generated with new ids and bounded horizon → duplicate PM 409 → deactivate card → approve → open tasks Cancelled; technician gets 403 on changes; engineer cannot approve (403). Test accounts used: `ADM001`/`ENG-TST-1`/`TECH-TST-1` (see `backend/test/*.e2e-spec.ts`). Merge of two open cards for one machine and Reject/Withdraw were not exercised live.
 2. DB team: run the trim cleanup and resolve the duplicate schedules.
 3. Merge/push when the user is satisfied (feature workflow: `/code-review` against `main` was skipped at the user's request).
 
