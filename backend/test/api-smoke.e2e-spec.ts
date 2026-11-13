@@ -29,6 +29,7 @@ describe('Full API Smoke Test (e2e)', () => {
 
   const testAssetId = `E2E-SMOKE-AST-${Date.now()}`;
   const testProductId = `E2E-SMOKE-PROD-${Date.now()}`;
+  const engineerProductId = `E2E-SMOKE-ENGPROD-${Date.now()}`;
   const createdUserId = `E2E-SMOKE-USR-${Date.now()}`;
   let createdTaskId = '';
   let createdSeriesId = '';
@@ -74,8 +75,8 @@ describe('Full API Smoke Test (e2e)', () => {
       await prisma.userOwnedProduct.deleteMany({ where: { employeeId: createdUserId } });
       await prisma.user.deleteMany({ where: { employeeId: createdUserId } });
       await prisma.asset.deleteMany({ where: { id: testAssetId } });
-      await prisma.userOwnedProduct.deleteMany({ where: { productId: testProductId } });
-      await prisma.product.deleteMany({ where: { id: testProductId } });
+      await prisma.userOwnedProduct.deleteMany({ where: { productId: { in: [testProductId, engineerProductId] } } });
+      await prisma.product.deleteMany({ where: { id: { in: [testProductId, engineerProductId] } } });
       await prisma.auditLog.deleteMany({
         where: { productId: { in: [testAssetId, testProductId, 'CUST-001'] }, action: 'Delegated Product Access' },
       });
@@ -263,12 +264,26 @@ describe('Full API Smoke Test (e2e)', () => {
       expect(Array.isArray(res.body)).toBe(true);
     });
 
-    it('POST /api/v1/products forbids non-admin/manager', async () => {
+    it('POST /api/v1/products forbids technicians', async () => {
       await request(app.getHttpServer())
         .post('/api/v1/products')
-        .set('Authorization', `Bearer ${engineerToken}`)
+        .set('Authorization', `Bearer ${technicianToken}`)
         .send({ id: testProductId, name: 'E2E Smoke Product' })
         .expect(403);
+    });
+
+    it('POST /api/v1/products lets an engineer create a product and grants ownership', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/products')
+        .set('Authorization', `Bearer ${engineerToken}`)
+        .send({ id: engineerProductId, name: 'E2E Smoke Engineer Product' })
+        .expect(201);
+      expect(res.body.id).toBe(engineerProductId);
+
+      const owned = await prisma.userOwnedProduct.findFirst({
+        where: { productId: engineerProductId, employeeId: 'ENG-TST-1' },
+      });
+      expect(owned).not.toBeNull();
     });
 
     it('POST /api/v1/products creates a product and grants creator ownership (T2)', async () => {
