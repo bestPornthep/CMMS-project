@@ -119,23 +119,33 @@ export class PmTasksController {
       throw new BadRequestException(`Asset department (${asset.department}) does not match task department (${body.department})`);
     }
 
-    const task = await this.cmms.createTaskWithRetry({
-      title: body.title,
-      description: body.description || '',
-      frequency: body.frequency,
-      assetId: body.assetId,
-      productId: body.productId,
-      department: body.department,
-      nextDueDate: new Date(body.nextDueDate),
-      estimatedHours: body.estimatedHours,
-      status: body.status || 'Pending',
-      checklist: JSON.stringify(body.checklist || []),
-      partsRequired: JSON.stringify(body.partsRequired || []),
-      partsUsed: JSON.stringify(body.partsUsed || []),
-      recordNotes: body.recordNotes || null,
-      assignedTo: body.assignedTo || null,
-      createdBy: user.employeeId,
-      scheduleId: body.scheduleId || null,
+    const task = await this.prisma.$transaction(async (tx) => {
+      // A task attached to an existing series is not a new PM type.
+      if (!body.scheduleId) {
+        await this.cmms.assertPmTypeAvailable(tx, body.assetId, body.frequency);
+      }
+      const created = await this.cmms.createTaskInTx(tx, {
+        title: body.title,
+        description: body.description || '',
+        frequency: body.frequency,
+        assetId: body.assetId,
+        productId: body.productId,
+        department: body.department,
+        nextDueDate: new Date(body.nextDueDate),
+        estimatedHours: body.estimatedHours,
+        status: body.status || 'Pending',
+        checklist: JSON.stringify(body.checklist || []),
+        partsRequired: JSON.stringify(body.partsRequired || []),
+        partsUsed: JSON.stringify(body.partsUsed || []),
+        recordNotes: body.recordNotes || null,
+        assignedTo: body.assignedTo || null,
+        createdBy: user.employeeId,
+        scheduleId: body.scheduleId || null,
+      });
+      if (!body.scheduleId) {
+        await this.cmms.claimPmType(tx, body.assetId, body.frequency, { taskId: created.id });
+      }
+      return created;
     });
 
     return this.cleanPmTask(task);
@@ -449,51 +459,62 @@ export class PmTasksController {
     // later occurrence is startDate + N×frequency via the existing helper.
     const dates = [startDate, ...this.cmms.calculateDates(body.frequency, startDate)];
 
-    // Persist a real PmSchedule row (id = seriesId) so the nightly
-    // topUpSchedules() cron can keep generating future tasks for this series
-    // beyond the initial ~1 year batch created below.
-    await this.prisma.pmSchedule.create({
-      data: {
-        id: seriesId,
-        title: body.title,
-        description: body.description || null,
-        frequency: body.frequency,
-        assetId: body.assetId,
-        productId: body.productId,
-        department: body.department,
-        estimatedHours: body.estimatedHours,
-        checklist: JSON.stringify(body.checklist || []),
-        partsRequired: JSON.stringify(body.partsRequired || []),
-        assignedTo: body.assignedTo || null,
-        createdBy: user.employeeId,
-      },
-    });
+    // One transaction: PM-type claim + schedule row + every task. The claim's
+    // primary key makes duplicate (asset, frequency) creation race-safe, and a
+    // failure anywhere leaves no orphan claim or half-built series.
+    // The legacy [SeriesID: xxx] marker in `description` is kept because the
+    // frontend still parses it to group series.
+    const createdTasks = await this.prisma.$transaction(
+      async (tx) => {
+        await this.cmms.assertPmTypeAvailable(tx, body.assetId, body.frequency);
+        await this.cmms.claimPmType(tx, body.assetId, body.frequency, { scheduleId: seriesId });
 
-    // We can't easily use createMany because each task needs a unique `PM-FAC-XXXX` ID.
-    // Instead we'll loop in the backend, but it's much faster and safer than frontend HTTP loops.
-    // In a real prod environment we'd use a DB sequence for the ID to do bulk inserts.
-    const createdTasks = [];
-    for (const date of dates) {
-      const task = await this.cmms.createTaskWithRetry({
-        title: body.title,
-        description: `[SeriesID: ${seriesId}]\n${body.description || ''}`,
-        frequency: body.frequency,
-        assetId: body.assetId,
-        productId: body.productId,
-        department: body.department,
-        nextDueDate: date,
-        estimatedHours: body.estimatedHours,
-        status: 'Pending',
-        checklist: JSON.stringify(body.checklist || []),
-        partsRequired: JSON.stringify(body.partsRequired || []),
-        partsUsed: '[]',
-        assignedTo: body.assignedTo || null,
-        createdBy: user.employeeId,
-        scheduleId: seriesId,
-      });
-      createdTasks.push(task);
-    }
-    
+        // A real PmSchedule row (id = seriesId) lets the nightly topUpSchedules()
+        // cron keep generating future tasks beyond the initial ~1 year batch.
+        await tx.pmSchedule.create({
+          data: {
+            id: seriesId,
+            title: body.title,
+            description: body.description || null,
+            frequency: body.frequency,
+            assetId: body.assetId,
+            productId: body.productId,
+            department: body.department,
+            estimatedHours: body.estimatedHours,
+            checklist: JSON.stringify(body.checklist || []),
+            partsRequired: JSON.stringify(body.partsRequired || []),
+            assignedTo: body.assignedTo || null,
+            createdBy: user.employeeId,
+          },
+        });
+
+        const tasks = [];
+        for (const date of dates) {
+          tasks.push(
+            await this.cmms.createTaskInTx(tx, {
+              title: body.title,
+              description: `[SeriesID: ${seriesId}]\n${body.description || ''}`,
+              frequency: body.frequency,
+              assetId: body.assetId,
+              productId: body.productId,
+              department: body.department,
+              nextDueDate: date,
+              estimatedHours: body.estimatedHours,
+              status: 'Pending',
+              checklist: JSON.stringify(body.checklist || []),
+              partsRequired: JSON.stringify(body.partsRequired || []),
+              partsUsed: '[]',
+              assignedTo: body.assignedTo || null,
+              createdBy: user.employeeId,
+              scheduleId: seriesId,
+            }),
+          );
+        }
+        return tasks;
+      },
+      { timeout: 120000, maxWait: 10000 },
+    );
+
     return createdTasks.map(t => this.cleanPmTask(t));
   }
 

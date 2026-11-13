@@ -3022,6 +3022,20 @@ model PmTask {
   @@map("cmms_pm_tasks")
 }
 
+// One row per (asset, normalized frequency) that has ever had a PM. The
+// primary key is what makes "one PM type per asset" race-safe: a UNIQUE index
+// cannot live on cmms_pm_tasks because a series has many rows per frequency.
+model PmType {
+  assetId             String   @map("asset_id") @db.NVarChar(50)
+  normalizedFrequency String   @map("normalized_frequency") @db.NVarChar(50)
+  scheduleId          String?  @map("schedule_id") @db.NVarChar(50)
+  taskId              String?  @map("task_id") @db.NVarChar(100)
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  @@id([assetId, normalizedFrequency])
+  @@map("cmms_pm_types")
+}
+
 model PmIdSequence {
   assetId    String @map("asset_id") @db.NVarChar(50)
   periodCode String @map("period_code") @db.NVarChar(30)

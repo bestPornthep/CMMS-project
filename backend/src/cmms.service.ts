@@ -1,11 +1,93 @@
-import { Injectable, ForbiddenException } from '@nestjs/common';
+import { Injectable, ForbiddenException, ConflictException } from '@nestjs/common';
 import { PrismaService } from './prisma.service';
 import { Prisma } from '@prisma/client';
-import { addFrequency, periodCode } from './frequency.util';
+import { addFrequency, normalizeFrequency, periodCode } from './frequency.util';
 
 @Injectable()
 export class CmmsService {
   constructor(private prisma: PrismaService) {}
+
+  // ── One PM per frequency per asset ───────────────────────────────────────
+  /** Builds the 409 for an asset that already has a PM of this frequency, or null if none. */
+  private async findPmTypeConflict(
+    db: Prisma.TransactionClient,
+    assetId: string,
+    normalized: string,
+  ): Promise<ConflictException | null> {
+    const schedules = await db.pmSchedule.findMany({ where: { assetId } });
+    const schedule = schedules.find((s) => normalizeFrequency(s.frequency) === normalized);
+
+    let tasks: any[] = [];
+    if (schedule) {
+      tasks = await db.pmTask.findMany({ where: { assetId, scheduleId: schedule.id }, orderBy: { nextDueDate: 'asc' } });
+    } else {
+      const oneOffs = await db.pmTask.findMany({ where: { assetId, scheduleId: null } });
+      tasks = oneOffs.filter((t) => normalizeFrequency(t.frequency) === normalized);
+    }
+
+    // Prefer a live occurrence to point at; fall back to the latest finished one.
+    const live = tasks.find((t) => t.status !== 'Done' && t.status !== 'Cancelled');
+    const task = live ?? tasks[tasks.length - 1];
+
+    if (!schedule && !task) {
+      const claim = await db.pmType.findUnique({
+        where: { assetId_normalizedFrequency: { assetId, normalizedFrequency: normalized } },
+      });
+      if (!claim) return null;
+      return this.pmTypeConflict(assetId, normalized, { taskId: claim.taskId ?? undefined, scheduleId: claim.scheduleId ?? undefined });
+    }
+
+    return this.pmTypeConflict(assetId, normalized, {
+      taskId: task?.id,
+      scheduleId: schedule?.id ?? task?.scheduleId ?? undefined,
+      status: task?.status,
+      assignedTo: task?.assignedTo ?? schedule?.assignedTo ?? null,
+    });
+  }
+
+  private pmTypeConflict(
+    assetId: string,
+    normalized: string,
+    conflict: { taskId?: string; scheduleId?: string; status?: string; assignedTo?: string | null },
+  ) {
+    const who = conflict.assignedTo ? `, assigned to ${conflict.assignedTo}` : '';
+    const what = conflict.taskId ? ` (task ${conflict.taskId}${conflict.status ? `, ${conflict.status}` : ''}${who})` : '';
+    return new ConflictException({
+      statusCode: 409,
+      error: 'Conflict',
+      message: `Asset ${assetId} already has a ${normalized} PM${what}.`,
+      conflict,
+    });
+  }
+
+  /** Friendly pre-check. Not race-safe on its own; claimPmType is the guarantee. */
+  async assertPmTypeAvailable(db: Prisma.TransactionClient, assetId: string, frequency: string): Promise<void> {
+    const conflict = await this.findPmTypeConflict(db, assetId, normalizeFrequency(frequency));
+    if (conflict) throw conflict;
+  }
+
+  /**
+   * Race-safe: the (assetId, normalizedFrequency) primary key lets exactly one
+   * of two simultaneous creators win; the loser gets the 409.
+   */
+  async claimPmType(
+    db: Prisma.TransactionClient,
+    assetId: string,
+    frequency: string,
+    ref: { scheduleId?: string; taskId?: string },
+  ): Promise<void> {
+    const normalized = normalizeFrequency(frequency);
+    try {
+      await db.pmType.create({
+        data: { assetId, normalizedFrequency: normalized, scheduleId: ref.scheduleId ?? null, taskId: ref.taskId ?? null },
+      });
+    } catch (err: any) {
+      if (err?.code !== 'P2002') throw err;
+      // Read with the base client: the failed insert may have poisoned the transaction.
+      const conflict = await this.findPmTypeConflict(this.prisma, assetId, normalized);
+      throw conflict ?? this.pmTypeConflict(assetId, normalized, {});
+    }
+  }
 
   // ── PM Task ids: PM-{assetId}-{periodCode}-{seq} ─────────────────────────
   /**
