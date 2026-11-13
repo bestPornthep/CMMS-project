@@ -5,6 +5,7 @@ import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { CurrentUser } from './auth/current-user.decorator';
 import { CreatePmTaskDto } from './dto/create-pm-task.dto';
 import { diffChecklist } from './checklist-diff.util';
+import { normalizeFrequency } from './frequency.util';
 
 // Done tasks are history; Cancelled tasks must stay cancelled — series edits never touch either.
 const FINISHED_STATUSES = ['Done', 'Cancelled'];
@@ -519,7 +520,24 @@ export class PmTasksController {
       if (body.checklist !== undefined) scheduleData.checklist = JSON.stringify(body.checklist);
       if (body.partsRequired !== undefined) scheduleData.partsRequired = JSON.stringify(body.partsRequired);
       if (body.assignedTo !== undefined) scheduleData.assignedTo = body.assignedTo;
-      if (typeof body.isActive === 'boolean') scheduleData.isActive = body.isActive;
+      if (typeof body.isActive === 'boolean' && body.isActive !== schedule.isActive) {
+        // Stopping a schedule releases its PM type; resuming claims it again (409 if re-added meanwhile).
+        await this.prisma.$transaction(async (tx) => {
+          const normalized = normalizeFrequency(schedule.frequency);
+          if (body.isActive) {
+            const claim = await tx.pmType.findUnique({
+              where: { assetId_normalizedFrequency: { assetId: schedule.assetId, normalizedFrequency: normalized } },
+            });
+            if (claim?.scheduleId !== schedule.id) {
+              await this.cmms.assertPmTypeAvailable(tx, schedule.assetId, schedule.frequency);
+              await this.cmms.claimPmType(tx, schedule.assetId, schedule.frequency, { scheduleId: schedule.id });
+            }
+          } else {
+            await tx.pmType.deleteMany({ where: { assetId: schedule.assetId, normalizedFrequency: normalized } });
+          }
+          await tx.pmSchedule.update({ where: { id: seriesId }, data: { isActive: body.isActive } });
+        });
+      }
       if (Object.keys(scheduleData).length > 0) {
         await this.prisma.pmSchedule.update({ where: { id: seriesId }, data: scheduleData });
       }

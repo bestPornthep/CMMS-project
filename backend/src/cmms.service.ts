@@ -30,7 +30,8 @@ export class CmmsService {
     normalized: string,
   ): Promise<ConflictException | null> {
     const schedules = await db.pmSchedule.findMany({ where: { assetId } });
-    const schedule = schedules.find((s) => normalizeFrequency(s.frequency) === normalized);
+    // A schedule stopped by removing its PM type has released the type; paused ones (machine deactivated) still hold it via the claim.
+    const schedule = schedules.find((s) => s.isActive !== false && normalizeFrequency(s.frequency) === normalized);
 
     let tasks: any[] = [];
     if (schedule) {

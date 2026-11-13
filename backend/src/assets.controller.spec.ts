@@ -17,6 +17,7 @@ const admin = { baseRole: 'admin', employeeId: 'A1', name: 'Admin', ownedProduct
 function build(asset: any = baseAsset) {
   const tx = {
     pmSchedule: { updateMany: jest.fn().mockResolvedValue({}) },
+    pmType: { findMany: jest.fn().mockResolvedValue([{ scheduleId: 'S1' }, { scheduleId: null }]) },
     pmTask: { updateMany: jest.fn().mockResolvedValue({}) },
     asset: { update: jest.fn(async ({ data }: any) => ({ ...(asset ?? baseAsset), ...data })) },
   };
@@ -80,12 +81,12 @@ describe('AssetsController.update (PATCH /assets/:id)', () => {
     expect(cmms.logAction.mock.calls.map((c: any[]) => c[0])).toEqual(['Machine Deactivated']);
   });
 
-  it('reactivate: resumes schedules, keeps cancelled tasks cancelled', async () => {
+  it('reactivate: resumes only schedules still holding their PM type, keeps cancelled tasks cancelled', async () => {
     const { controller, tx, cmms } = build({ ...baseAsset, isActive: false, deactivatedAt: new Date() });
     const res = await controller.update('CNC-014', { isActive: true }, admin);
     expect(res.isActive).toBe(true);
     expect(res.deactivatedAt).toBeNull();
-    expect(tx.pmSchedule.updateMany).toHaveBeenCalledWith({ where: { assetId: 'CNC-014' }, data: { isActive: true } });
+    expect(tx.pmSchedule.updateMany).toHaveBeenCalledWith({ where: { assetId: 'CNC-014', id: { in: ['S1'] } }, data: { isActive: true } });
     expect(tx.pmTask.updateMany).not.toHaveBeenCalled();
     expect(cmms.logAction.mock.calls.map((c: any[]) => c[0])).toEqual(['Machine Reactivated']);
   });

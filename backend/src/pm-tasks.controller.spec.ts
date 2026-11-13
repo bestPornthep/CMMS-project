@@ -10,6 +10,7 @@ function build(existing: any) {
       updateMany: jest.fn().mockResolvedValue({ count: 2 }),
     },
     pmSchedule: { update: jest.fn().mockResolvedValue({}) },
+    pmType: { deleteMany: jest.fn().mockResolvedValue({}), findUnique: jest.fn().mockResolvedValue(null) },
   };
   const prisma: any = {
     pmTask: {
@@ -70,12 +71,21 @@ describe('PmTasksController — cancellation & reassign cascade', () => {
     expect(tx.pmTask.updateMany.mock.calls[0][0].where.status).toEqual({ in: ['Pending', 'Overdue'] });
   });
 
-  it('schedule update accepts isActive', async () => {
-    const { controller, prisma } = build(task('Pending'));
-    prisma.pmSchedule.findUnique.mockResolvedValue({ id: 'S1', productId: 'P1', checklist: '[]' });
+  it('stopping a schedule releases its PM type; resuming claims it again', async () => {
+    const { controller, prisma, tx } = build(task('Pending'));
+    const schedule = { id: 'S1', productId: 'P1', assetId: 'A1', frequency: '1 month(s)', isActive: true, checklist: '[]' };
+    prisma.pmSchedule.findUnique.mockResolvedValue(schedule);
     prisma.pmTask.findMany = jest.fn().mockResolvedValue([]);
     await controller.updateSchedule('S1', { isActive: false }, admin);
-    expect(prisma.pmSchedule.update).toHaveBeenCalledWith({ where: { id: 'S1' }, data: { isActive: false } });
+    expect(tx.pmSchedule.update).toHaveBeenCalledWith({ where: { id: 'S1' }, data: { isActive: false } });
+    expect(tx.pmType.deleteMany).toHaveBeenCalledWith({ where: { assetId: 'A1', normalizedFrequency: 'monthly' } });
+
+    prisma.pmSchedule.findUnique.mockResolvedValue({ ...schedule, isActive: false });
+    const cmms = (controller as any).cmms;
+    cmms.assertPmTypeAvailable = jest.fn().mockResolvedValue(undefined);
+    cmms.claimPmType = jest.fn().mockResolvedValue(undefined);
+    await controller.updateSchedule('S1', { isActive: true }, admin);
+    expect(cmms.claimPmType).toHaveBeenCalledWith(tx, 'A1', '1 month(s)', { scheduleId: 'S1' });
   });
 });
 
