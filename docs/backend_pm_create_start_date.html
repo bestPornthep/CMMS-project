@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AssetIntel CMMS — PM Create: User-Chosen Start Date — Backend Requirements</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #161923; --border: #2a2f3d; --text: #e6e8ef;
+    --muted: #9aa2b1; --accent: #5b8cff; --good: #3ddc97; --bad: #ff6b6b; --warn: #ffb84d;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 40px; line-height: 1.6; }
+  .wrap { max-width: 1000px; margin: 0 auto; }
+  h1 { font-size: 28px; margin-bottom: 4px; }
+  .subtitle { color: var(--muted); margin-bottom: 32px; }
+  h2 { border-bottom: 2px solid var(--border); padding-bottom: 8px; margin-top: 48px; color: var(--accent); }
+  h3 { margin-top: 24px; color: var(--text); }
+  h4 { margin-top: 18px; color: var(--muted); font-size: 14px; text-transform: uppercase; letter-spacing: .03em; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin: 16px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  th, td { border: 1px solid var(--border); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: #1d212c; color: var(--muted); }
+  code { background: #1d212c; padding: 2px 6px; border-radius: 4px; font-size: 13px; color: #f0ad4e; }
+  pre { background: #1d212c; padding: 14px; border-radius: 8px; overflow-x: auto; border: 1px solid var(--border); font-size: 13px; }
+  pre code { background: none; padding: 0; color: #d7dce6; }
+  ul { padding-left: 22px; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 700; text-transform: uppercase; padding: 3px 10px; border-radius: 999px; margin-left: 6px; }
+  .tag.post { background: rgba(61,220,151,.15); color: var(--good); border: 1px solid rgba(61,220,151,.4); }
+  .note { color: var(--muted); font-size: 13px; }
+  .warn-box { background: rgba(255,184,77,.1); border: 1px solid var(--warn); border-radius: 10px; padding: 16px 20px; margin: 16px 0; }
+  .good-box { background: rgba(61,220,151,.1); border: 1px solid var(--good); border-radius: 10px; padding: 16px 20px; margin: 16px 0; }
+  .toc { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px 24px; }
+  .toc a { color: var(--accent); text-decoration: none; }
+  .toc li { margin: 4px 0; }
+  .endpoint-title { font-family: monospace; font-size: 15px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>PM Create: User-Chosen Start Date — Backend Requirements</h1>
+  <div class="subtitle">New: the user picks the exact due date of the first PM occurrence on Create PM, instead of it always defaulting to today + 1 interval.</div>
+
+  <div class="toc">
+    <ul>
+      <li><a href="#rule">1. Business Rule</a></li>
+      <li><a href="#endpoint">2. Changed Endpoint: <code>POST /api/v1/pm-tasks/schedule</code></a></li>
+      <li><a href="#onetime">3. One-Time Task (no change)</a></li>
+      <li><a href="#notes">4. Implementation Notes / Edge Cases</a></li>
+    </ul>
+  </div>
+
+  <h2 id="rule">1. Business Rule</h2>
+  <div class="card">
+    <p>The user-chosen <code>startDate</code> becomes <strong>task #1's exact due date</strong> — no interval offset applied to it. Every later occurrence in the series is still <code>startDate + N×frequency</code>, same math as today.</p>
+    <table>
+      <tr><th>PM Type</th><th>Start Date</th><th>Task #1 due</th><th>Task #2 due</th><th>Task #3 due</th></tr>
+      <tr><td>Monthly</td><td>30 Aug 2026</td><td>30 Aug 2026</td><td>30 Sep 2026</td><td>30 Oct 2026</td></tr>
+      <tr><td>Weekly</td><td>3 Sep 2026</td><td>3 Sep 2026</td><td>10 Sep 2026</td><td>17 Sep 2026</td></tr>
+    </table>
+    <p class="note">Restriction: <code>startDate</code> must be today or later — no backdating. Validate on both frontend (already done) and backend (defense in depth).</p>
+  </div>
+
+  <h2 id="endpoint">2. Changed Endpoint: <span class="endpoint-title">POST /api/v1/pm-tasks/schedule</span> <span class="tag post">POST</span></h2>
+  <div class="card">
+    <p>File: <code>backend/src/pm-tasks.controller.ts</code>, method <code>createSchedule()</code>. No new endpoint — same route, new optional body field.</p>
+
+    <h4>Request body (new field)</h4>
+    <pre><code>{ ..., "startDate": "2026-08-30" }  // optional, ISO date string</code></pre>
+
+    <h4>Handler change</h4>
+    <pre><code>// existing:
+const dates = this.cmms.calculateDates(body.frequency);
+
+// new:
+const startDate = body.startDate ? new Date(body.startDate) : new Date();
+
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+if (startDate &lt; today) {
+  throw new BadRequestException('Start date cannot be in the past');
+}
+
+const dates = [startDate, ...this.cmms.calculateDates(body.frequency, startDate)];</code></pre>
+
+    <div class="good-box">
+      <strong>Why this is safe:</strong> <code>calculateDates(frequency, startDate)</code> already returns
+      <code>startDate + 1×interval, startDate + 2×interval, …</code> when given a <code>startDate</code> — that's
+      its existing, unchanged contract. Prepending <code>startDate</code> itself gives exactly
+      "task #1 = start date, task #2 = start + 1 interval, …" <strong>without touching <code>calculateDates()</code></strong>.
+      <code>SchedulerService.topUpSchedules()</code> calls <code>calculateDates()</code> the same way it always
+      has (with <code>startDate = latestTask.nextDueDate</code>, expecting only <em>future</em> occurrences back)
+      — completely unaffected by this change.
+    </div>
+
+    <p class="note">Everything else in <code>createSchedule()</code> (creating the <code>PmSchedule</code> row, the <code>[SeriesID: xxx]</code> marker, looping <code>createTaskWithRetry()</code> per date) stays as-is; only the <code>dates</code> array's construction changes.</p>
+  </div>
+
+  <h2 id="onetime">3. One-Time Task (no change)</h2>
+  <div class="card">
+    <p><code>POST /api/v1/pm-tasks</code> (<code>create()</code>) needs <strong>no backend change</strong> — it already persists whatever <code>nextDueDate</code> the request body sends. The frontend now sends the user's chosen start date directly instead of a pre-offset one.</p>
+  </div>
+
+  <h2 id="notes">4. Implementation Notes / Edge Cases</h2>
+  <div class="card">
+    <ul>
+      <li><strong>Backward compatible:</strong> <code>body.startDate</code> is optional — omitting it falls back to <code>new Date()</code>, identical to today's behavior. No existing caller breaks.</li>
+      <li><strong>Timezone:</strong> compare dates at day granularity (zero out time-of-day) when checking "today or later", same pattern as <code>scheduler.service.ts</code>'s <code>markOverdueTasks()</code> date comparisons, to avoid same-day rejections from time-of-day drift.</li>
+      <li><strong>No schema change needed</strong> — <code>startDate</code> isn't persisted as its own column; it's just the anchor used once at generation time. Each generated <code>PmTask</code> row already stores its own <code>nextDueDate</code>.</li>
+      <li><strong>No change needed</strong> to <code>SchedulerService.topUpSchedules()</code> or <code>cmms.service.ts</code>'s <code>calculateDates()</code> — both keep their exact current behavior/contract.</li>
+    </ul>
+  </div>
+
+</div>
+</body>
+</html>

@@ -2,10 +2,12 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from './prisma.service';
 import { CmmsService } from './cmms.service';
+import { computeMissingDates } from './schedule-horizon.util';
 
 @Injectable()
 export class SchedulerService {
   private readonly logger = new Logger(SchedulerService.name);
+  private toppingUp = false;
 
   constructor(
     private prisma: PrismaService,
@@ -79,26 +81,34 @@ export class SchedulerService {
    */
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async topUpSchedules() {
-    const schedules = await this.prisma.pmSchedule.findMany();
-    
-    let totalCreated = 0;
-    
-    for (const schedule of schedules) {
-      // Find the latest pending task for this schedule
-      const latestTask = await this.prisma.pmTask.findFirst({
-        where: { scheduleId: schedule.id, status: 'Pending' },
-        orderBy: { nextDueDate: 'desc' },
-      });
+    if (this.toppingUp) return;
+    this.toppingUp = true;
+    try {
+      await this.runTopUp();
+    } finally {
+      this.toppingUp = false;
+    }
+  }
 
-      // If no tasks exist, start from today. Otherwise, start from the latest task's date.
-      const startDate = latestTask ? latestTask.nextDueDate : new Date();
-      
-      const dates = this.cmms.calculateDates(schedule.frequency, startDate);
-      
-      // Skip the first date if it exactly matches the latest task's date
-      const newDates = dates.filter(d => !latestTask || d.getTime() !== latestTask.nextDueDate.getTime());
-      
-      for (const date of newDates) {
+  private async runTopUp() {
+    const schedules = await this.prisma.pmSchedule.findMany({ where: { isActive: true } });
+    const now = new Date();
+
+    let totalCreated = 0;
+
+    for (const schedule of schedules) {
+      // Anchor on the latest due date across every status (Done/Cancelled
+      // included) so cancelled occurrences are never regenerated and a second
+      // run finds nothing missing.
+      const { _max } = await this.prisma.pmTask.aggregate({
+        where: { scheduleId: schedule.id },
+        _max: { nextDueDate: true },
+      });
+      const anchor = _max.nextDueDate ?? null;
+
+      const dates = computeMissingDates(schedule.frequency, anchor, now);
+
+      for (const date of dates) {
         await this.cmms.createTaskWithRetry({
           title: schedule.title,
           description: schedule.description || '',
@@ -117,6 +127,16 @@ export class SchedulerService {
           scheduleId: schedule.id,
         });
         totalCreated++;
+      }
+
+      // Symptom of the old blind-append bug: tasks far beyond the 1-year horizon.
+      if (anchor) {
+        const limit = new Date(now);
+        limit.setFullYear(limit.getFullYear() + 1);
+        limit.setDate(limit.getDate() + 7);
+        if (anchor > limit) {
+          this.logger.warn(`Schedule ${schedule.id} has tasks beyond the 1-year horizon (latest ${anchor.toISOString()})`);
+        }
       }
     }
     

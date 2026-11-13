@@ -4,6 +4,11 @@ import { CmmsService } from './cmms.service';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { CurrentUser } from './auth/current-user.decorator';
 import { CreatePmTaskDto } from './dto/create-pm-task.dto';
+import { diffChecklist } from './checklist-diff.util';
+import { normalizeFrequency } from './frequency.util';
+
+// Done tasks are history; Cancelled tasks must stay cancelled — series edits never touch either.
+const FINISHED_STATUSES = ['Done', 'Cancelled'];
 
 @UseGuards(JwtAuthGuard)
 @Controller('api/v1/pm-tasks')
@@ -33,7 +38,18 @@ export class PmTasksController {
       const delegated = user.delegatedProducts?.map((dp: any) => dp.productId) || [];
       const accessibleProducts = Array.from(new Set([...owned, ...delegated]));
 
-      if (!accessibleProducts.includes('*')) {
+      if (user.baseRole === 'technician') {
+        // Technicians never own products — access is governed solely by
+        // assignment or delegation, not by ownedProducts/accessibleProducts.
+        // (Applying the product-ownership filter here would AND an empty/
+        // partial productId list with this OR clause, silently hiding every
+        // task assigned to the technician outside that product set.)
+        where.OR = [
+          { assignedTo: user.employeeId },
+          { productId: { in: delegated } },
+        ];
+        if (productId) where.productId = productId;
+      } else if (!accessibleProducts.includes('*')) {
         if (productId) {
           if (!accessibleProducts.includes(productId)) {
             throw new ForbiddenException(`Product access denied for ${productId}`);
@@ -42,13 +58,6 @@ export class PmTasksController {
         } else {
           where.productId = { in: accessibleProducts };
         }
-      }
-
-      if (user.baseRole === 'technician') {
-        where.OR = [
-          { assignedTo: user.employeeId },
-          { productId: { in: delegated } },
-        ];
       }
     } else {
       if (productId) where.productId = productId;
@@ -76,12 +85,12 @@ export class PmTasksController {
       const delegated = user.delegatedProducts?.map((dp: any) => dp.productId) || [];
       const accessibleProducts = Array.from(new Set([...owned, ...delegated]));
 
-      if (!accessibleProducts.includes('*') && !accessibleProducts.includes(t.productId)) {
+      if (user.baseRole === 'technician') {
+        if (t.assignedTo !== user.employeeId && !delegated.includes(t.productId)) {
+          throw new ForbiddenException(`Task ${id} is not assigned to you`);
+        }
+      } else if (!accessibleProducts.includes('*') && !accessibleProducts.includes(t.productId)) {
         throw new ForbiddenException(`Access denied for product ${t.productId}`);
-      }
-
-      if (user.baseRole === 'technician' && t.assignedTo !== user.employeeId && !delegated.includes(t.productId)) {
-        throw new ForbiddenException(`Task ${id} is not assigned to you`);
       }
     }
 
@@ -115,23 +124,33 @@ export class PmTasksController {
       throw new BadRequestException(`Asset department (${asset.department}) does not match task department (${body.department})`);
     }
 
-    const task = await this.cmms.createTaskWithRetry({
-      title: body.title,
-      description: body.description || '',
-      frequency: body.frequency,
-      assetId: body.assetId,
-      productId: body.productId,
-      department: body.department,
-      nextDueDate: new Date(body.nextDueDate),
-      estimatedHours: body.estimatedHours,
-      status: body.status || 'Pending',
-      checklist: JSON.stringify(body.checklist || []),
-      partsRequired: JSON.stringify(body.partsRequired || []),
-      partsUsed: JSON.stringify(body.partsUsed || []),
-      recordNotes: body.recordNotes || null,
-      assignedTo: body.assignedTo || null,
-      createdBy: user.employeeId,
-      scheduleId: body.scheduleId || null,
+    const task = await this.prisma.$transaction(async (tx) => {
+      // A task attached to an existing series is not a new PM type.
+      if (!body.scheduleId) {
+        await this.cmms.assertPmTypeAvailable(tx, body.assetId, body.frequency);
+      }
+      const created = await this.cmms.createTaskInTx(tx, {
+        title: body.title,
+        description: body.description || '',
+        frequency: body.frequency,
+        assetId: body.assetId,
+        productId: body.productId,
+        department: body.department,
+        nextDueDate: new Date(body.nextDueDate),
+        estimatedHours: body.estimatedHours,
+        status: body.status || 'Pending',
+        checklist: JSON.stringify(body.checklist || []),
+        partsRequired: JSON.stringify(body.partsRequired || []),
+        partsUsed: JSON.stringify(body.partsUsed || []),
+        recordNotes: body.recordNotes || null,
+        assignedTo: body.assignedTo || null,
+        createdBy: user.employeeId,
+        scheduleId: body.scheduleId || null,
+      });
+      if (!body.scheduleId) {
+        await this.cmms.claimPmType(tx, body.assetId, body.frequency, { taskId: created.id });
+      }
+      return created;
     });
 
     return this.cleanPmTask(task);
@@ -195,9 +214,12 @@ export class PmTasksController {
           );
         }
       } else {
-        // Approvers may do any transition except backwards from Done
+        // Approvers may do any transition except backwards from Done / Cancelled
         if (from === 'Done') {
           throw new ForbiddenException(`Cannot modify a completed task`);
+        }
+        if (from === 'Cancelled') {
+          throw new ForbiddenException(`Cannot modify a cancelled task`);
         }
       }
     }
@@ -211,6 +233,10 @@ export class PmTasksController {
     if (body.estimatedHours !== undefined) data.estimatedHours = body.estimatedHours;
     if (body.actualHours !== undefined) data.actualHours = body.actualHours;
     if (body.status !== undefined) data.status = body.status;
+    if (body.status === 'Cancelled') {
+      data.cancelledReason = body.cancelledReason ?? null;
+      data.cancelledAt = body.cancelledAt ? new Date(body.cancelledAt) : new Date();
+    }
     if (body.checklist !== undefined) data.checklist = JSON.stringify(body.checklist);
     if (body.partsRequired !== undefined) data.partsRequired = JSON.stringify(body.partsRequired);
     if (body.partsUsed !== undefined) data.partsUsed = JSON.stringify(body.partsUsed);
@@ -237,7 +263,152 @@ export class PmTasksController {
       data,
     });
 
+    // Assigning a recurring occurrence assigns the whole series: persist to
+    // the parent schedule so future generated occurrences inherit it, and
+    // backfill not-yet-started siblings already sitting in the buffer.
+    if (body.assignedTo && existing.scheduleId) {
+      await this.prisma.pmSchedule.update({
+        where: { id: existing.scheduleId },
+        data: { assignedTo: body.assignedTo },
+      });
+
+      await this.prisma.pmTask.updateMany({
+        where: {
+          scheduleId: existing.scheduleId,
+          id: { not: id },
+          status: { in: ['Pending', 'Overdue'] },
+        },
+        data: { assignedTo: body.assignedTo },
+      });
+    }
+
+    // Rolling due dates: every time a task in a recurring series is approved,
+    // re-anchor the remaining Pending siblings' due dates off the actual
+    // approval time instead of their original fixed calendar dates. Repeats
+    // on every approval, indefinitely — independent of the reassign cascade.
+    const approvedAt = updated.approvedAt;
+    const isApproving = body.status === 'Done' && !!approvedAt && existing.status !== 'Done';
+    if (isApproving && approvedAt) {
+      const seriesWhere = existing.scheduleId
+        ? { scheduleId: existing.scheduleId, status: 'Pending' }
+        : this.cmms.extractSeriesIdFromDescription(existing.description)
+          ? { description: { contains: `[SeriesID: ${this.cmms.extractSeriesIdFromDescription(existing.description)}]` }, status: 'Pending' }
+          : null;
+
+      if (seriesWhere) {
+        const pendingSiblings = await this.prisma.pmTask.findMany({
+          where: seriesWhere,
+          orderBy: { nextDueDate: 'asc' },
+        });
+
+        if (pendingSiblings.length > 0) {
+          const newDates = this.cmms.calculateDatesFromAnchor(existing.frequency, approvedAt, pendingSiblings.length);
+          await this.prisma.$transaction(
+            pendingSiblings.map((sibling, i) =>
+              this.prisma.pmTask.update({ where: { id: sibling.id }, data: { nextDueDate: newDates[i] } }),
+            ),
+          );
+        }
+      }
+    }
+
     return this.cleanPmTask(updated);
+  }
+
+  @Put(':id/reassign')
+  async reassign(@Param('id') id: string, @Body() body: any, @CurrentUser() user: any) {
+    if (!body.assignedTo) {
+      throw new BadRequestException('assignedTo is required');
+    }
+
+    const existing = await this.prisma.pmTask.findUnique({ where: { id } });
+    if (!existing) {
+      throw new NotFoundException(`Task ${id} not found`);
+    }
+
+    // Same canAssign computation as the generic update() handler.
+    const isOwner =
+      user.baseRole === 'admin' ||
+      user.baseRole === 'manager' ||
+      user.ownedProducts.includes('*') ||
+      user.ownedProducts.includes(existing.productId);
+
+    const hasDelegatedAssign = user.baseRole === 'technician' && user.delegatedProducts?.some((dp: any) => dp.productId === existing.productId && dp.permissions.includes('pm.assign.submit'));
+
+    const canAssign =
+      user.baseRole === 'admin' ||
+      user.baseRole === 'manager' ||
+      (user.baseRole === 'engineer' && isOwner) ||
+      hasDelegatedAssign;
+
+    if (!canAssign) {
+      throw new ForbiddenException('You do not have permission to reassign this task');
+    }
+
+    if (existing.status === 'Done') {
+      throw new ForbiddenException('Cannot modify a completed task');
+    }
+    if (!['In Progress', 'Overdue'].includes(existing.status)) {
+      throw new ForbiddenException(`Cannot reassign a task in '${existing.status}' status`);
+    }
+    if (body.assignedTo === existing.assignedTo) {
+      throw new BadRequestException('Task is already assigned to this technician');
+    }
+
+    const oldAssignedTo = existing.assignedTo;
+
+    // Cascade to every other still-open (Pending / Overdue) occurrence in the same series
+    // (falls back to the legacy [SeriesID: xxx] description marker for
+    // series created before PmSchedule rows existed); standalone tasks have
+    // no series to cascade to.
+    const legacySeriesId = this.cmms.extractSeriesIdFromDescription(existing.description);
+    const openStatuses = { in: ['Pending', 'Overdue'] };
+    const seriesWhere = existing.scheduleId
+      ? { scheduleId: existing.scheduleId, status: openStatuses, id: { not: existing.id } }
+      : legacySeriesId
+        ? { description: { contains: `[SeriesID: ${legacySeriesId}]` }, status: openStatuses, id: { not: existing.id } }
+        : null;
+
+    const [updatedPrimary, cascadeCount] = await this.prisma.$transaction(async (tx) => {
+      const primary = await tx.pmTask.update({
+        where: { id: existing.id },
+        data: {
+          assignedTo: body.assignedTo,
+          assignedAt: new Date(),
+          assignedBy: user.employeeId,
+          reassignCount: { increment: 1 },
+        },
+      });
+
+      const cascade = seriesWhere
+        ? await tx.pmTask.updateMany({
+            where: seriesWhere,
+            data: { assignedTo: body.assignedTo, assignedBy: user.employeeId, reassignCount: { increment: 1 } },
+          })
+        : { count: 0 };
+
+      if (existing.scheduleId) {
+        await tx.pmSchedule.update({ where: { id: existing.scheduleId }, data: { assignedTo: body.assignedTo } }).catch(() => {});
+      }
+
+      return [primary, cascade.count];
+    });
+
+    const [oldTech, newTech] = await Promise.all([
+      oldAssignedTo ? this.prisma.user.findUnique({ where: { employeeId: oldAssignedTo } }) : null,
+      this.prisma.user.findUnique({ where: { employeeId: body.assignedTo } }),
+    ]);
+
+    await this.cmms.logAction(
+      `Reassigned ${existing.id}${cascadeCount > 0 ? ` + ${cascadeCount} future occurrence(s)` : ''} from ${oldTech?.name ?? oldAssignedTo ?? 'Unassigned'} to ${newTech?.name ?? body.assignedTo}`,
+      { id: user.employeeId, name: user.name },
+      { id: existing.id, name: existing.title, isUser: false },
+      existing.productId,
+      'data',
+      existing.department,
+    );
+
+    return this.cleanPmTask(updatedPrimary);
   }
 
   @Delete(':id')
@@ -289,53 +460,38 @@ export class PmTasksController {
     await this.cmms.checkProductOwnership(user, body.productId, 'pm.create.submit');
 
     const seriesId = `SCH-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-    const dates = this.cmms.calculateDates(body.frequency);
 
-    // Persist a real PmSchedule row (id = seriesId) so the nightly
-    // topUpSchedules() cron can keep generating future tasks for this series
-    // beyond the initial ~1 year batch created below.
-    await this.prisma.pmSchedule.create({
-      data: {
-        id: seriesId,
-        title: body.title,
-        description: body.description || null,
-        frequency: body.frequency,
-        assetId: body.assetId,
-        productId: body.productId,
-        department: body.department,
-        estimatedHours: body.estimatedHours,
-        checklist: JSON.stringify(body.checklist || []),
-        partsRequired: JSON.stringify(body.partsRequired || []),
-        assignedTo: body.assignedTo || null,
-        createdBy: user.employeeId,
-      },
-    });
-
-    // We can't easily use createMany because each task needs a unique `PM-FAC-XXXX` ID.
-    // Instead we'll loop in the backend, but it's much faster and safer than frontend HTTP loops.
-    // In a real prod environment we'd use a DB sequence for the ID to do bulk inserts.
-    const createdTasks = [];
-    for (const date of dates) {
-      const task = await this.cmms.createTaskWithRetry({
-        title: body.title,
-        description: `[SeriesID: ${seriesId}]\n${body.description || ''}`,
-        frequency: body.frequency,
-        assetId: body.assetId,
-        productId: body.productId,
-        department: body.department,
-        nextDueDate: date,
-        estimatedHours: body.estimatedHours,
-        status: 'Pending',
-        checklist: JSON.stringify(body.checklist || []),
-        partsRequired: JSON.stringify(body.partsRequired || []),
-        partsUsed: '[]',
-        assignedTo: body.assignedTo || null,
-        createdBy: user.employeeId,
-        scheduleId: seriesId,
-      });
-      createdTasks.push(task);
+    const startDate = body.startDate ? new Date(body.startDate) : new Date();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (startDate < today) {
+      throw new BadRequestException('Start date cannot be in the past');
     }
-    
+
+    // One transaction: PM-type claim + schedule row + every task (see createScheduleInTx).
+    const createdTasks = await this.prisma.$transaction(
+      (tx) =>
+        this.cmms.createScheduleInTx(
+          tx,
+          {
+            title: body.title,
+            description: body.description,
+            frequency: body.frequency,
+            assetId: body.assetId,
+            productId: body.productId,
+            department: body.department,
+            estimatedHours: body.estimatedHours,
+            checklist: body.checklist,
+            partsRequired: body.partsRequired,
+            assignedTo: body.assignedTo,
+            createdBy: user.employeeId,
+            startDate,
+          },
+          seriesId,
+        ),
+      { timeout: 120000, maxWait: 10000 },
+    );
+
     return createdTasks.map(t => this.cleanPmTask(t));
   }
 
@@ -345,6 +501,7 @@ export class PmTasksController {
 
     if (schedule) {
       // Proper path: a PmSchedule row exists (series created after this fix).
+      this.assertTechnicianCanEditSchedule(user, schedule.productId);
       const isOwner =
         user.baseRole === 'admin' ||
         user.baseRole === 'manager' ||
@@ -355,20 +512,43 @@ export class PmTasksController {
         throw new ForbiddenException('You do not own the product for this schedule.');
       }
 
+      const checklistChanges =
+        body.checklist !== undefined ? diffChecklist(this.parseChecklist(schedule.checklist), body.checklist) : [];
+
       const scheduleData: any = {};
       if (body.title !== undefined) scheduleData.title = body.title;
       if (body.description !== undefined) scheduleData.description = body.description;
       if (body.checklist !== undefined) scheduleData.checklist = JSON.stringify(body.checklist);
       if (body.partsRequired !== undefined) scheduleData.partsRequired = JSON.stringify(body.partsRequired);
       if (body.assignedTo !== undefined) scheduleData.assignedTo = body.assignedTo;
+      if (typeof body.isActive === 'boolean' && body.isActive !== schedule.isActive) {
+        // Stopping a schedule releases its PM type; resuming claims it again (409 if re-added meanwhile).
+        await this.prisma.$transaction(async (tx) => {
+          const normalized = normalizeFrequency(schedule.frequency);
+          if (body.isActive) {
+            const claim = await tx.pmType.findUnique({
+              where: { assetId_normalizedFrequency: { assetId: schedule.assetId, normalizedFrequency: normalized } },
+            });
+            if (claim?.scheduleId !== schedule.id) {
+              await this.cmms.assertPmTypeAvailable(tx, schedule.assetId, schedule.frequency);
+              await this.cmms.claimPmType(tx, schedule.assetId, schedule.frequency, { scheduleId: schedule.id });
+            }
+          } else {
+            await tx.pmType.deleteMany({ where: { assetId: schedule.assetId, normalizedFrequency: normalized } });
+          }
+          await tx.pmSchedule.update({ where: { id: seriesId }, data: { isActive: body.isActive } });
+        });
+      }
       if (Object.keys(scheduleData).length > 0) {
         await this.prisma.pmSchedule.update({ where: { id: seriesId }, data: scheduleData });
       }
 
       const tasks = await this.prisma.pmTask.findMany({
-        where: { scheduleId: seriesId, status: 'Pending' },
+        where: { scheduleId: seriesId, status: { notIn: FINISHED_STATUSES } },
       });
-      return this.applyScheduleUpdatesToTasks(tasks, seriesId, body);
+      const updatedTasks = await this.applyScheduleUpdatesToTasks(tasks, seriesId, body);
+      await this.logChecklistChange(user, seriesId, schedule.title, schedule.productId, schedule.department, checklistChanges);
+      return updatedTasks;
     }
 
     // Legacy fallback: schedules created before this fix have no PmSchedule
@@ -376,13 +556,14 @@ export class PmTasksController {
     // existing series remain editable (not retroactively migrated).
     const tasks = await this.prisma.pmTask.findMany({
       where: {
-        status: 'Pending',
+        status: { notIn: FINISHED_STATUSES },
         description: { contains: `[SeriesID: ${seriesId}]` },
       },
     });
 
     if (tasks.length === 0) return [];
 
+    this.assertTechnicianCanEditSchedule(user, tasks[0].productId);
     const isOwner =
       user.baseRole === 'admin' ||
       user.baseRole === 'manager' ||
@@ -393,18 +574,70 @@ export class PmTasksController {
       throw new ForbiddenException('You do not own the product for this schedule.');
     }
 
-    return this.applyScheduleUpdatesToTasks(tasks, seriesId, body);
+    const checklistChanges =
+      body.checklist !== undefined ? diffChecklist(this.parseChecklist(tasks[0].checklist), body.checklist) : [];
+    const updatedTasks = await this.applyScheduleUpdatesToTasks(tasks, seriesId, body);
+    await this.logChecklistChange(user, seriesId, tasks[0].title, tasks[0].productId, tasks[0].department, checklistChanges);
+    return updatedTasks;
+  }
+
+  // Technicians may edit a series only through a delegation on its product.
+  private assertTechnicianCanEditSchedule(user: any, productId: string) {
+    if (user.baseRole !== 'technician') return;
+    const delegated = user.delegatedProducts?.some(
+      (dp: any) =>
+        dp.productId === productId &&
+        (dp.permissions.includes('pm.create.submit') || dp.permissions.includes('pm.assign.submit')),
+    );
+    if (!delegated) {
+      throw new ForbiddenException('Technicians need a delegation on this product to edit PM schedules.');
+    }
+  }
+
+  private parseChecklist(raw: unknown): { text: string; requiresPhoto?: boolean; requiresValue?: boolean }[] {
+    try {
+      const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  private async logChecklistChange(
+    user: any,
+    seriesId: string,
+    title: string,
+    productId: string,
+    department: string,
+    changes: string[],
+  ) {
+    if (changes.length === 0) return;
+    await this.cmms.logAction(
+      'Edited PM checklist',
+      { id: user.employeeId, name: user.name },
+      { id: seriesId, name: title, isUser: false },
+      productId,
+      'data',
+      department,
+      changes,
+    );
   }
 
   private async applyScheduleUpdatesToTasks(tasks: any[], seriesId: string, body: any) {
     const updatedTasks = [];
     for (const task of tasks) {
       const data: any = {};
-      if (body.title !== undefined) data.title = body.title;
-      if (body.description !== undefined) data.description = `[SeriesID: ${seriesId}]\n${body.description}`;
-      if (body.checklist !== undefined) data.checklist = JSON.stringify(body.checklist);
-      if (body.partsRequired !== undefined) data.partsRequired = JSON.stringify(body.partsRequired);
-      if (body.assignedTo !== undefined) data.assignedTo = body.assignedTo;
+      // Title/description/parts/assignee edits keep their original Pending-only reach;
+      // only the checklist cascades to in-flight (In Progress / Pending Approval / Overdue) work.
+      if (task.status === 'Pending') {
+        if (body.title !== undefined) data.title = body.title;
+        if (body.description !== undefined) data.description = `[SeriesID: ${seriesId}]\n${body.description}`;
+        if (body.partsRequired !== undefined) data.partsRequired = JSON.stringify(body.partsRequired);
+        if (body.assignedTo !== undefined) data.assignedTo = body.assignedTo;
+      }
+      if (body.checklist !== undefined) {
+        data.checklist = JSON.stringify(this.carryOverProgress(task.checklist, body.checklist));
+      }
 
       const updated = await this.prisma.pmTask.update({
         where: { id: task.id },
@@ -414,5 +647,21 @@ export class PmTasksController {
     }
 
     return updatedTasks.map(t => this.cleanPmTask(t));
+  }
+
+  // Keeps a technician's recorded progress (done / photo / value) on items whose text is unchanged.
+  private carryOverProgress(existingRaw: unknown, incoming: any[]) {
+    const progressByText = new Map<string, any[]>();
+    for (const old of this.parseChecklist(existingRaw) as any[]) {
+      const queue = progressByText.get(old.text) ?? [];
+      queue.push(old);
+      progressByText.set(old.text, queue);
+    }
+    return incoming.map(item => {
+      const old = progressByText.get(item.text)?.shift();
+      if (!old) return item;
+      const { done, photoUrl, value } = old;
+      return { ...item, ...(done !== undefined && { done }), ...(photoUrl !== undefined && { photoUrl }), ...(value !== undefined && { value }) };
+    });
   }
 }

@@ -18,7 +18,7 @@
                 <div class="c-dropdown-trigger">
                   <input type="text"
                     style="border:none; width:100%; box-shadow:none; background:transparent; outline:none; font-family:inherit; font-size:inherit; color:var(--color-text-primary); padding:0;"
-                    [(ngModel)]="productId" name="productId" [placeholder]="'Select or type product...' | tr"
+                    [(ngModel)]="productId" name="productId" [placeholder]="'Select or search product...' | tr"
                     (click)="openDropdown = 'product'; $event.stopPropagation()" />
                   <span class="material-symbols-outlined">expand_more</span>
                 </div>
@@ -53,7 +53,7 @@
                   <input type="text"
                     style="border:none; width:100%; box-shadow:none; background:transparent; outline:none; font-family:inherit; font-size:inherit; color:var(--color-text-primary); padding:0;"
                     [(ngModel)]="assetId" name="assetId" 
-                    [placeholder]="productId ? ('Select or type asset...' | tr) : ('Select product first...' | tr)"
+                    [placeholder]="productId ? ('Select or search asset...' | tr) : ('Select product first...' | tr)"
                     [disabled]="!productId"
                     (click)="openDropdown = 'asset'; $event.stopPropagation()" />
                   <span class="material-symbols-outlined">expand_more</span>
@@ -66,7 +66,7 @@
           </div>
           <div class="form-group">
             <label class="form-label">{{ 'Schedule Type' | tr | uppercase }}</label>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            <div class="schedule-grid" style="display:grid; gap:10px;">
               <div
                 (click)="isRecurring = true"
                 style="
@@ -125,6 +125,13 @@
                 <div class="c-dropdown-item" (click)="selectType('Custom', $event)">{{ 'Custom' | tr }}</div>
               </div>
             </div>
+            <div *ngIf="isDuplicatePm()" style="margin-top:10px; display:flex; gap:10px; align-items:flex-start; padding:12px 14px; border-radius:var(--radius-md); background:var(--warning-bg); color:var(--warning-text); border:1px solid var(--warning);">
+              <span class="material-symbols-outlined" style="font-size:20px;">warning</span>
+              <div style="font-size:12.5px; line-height:1.5;">
+                <strong>{{ 'This asset already has a PM of this type' | tr }}</strong><br>
+                {{ 'You cannot create another PM of the same type for this asset.' | tr }}
+              </div>
+            </div>
           </div>
           
           <div class="form-group" *ngIf="pmType === 'Custom'">
@@ -138,13 +145,18 @@
                   <span class="material-symbols-outlined">expand_more</span>
                 </div>
                 <div class="c-dropdown-menu">
-                  <div class="c-dropdown-item" (click)="customDurationUnit = 'hour(s)'; openDropdown = null; $event.stopPropagation()">{{ 'hour(s)' | tr }}</div>
-                  <div class="c-dropdown-item" (click)="customDurationUnit = 'day(s)'; openDropdown = null; $event.stopPropagation()">{{ 'day(s)' | tr }}</div>
-                  <div class="c-dropdown-item" (click)="customDurationUnit = 'month(s)'; openDropdown = null; $event.stopPropagation()">{{ 'month(s)' | tr }}</div>
+                  <div class="c-dropdown-item" (click)="customDurationUnit = 'Hour(s)'; openDropdown = null; $event.stopPropagation()">{{ 'Hour(s)' | tr }}</div>
+                  <div class="c-dropdown-item" (click)="customDurationUnit = 'Day(s)'; openDropdown = null; $event.stopPropagation()">{{ 'Day(s)' | tr }}</div>
+                  <div class="c-dropdown-item" (click)="customDurationUnit = 'Month(s)'; openDropdown = null; $event.stopPropagation()">{{ 'Month(s)' | tr }}</div>
                   <div class="c-dropdown-item" (click)="customDurationUnit = 'Year(s)'; openDropdown = null; $event.stopPropagation()">{{ 'Year(s)' | tr }}</div>
                 </div>
               </div>
             </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">{{ 'Start Date' | tr | uppercase }}</label>
+            <input type="date" class="form-input" [(ngModel)]="startDate" [min]="minStartDate" style="max-width:200px;" />
           </div>
 
           <div class="form-group">
@@ -162,15 +174,15 @@
         <div class="card-header">
           <div class="card-title">{{ 'Checklist' | tr }}</div>
         </div>
-        <div style="padding:14px 20px; background:var(--color-blue-light); border-bottom:1px solid var(--color-border-soft); display:flex; gap:14px; align-items:center;">
+        <div class="template-bar" style="padding:14px 20px; background:var(--color-blue-light); border-bottom:1px solid var(--color-border-soft); display:flex; gap:14px; align-items:center;">
           <div style="width:36px; height:36px; border-radius:50%; background:var(--color-bg-card); display:flex; align-items:center; justify-content:center; color:var(--color-blue); flex-shrink:0; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
             <span class="material-symbols-outlined" style="font-size:20px;">view_list</span>
           </div>
-          <div style="flex:1;">
+          <div class="template-text" style="flex:1;">
              <div style="font-size:12.5px; font-weight:700; color:var(--color-blue-text); letter-spacing:-0.2px;">{{ 'Department Templates' | tr }}</div>
              <div style="font-size:11.5px; color:var(--color-text-secondary); margin-top:2px;">{{ 'Load predefined tasks or save your current list.' | tr }}</div>
           </div>
-          <div style="display:flex; gap:8px;">
+          <div class="template-actions" style="display:flex; gap:8px;">
             <div class="c-dropdown" [class.open]="dropdownOpen" (click)="toggleDropdown($event)">
               <div class="c-dropdown-trigger">
                 <span>{{ 'Select template…' | tr }}</span>
@@ -205,6 +217,11 @@
           <div style="display:flex;flex-direction:column;gap:0;">
             <div class="checklist-item" *ngFor="let item of checklist(); let i = index" style="display:flex; align-items:center; gap:4px;">
               <input type="text" name="item_{{i}}" [ngModel]="item.text" (ngModelChange)="updateChecklistItem(i, $event)" style="flex:1;"/>
+              <button class="value-req-btn" (click)="toggleValueRequirement(i)"
+                      [class.active]="item.requiresValue"
+                      [title]="'Require Value Record' | tr">
+                <span class="material-symbols-outlined" [style.font-variation-settings]="item.requiresValue ? '\'FILL\' 1' : '\'FILL\' 0'">edit_note</span>
+              </button>
               <button class="photo-req-btn" (click)="togglePhotoRequirement(i)" 
                       [class.active]="item.requiresPhoto"
                       title="Require Photo Evidence">
@@ -220,7 +237,7 @@
 
           <div class="checklist-item" style="margin-top: 8px;">
             <input type="text" name="newChecklistItem" [placeholder]="'Type new item...' | tr" [(ngModel)]="newChecklistItem" (keyup.enter)="addChecklistItem()" style="background: var(--color-bg-card-alt); color: var(--color-text-primary); box-shadow: none; border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); padding: 8px 12px; outline: none; flex: 1;" />
-            <button (click)="addChecklistItem()" style="padding: 6px 12px; border:none; background:var(--color-blue-light); color:var(--color-blue-text); border-radius:var(--radius-md); display:flex; align-items:center; gap:4px; font-size:12.5px; font-weight:700; cursor:pointer; flex-shrink:0; transition: all 0.2s; box-shadow:0 1px 2px rgba(26,86,219,0.06);" onmouseover="this.style.background='var(--color-blue)'; this.style.color='white'" onmouseout="this.style.background='var(--color-blue-light)'; this.style.color='var(--color-blue-text)'">
+            <button class="add-item-btn" (click)="addChecklistItem()" style="padding: 6px 12px; border:none; background:var(--color-blue-light); color:var(--color-blue-text); border-radius:var(--radius-md); display:flex; align-items:center; gap:4px; font-size:12.5px; font-weight:700; cursor:pointer; flex-shrink:0; transition: all 0.2s; box-shadow:0 1px 2px rgba(26,86,219,0.06);" onmouseover="this.style.background='var(--color-blue-DEFAULT)'; this.style.color='white'" onmouseout="this.style.background='var(--color-blue-light)'; this.style.color='var(--color-blue-text)'">
               {{ 'Add' | tr }}<span class="material-symbols-outlined" style="font-size:16px;">add</span>
             </button>
           </div>
@@ -278,11 +295,12 @@
         <div class="preview-row"><span class="preview-label">{{ 'DEPT' | tr }}</span><span class="preview-val" [style.color]="department ? 'var(--color-text-primary)' : 'var(--color-text-muted)'">{{ department || '—' }}</span></div>
         <div class="preview-row"><span class="preview-label">{{ 'Asset' | tr }}</span><span class="preview-val" [style.color]="assetId ? 'var(--color-text-primary)' : 'var(--color-text-muted)'">{{ assetId || '—' }}</span></div>
         <div class="preview-row"><span class="preview-label">{{ 'Type' | tr }}</span><span class="preview-val">{{ pmType === 'Custom' ? customDurationValue + ' ' + (customDurationUnit | tr) : ((pmType | tr) || '—') }}</span></div>
+        <div class="preview-row"><span class="preview-label">{{ 'Start Date' | tr | uppercase }}</span><span class="preview-val">{{ startDate }}</span></div>
         <div class="preview-row"><span class="preview-label">{{ 'Tasks' | tr | uppercase }}</span><span class="preview-val">{{ checklist().length }} {{ 'items' | tr }}</span></div>
         <div class="preview-row"><span class="preview-label">{{ 'EST. TIME' | tr }}</span><span class="preview-val">{{ estimatedHours }} {{ 'hrs' | tr }}</span></div>
         <div class="preview-row"><span class="preview-label">{{ 'Parts' | tr | uppercase }}</span><span class="preview-val">{{ parts().length }} {{ 'required' | tr }}</span></div>
         <div style="margin-top:20px;">
-          <button class="btn btn-primary" (click)="submitForm()" style="width:100%; position: relative;" [disabled]="isGenerating()">
+          <button class="btn btn-primary" (click)="submitForm()" style="width:100%; position: relative;" [disabled]="isGenerating() || isDuplicatePm()">
             <span class="material-symbols-outlined" *ngIf="!isGenerating()">add_circle</span>
             <span *ngIf="!isGenerating()">{{ isRecurring ? ('Create Schedule' | tr) : ('Create PM' | tr) }}</span>
             <span *ngIf="isGenerating()" style="display: flex; align-items: center; gap: 8px;">

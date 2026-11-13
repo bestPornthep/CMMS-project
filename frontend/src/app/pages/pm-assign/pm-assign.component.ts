@@ -1,6 +1,7 @@
 import { Component, computed, inject, signal, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { PmService } from '../../core/services/pm.service';
+import { PmStore } from '../../core/services/pm-store.service';
+import { PmTaskService } from '../../core/services/pm-task.service';
 import { PMTask } from '../../core/models/pm.model';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../core/services/auth.service';
@@ -15,7 +16,8 @@ import { TranslatePipe } from '../../shared/pipes/translate.pipe';
   styleUrl: './pm-assign.component.scss'
 })
 export class PmAssignComponent {
-  private pmService = inject(PmService);
+  private pmStore = inject(PmStore);
+  private pmTaskService = inject(PmTaskService);
   private authService = inject(AuthService);
   private toast = inject(ToastService);
 
@@ -39,39 +41,55 @@ export class PmAssignComponent {
 
   // Computed assigned tasks filtered by department
   assignedTasks = computed(() => {
-    let tasks = this.pmService.pmTasks().filter(t => t.status !== 'Pending' && this.canManageTask(t));
+    let tasks = this.pmStore.pmTasks().filter(t => t.status !== 'Pending' && this.canManageTask(t));
     const dept = this.deptFilter();
     if (dept !== 'All') tasks = tasks.filter(t => t.department === dept);
-    
-    // Sort tasks first so the earliest task in a series is always chosen as the representative
-    tasks.sort((a, b) => {
+
+    // Group by SeriesID so recurring schedules only appear once in the Assigned list.
+    // Within a series, the representative is the MOST RECENTLY ASSIGNED task (by
+    // assignedAt), not the earliest due date — otherwise a brand-new assignment can
+    // be hidden behind an older task in the same series that is still outstanding
+    // (e.g. In Progress / Pending Approval and not yet completed).
+    const seriesGroups = new Map<string, PMTask[]>();
+    const standalone: PMTask[] = [];
+
+    for (const task of tasks) {
+      const seriesMatch = task.description?.match(/\[SeriesID:\s*([^\]]+)\]/);
+      if (seriesMatch) {
+        const seriesId = seriesMatch[1];
+        const group = seriesGroups.get(seriesId);
+        if (group) {
+          group.push(task);
+        } else {
+          seriesGroups.set(seriesId, [task]);
+        }
+      } else {
+        standalone.push(task);
+      }
+    }
+
+    const representatives = Array.from(seriesGroups.values()).map(group =>
+      group.reduce((mostRecent, t) => {
+        const mostRecentTime = mostRecent.assignedAt ? new Date(mostRecent.assignedAt).getTime() : 0;
+        const tTime = t.assignedAt ? new Date(t.assignedAt).getTime() : 0;
+        return tTime > mostRecentTime ? t : mostRecent;
+      })
+    );
+
+    const grouped = [...standalone, ...representatives];
+
+    // Sort for display so the earliest due task appears first
+    grouped.sort((a, b) => {
       const timeA = a.nextDueDate ? new Date(a.nextDueDate).getTime() : 0;
       const timeB = b.nextDueDate ? new Date(b.nextDueDate).getTime() : 0;
       return timeA - timeB;
     });
 
-    // Group by SeriesID so recurring schedules only appear once in the Assigned list
-    const grouped: PMTask[] = [];
-    const seenSeries = new Set<string>();
-    
-    for (const task of tasks) {
-      const seriesMatch = task.description?.match(/\[SeriesID:\s*([^\]]+)\]/);
-      if (seriesMatch) {
-        const seriesId = seriesMatch[1];
-        if (!seenSeries.has(seriesId)) {
-          seenSeries.add(seriesId);
-          grouped.push(task);
-        }
-      } else {
-        grouped.push(task);
-      }
-    }
-    
     return grouped;
   });
 
   pendingTasks = computed(() => {
-    let tasks = this.pmService.pmTasks().filter(t => t.status === 'Pending' && this.canManageTask(t));
+    let tasks = this.pmStore.pmTasks().filter(t => t.status === 'Pending' && !t.assignedTo && this.canManageTask(t));
     const dept = this.deptFilter();
     if (dept !== 'All') tasks = tasks.filter(t => t.department === dept);
     
@@ -120,12 +138,17 @@ export class PmAssignComponent {
     return tech?.name || employeeId;
   }
 
+  // Delegates to PmTaskService — single source of truth shared with the global PM Details modal.
   getTaskTechnicians(task: PMTask) {
-    return this.authService.getAllUsers().filter(u => {
-      if (!u.employeeId || u.baseRole !== 'technician') return false;
-      // Always restrict by task department to protect against human error
-      return u.department === task.department;
-    });
+    return this.pmTaskService.getAssignableTechnicians(task);
+  }
+
+  getReassignTechnicians(task: PMTask) {
+    return this.pmTaskService.getReassignableTechnicians(task);
+  }
+
+  canReassign(task: PMTask): boolean {
+    return this.pmTaskService.canReassignTask(task);
   }
 
   getBulkTechnicians() {
@@ -171,7 +194,7 @@ export class PmAssignComponent {
     const cutoff = new Date();
     cutoff.setDate(today.getDate() + windowDays);
 
-    const tasks = this.pmService.pmTasks().filter((t: PMTask) => {
+    const tasks = this.pmStore.pmTasks().filter((t: PMTask) => {
       if (t.assignedTo !== techId || t.status === 'Done') return false;
       return new Date(t.nextDueDate) <= cutoff;
     });
@@ -203,6 +226,11 @@ export class PmAssignComponent {
   selectedTech: Record<string, string> = {};
   techDropdownOpen: Record<string, boolean> = {};
   activeTab: string = 'unassigned';
+
+  // Reassign: which tech is picked per task row, and which task the confirm modal is open for
+  reassignSelectedTech: Record<string, string> = {};
+  reassignDropdownOpen: Record<string, boolean> = {};
+  taskPendingReassign = signal<PMTask | null>(null);
 
   // Dropdown states
   bulkDropdownOpen = false;
@@ -245,11 +273,19 @@ export class PmAssignComponent {
     if (!wasOpen) this.techDropdownOpen[taskId] = true;
   }
 
+  toggleReassignDropdown(taskId: string, event: Event) {
+    event.stopPropagation();
+    const wasOpen = !!this.reassignDropdownOpen[taskId];
+    this.reassignDropdownOpen = {};
+    if (!wasOpen) this.reassignDropdownOpen[taskId] = true;
+  }
+
   @HostListener('document:click')
   onDocumentClick() {
     this.bulkDropdownOpen = false;
     this.deptDropdownOpen = false;
     this.techDropdownOpen = {};
+    this.reassignDropdownOpen = {};
     this.delegationUserDropdownOpen = false;
     this.delegationProductDropdownOpen = false;
   }
@@ -260,35 +296,11 @@ export class PmAssignComponent {
   showBulkModal = signal<boolean>(false);
 
   canManageTask(task: PMTask): boolean {
-    const user = this.currentUser;
-    if (!user) return false;
-    if (user.baseRole === 'admin' || user.baseRole === 'manager') return true;
-    
-    if (user.baseRole === 'engineer') {
-      // C4 fix: productId may be undefined — guard before includes()
-      if (task.productId && user.ownedProducts && !(user.ownedProducts.includes('*') || user.ownedProducts.includes(task.productId))) {
-         return false;
-      }
-      if (task.createdBy && task.createdBy !== user.employeeId) {
-         const creator = this.authService.getUser(task.createdBy);
-         if (creator && creator.baseRole === 'engineer') {
-            return false;
-         }
-      }
-      return true;
-    }
-    
-    if (user.baseRole === 'technician') {
-      const allowedProducts = this.authService.getAccessibleProducts('pm.assign.submit');
-      if (allowedProducts.length === 0) return false;
-      return user.department === task.department && allowedProducts.includes(task.productId || '');
-    }
-    
-    return false;
+    return this.pmTaskService.canManageTask(task);
   }
 
   toggleSelection(taskId: string) {
-    const task = this.pmService.pmTasks().find(t => t.id === taskId);
+    const task = this.pmStore.pmTasks().find(t => t.id === taskId);
     if (task && !this.canManageTask(task)) {
       this.toast.error('You cannot manage or reassign work owned by another Engineer or outside your responsibility.');
       return;
@@ -305,7 +317,7 @@ export class PmAssignComponent {
   }
 
   viewTaskDetails(task: PMTask) {
-    this.pmService.viewedTaskGlobal.set(task);
+    this.pmStore.viewedTaskGlobal.set(task);
   }
 
   toggleAllSelection(event: any) {
@@ -341,9 +353,10 @@ export class PmAssignComponent {
     const tech = this.bulkAssignee();
     const taskIds = this.selectedTasks();
     
-    const allTasks = this.pmService.pmTasks();
+    const allTasks = this.pmStore.pmTasks();
     const seenSeries = new Set<string>();
-    const tasksToAssign: PMTask[] = [];
+    const tasksToAssign: PMTask[] = []; // earliest occurrence per series (or standalone) -> In Progress
+    const futureSeriesTasks: PMTask[] = []; // remaining not-Done Pending siblings -> pre-assigned, stay Pending
 
     for (const task of allTasks) {
       if (!taskIds.has(task.id)) continue;
@@ -354,19 +367,22 @@ export class PmAssignComponent {
         if (seenSeries.has(seriesId)) continue; // already handling this series
         seenSeries.add(seriesId);
 
-        // Only assign the NEXT (earliest) pending task in the series
-        const nextTask = allTasks
+        // Assigning is a one-time action per series: the earliest Pending occurrence
+        // starts now, every other Pending occurrence is pre-assigned to the same
+        // technician so the series doesn't reappear as "unassigned" later.
+        const [nextTask, ...futureTasks] = allTasks
           .filter(t => t.status === 'Pending' && t.description?.includes(`[SeriesID: ${seriesId}]`))
-          .sort((a, b) => new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime())[0];
+          .sort((a, b) => new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime());
 
         if (nextTask) tasksToAssign.push(nextTask);
+        futureSeriesTasks.push(...futureTasks);
       } else {
         tasksToAssign.push(task);
       }
     }
 
     const mismatchedTask = tasksToAssign.find(task => {
-      const asset = this.pmService.assets().find(a => a.id === task.assetId);
+      const asset = this.pmStore.assets().find(a => a.id === task.assetId);
       return !asset || asset.location !== task.productId;
     });
     if (mismatchedTask) {
@@ -374,15 +390,21 @@ export class PmAssignComponent {
       return;
     }
 
-    const results = await Promise.allSettled(
-      tasksToAssign.map(task => this.pmService.updateTask({
+    const results = await Promise.allSettled([
+      ...tasksToAssign.map(task => this.pmTaskService.updateTask({
         ...task,
         assignedTo: tech.employeeId,
         status: 'In Progress',
         assignedAt: new Date(),
         assignedBy: this.currentUser?.employeeId
+      })),
+      ...futureSeriesTasks.map(task => this.pmTaskService.updateTask({
+        ...task,
+        assignedTo: tech.employeeId,
+        assignedAt: new Date(),
+        assignedBy: this.currentUser?.employeeId
       }))
-    );
+    ]);
 
     const failures = results.filter(r => r.status === 'rejected');
     if (failures.length === 0) {
@@ -406,7 +428,7 @@ export class PmAssignComponent {
     }
 
     // Validate Product-Asset match before assignment
-    const asset = this.pmService.assets().find(a => a.id === task.assetId);
+    const asset = this.pmStore.assets().find(a => a.id === task.assetId);
     if (!asset || asset.location !== task.productId) {
       this.toast.error('Cannot assign task due to Product-Asset mismatch in the task record.');
       return;
@@ -419,39 +441,51 @@ export class PmAssignComponent {
     }
 
     try {
-      const seriesMatch = task.description?.match(/\[SeriesID:\s*([^\]]+)\]/);
-      if (seriesMatch) {
-        const seriesId = seriesMatch[1];
-        const nextTask = this.pmService.pmTasks()
-          .filter(t => t.status === 'Pending' && t.description?.includes(`[SeriesID: ${seriesId}]`))
-          .sort((a, b) => new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime())[0];
-
-        if (nextTask) {
-          await this.pmService.updateTask({
-            ...nextTask,
-            status: 'In Progress',
-            assignedTo: tech,
-            assignedAt: new Date(),
-            assignedBy: this.currentUser?.employeeId
-          });
-          this.toast.success('Task assigned successfully.');
-          this.selectedTech[task.id] = '';
-        } else {
-          this.toast.warning('No pending task found in this series to assign.');
-        }
-      } else {
-        await this.pmService.updateTask({
-          ...task,
-          status: 'In Progress',
-          assignedTo: tech,
-          assignedAt: new Date(),
-          assignedBy: this.currentUser?.employeeId
-        });
-        this.toast.success('Task assigned successfully.');
-        this.selectedTech[task.id] = '';
-      }
+      await this.pmTaskService.assignTaskToTechnician(task, tech);
+      this.toast.success('Task assigned successfully.');
+      this.selectedTech[task.id] = '';
     } catch (err: any) {
       this.toast.error(err?.message || 'Failed to assign task. Please check the server connection.');
+    }
+  }
+
+  // --- Reassign (Assigned tab: swap the technician on an already-assigned, in-flight task) ---
+
+  openReassignModal(task: PMTask) {
+    if (!this.canReassign(task)) {
+      this.toast.error('You cannot manage or reassign work owned by another Engineer or outside your responsibility.');
+      return;
+    }
+    const tech = this.reassignSelectedTech[task.id];
+    if (!tech) {
+      this.toast.warning('Please select a technician first.');
+      return;
+    }
+    if (tech === task.assignedTo) {
+      this.toast.warning('Task is already assigned to this technician.');
+      return;
+    }
+    this.taskPendingReassign.set(task);
+  }
+
+  cancelReassign() {
+    this.taskPendingReassign.set(null);
+  }
+
+  async confirmReassign() {
+    const task = this.taskPendingReassign();
+    if (!task) return;
+    const tech = this.reassignSelectedTech[task.id];
+    if (!tech) return;
+
+    try {
+      await this.pmTaskService.reassignTask(task, tech);
+      this.toast.success('Task reassigned successfully.');
+      this.reassignSelectedTech[task.id] = '';
+    } catch (err: any) {
+      this.toast.error(err?.message || 'Failed to reassign task. Please check the server connection.');
+    } finally {
+      this.taskPendingReassign.set(null);
     }
   }
 

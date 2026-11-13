@@ -2938,6 +2938,7 @@ model User {
   roleLabel    String   @map("role_label")
   department   String
   permissions  String   @default("[]") @db.NVarChar(Max)
+  isActive     Boolean  @default(true) @map("is_active")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
@@ -2955,11 +2956,15 @@ model UserOwnedProduct {
 }
 
 model Asset {
-  id         String   @id
-  name       String
-  department String
-  location   String
-  createdAt  DateTime @default(now()) @map("created_at")
+  id             String    @id
+  name           String
+  department     String
+  location       String
+  isActive       Boolean   @default(true) @map("is_active")
+  workCenter     String?   @map("work_center") @db.NVarChar(50)
+  deactivatedAt  DateTime? @map("deactivated_at")
+  isInMasterPlan Boolean   @default(true) @map("is_in_master_plan")
+  createdAt      DateTime  @default(now()) @map("created_at")
   @@map("cmms_assets")
 }
 
@@ -2976,6 +2981,7 @@ model PmSchedule {
   partsRequired  String   @default("[]") @map("parts_required") @db.NVarChar(Max)
   assignedTo     String?  @map("assigned_to") @db.VarChar(20)
   createdBy      String?  @map("created_by") @db.VarChar(20)
+  isActive       Boolean  @default(true) @map("is_active")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
   @@map("cmms_pm_schedules")
@@ -2993,7 +2999,7 @@ model PmTask {
   nextDueDate    DateTime  @map("next_due_date")
   estimatedHours Decimal   @map("estimated_hours") @db.Decimal(5, 2)
   actualHours    Decimal?  @map("actual_hours") @db.Decimal(5, 2)
-  status         String    @default("Pending") // 'Pending', 'In Progress', 'Pending Approval', 'Done', 'Overdue'
+  status         String    @default("Pending") // 'Pending', 'In Progress', 'Pending Approval', 'Done', 'Overdue', 'Cancelled'
   checklist      String    @default("[]") @db.NVarChar(Max)
   partsRequired  String    @default("[]") @map("parts_required") @db.NVarChar(Max)
   partsUsed      String    @default("[]") @map("parts_used") @db.NVarChar(Max)
@@ -3007,10 +3013,80 @@ model PmTask {
   approvedAt     DateTime? @map("approved_at")
   rejectedBy     String?   @map("rejected_by")
   rejectedAt     DateTime? @map("rejected_at")
+  reassignCount  Int       @default(0) @map("reassign_count")
+  cancelledReason String?  @map("cancelled_reason") @db.NVarChar(200)
+  cancelledAt    DateTime? @map("cancelled_at")
   createdBy      String?   @map("created_by")
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
   @@map("cmms_pm_tasks")
+}
+
+// One row per (asset, normalized frequency) that has ever had a PM. The
+// primary key is what makes "one PM type per asset" race-safe: a UNIQUE index
+// cannot live on cmms_pm_tasks because a series has many rows per frequency.
+model PmType {
+  assetId             String   @map("asset_id") @db.NVarChar(50)
+  normalizedFrequency String   @map("normalized_frequency") @db.NVarChar(50)
+  scheduleId          String?  @map("schedule_id") @db.NVarChar(50)
+  taskId              String?  @map("task_id") @db.NVarChar(100)
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  @@id([assetId, normalizedFrequency])
+  @@map("cmms_pm_types")
+}
+
+model PmIdSequence {
+  assetId    String @map("asset_id") @db.NVarChar(50)
+  periodCode String @map("period_code") @db.NVarChar(30)
+  lastSeq    Int    @default(0) @map("last_seq")
+
+  @@id([assetId, periodCode])
+  @@map("cmms_pm_id_sequences")
+}
+
+// PM Master Plan approval workflow (frontend request #7). One open ('pending') card per
+// asset — enforced by a filtered unique index in manual-sql/create-masterplan-tables.sql.
+model MasterPlanChange {
+  id            String    @id @db.NVarChar(50)
+  assetId       String    @map("asset_id") @db.NVarChar(50)
+  assetName     String    @map("asset_name") @db.NVarChar(200)
+  department    String    @db.NVarChar(50)
+  proposedState String    @map("proposed_state") @db.NVarChar(Max) // JSON ProposedMasterPlanState
+  submittedBy   String    @map("submitted_by") @db.NVarChar(50)
+  submittedAt   DateTime  @map("submitted_at")
+  note          String    @db.NVarChar(Max)
+  history       String    @default("[]") @db.NVarChar(Max) // JSON { timestamp, by, note }[]
+  status        String    @default("pending") @db.NVarChar(10)
+  resolvedBy    String?   @map("resolved_by") @db.NVarChar(50)
+  resolvedAt    DateTime? @map("resolved_at")
+  rejectReason  String?   @map("reject_reason") @db.NVarChar(500)
+
+  @@index([assetId])
+  @@map("cmms_masterplan_changes")
+}
+
+model MasterPlanVersion {
+  id        String   @id @db.NVarChar(50)
+  label     String   @unique @db.NVarChar(10)
+  createdAt DateTime @default(now()) @map("created_at")
+  assets    String   @db.NVarChar(Max) // JSON snapshot of every asset at approval time
+
+  @@map("cmms_masterplan_versions")
+}
+
+// PM types defined on a machine that is not in the Master Plan yet. They create no
+// schedule or task until the machine is approved into the plan.
+model DraftPmType {
+  assetId             String   @map("asset_id") @db.NVarChar(50)
+  normalizedFrequency String   @map("normalized_frequency") @db.NVarChar(50)
+  frequency           String   @db.NVarChar(50)
+  detail              String   @db.NVarChar(Max) // JSON NewPmTypeDetail
+  updatedBy           String   @map("updated_by") @db.NVarChar(50)
+  updatedAt           DateTime @default(now()) @map("updated_at")
+
+  @@id([assetId, normalizedFrequency])
+  @@map("cmms_draft_pm_types")
 }
 
 model Template {
@@ -3051,5 +3127,6 @@ model AuditLog {
   department   String?  @map("department")
   type         String   @map("type") // 'security', 'system', 'data'
   timestamp    DateTime @default(now())
+  changes      String?  @db.NVarChar(Max) // JSON string[] — human-readable diff lines
   @@map("cmms_audit_logs")
 }

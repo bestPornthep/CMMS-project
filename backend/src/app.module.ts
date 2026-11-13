@@ -13,6 +13,9 @@ import { DelegationsController } from './delegations.controller';
 import { AuditLogsController } from './audit-logs.controller';
 import { CmmsService } from './cmms.service';
 import { SchedulerService } from './scheduler.service';
+import { PmMasterplanController } from './pm-masterplan.controller';
+import { DraftPmTypesController } from './draft-pm-types.controller';
+import { MasterplanService } from './masterplan.service';
 
 @Module({
   imports: [PrismaModule, AuthModule, ScheduleModule.forRoot()],
@@ -25,7 +28,9 @@ import { SchedulerService } from './scheduler.service';
     TemplatesController,
     DelegationsController,
     AuditLogsController,
+    PmMasterplanController,
+    DraftPmTypesController,
   ],
-  providers: [AppService, CmmsService, SchedulerService],
+  providers: [AppService, CmmsService, SchedulerService, MasterplanService],
 })
 export class AppModule {}

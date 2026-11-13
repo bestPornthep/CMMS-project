@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AssetIntel CMMS — Real Checklist Photo Capture — Backend Requirements</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #161923; --border: #2a2f3d; --text: #e6e8ef;
+    --muted: #9aa2b1; --accent: #5b8cff; --good: #3ddc97; --bad: #ff6b6b; --warn: #ffb84d;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 40px; line-height: 1.6; }
+  .wrap { max-width: 1000px; margin: 0 auto; }
+  h1 { font-size: 28px; margin-bottom: 4px; }
+  .subtitle { color: var(--muted); margin-bottom: 32px; }
+  h2 { border-bottom: 2px solid var(--border); padding-bottom: 8px; margin-top: 48px; color: var(--accent); }
+  h3 { margin-top: 24px; color: var(--text); }
+  h4 { margin-top: 18px; color: var(--muted); font-size: 14px; text-transform: uppercase; letter-spacing: .03em; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin: 16px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  th, td { border: 1px solid var(--border); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: #1d212c; color: var(--muted); }
+  code { background: #1d212c; padding: 2px 6px; border-radius: 4px; font-size: 13px; color: #f0ad4e; }
+  pre { background: #1d212c; padding: 14px; border-radius: 8px; overflow-x: auto; border: 1px solid var(--border); font-size: 13px; }
+  pre code { background: none; padding: 0; color: #d7dce6; }
+  ul { padding-left: 22px; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 700; text-transform: uppercase; padding: 3px 10px; border-radius: 999px; margin-left: 6px; }
+  .tag.post { background: rgba(61,220,151,.15); color: var(--good); border: 1px solid rgba(61,220,151,.4); }
+  .note { color: var(--muted); font-size: 13px; }
+  .warn-box { background: rgba(255,184,77,.1); border: 1px solid var(--warn); border-radius: 10px; padding: 16px 20px; margin: 16px 0; }
+  .good-box { background: rgba(61,220,151,.1); border: 1px solid var(--good); border-radius: 10px; padding: 16px 20px; margin: 16px 0; }
+  .toc { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px 24px; }
+  .toc a { color: var(--accent); text-decoration: none; }
+  .toc li { margin: 4px 0; }
+  .endpoint-title { font-family: monospace; font-size: 15px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Real Checklist Photo Capture — Backend Requirements</h1>
+  <div class="subtitle">Checklist "Require Photo" is now a real, camera-only capture on the frontend instead of a mock button. Backend upload storage is not yet implemented — this documents the target design.</div>
+
+  <div class="toc">
+    <ul>
+      <li><a href="#rule">1. What changed on the frontend (already shipped)</a></li>
+      <li><a href="#interim">2. Interim behavior — one required backend prerequisite</a></li>
+      <li><a href="#endpoint">3. Deferred: dedicated upload endpoint <code>POST /api/v1/pm-tasks/:id/checklist/:index/photo</code></a></li>
+      <li><a href="#notes">4. Implementation Notes / Edge Cases</a></li>
+    </ul>
+  </div>
+
+  <h2 id="rule">1. What changed on the frontend (already shipped)</h2>
+  <div class="card">
+    <p>Technicians can no longer fake photo evidence with a single click. The "Upload" button in <code>pm-record.component.html</code> was replaced with a hidden <code>&lt;input type="file" accept="image/*" capture="environment"&gt;</code> triggered by a "Take Photo" button.</p>
+    <ul>
+      <li><code>capture="environment"</code> opens the device's rear camera app directly on Android Chrome and iOS Safari — no gallery/file picker step — which satisfies the requirement to prevent reusing old photos.</li>
+      <li>True live in-app camera view (<code>getUserMedia</code>) was considered but rejected for now: it requires a secure context (HTTPS or <code>localhost</code>), and the app currently runs over plain HTTP on a LAN IP (<code>environment.ts</code> → <code>http://10.144.15.76:3000</code>). Revisit if/when the site is served over HTTPS.</li>
+      <li>Captured photos are resized (max 1280px side) and re-encoded as JPEG client-side (<code>compressImageToDataUrl()</code> in <code>pm-record.component.ts</code>) before being stored, to keep payload size reasonable.</li>
+      <li>A "Retake" button lets the technician replace a captured photo before submitting.</li>
+    </ul>
+  </div>
+
+  <h2 id="interim">2. Interim behavior — one required backend prerequisite</h2>
+  <div class="card">
+    <p>The compressed photo is stored as a base64 <code>data:image/jpeg;base64,...</code> string directly in the existing <code>checklist[].photoUrl</code> field — the same string field the old mock path (<code>assets/demo-photo.jpg</code>) used. This round-trips through the existing <code>PUT /api/v1/pm-tasks/:id</code> endpoint unchanged code-wise, since that route's handler (<code>pm-tasks.controller.ts</code> → <code>update()</code>) takes <code>@Body() body: any</code> with no DTO/whitelist validation.</p>
+    <div class="warn-box">
+      <strong>But this will 413 today.</strong> <code>main.ts</code> calls <code>NestFactory.create(AppModule)</code> with no body-parser options, so Nest/Express fall back to the default JSON body size limit of <strong>100kb</strong>. A single compressed photo (JPEG, max 1280px side, quality 0.7) typically lands in the 100–300KB range <em>before</em> base64 encoding adds another ~33% — i.e. a normal checklist photo will routinely exceed 100kb and Express will reject the whole <code>PUT</code> request with <code>413 Payload Too Large</code> before it even reaches the controller. A checklist with 2–3 required photos makes this a near-certainty, not an edge case.
+    </div>
+    <h4>Required one-line fix</h4>
+    <pre><code>// main.ts, after NestFactory.create():
+app.useBodyParser('json', { limit: '10mb' });
+app.useBodyParser('urlencoded', { limit: '10mb', extended: true });</code></pre>
+    <p class="note">This is the only backend change required for real photo capture to function end-to-end against a live server. Everything else in this section (route, DTO, permissions) is already correct as-is.</p>
+  </div>
+
+  <h2 id="endpoint">3. Deferred: dedicated upload endpoint <span class="endpoint-title">POST /api/v1/pm-tasks/:id/checklist/:index/photo</span> <span class="tag post">POST</span></h2>
+  <div class="card">
+    <p>Storing many full photos as base64 inside the <code>checklist</code> JSON column doesn't scale well (each photo inflates the column ~33% over raw bytes, and every task update re-sends every photo already on the record). When there's backend bandwidth, replace inline base64 with a real file upload:</p>
+
+    <h4>Proposed request</h4>
+    <pre><code>POST /api/v1/pm-tasks/:id/checklist/:index/photo
+Content-Type: multipart/form-data
+Body: photo=&lt;file&gt;</code></pre>
+
+    <h4>Proposed handler sketch</h4>
+    <pre><code>@Post(':id/checklist/:index/photo')
+@UseInterceptors(FileInterceptor('photo', {
+  storage: diskStorage({
+    destination: './uploads/pm-checklist-photos',
+    filename: (req, file, cb) =&gt; cb(null, `${req.params.id}-${req.params.index}-${Date.now()}.jpg`),
+  }),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: (req, file, cb) =&gt; cb(null, /^image\/(jpe?g|png|webp)$/.test(file.mimetype)),
+}))
+async uploadChecklistPhoto(@Param('id') id: string, @Param('index') index: string, @UploadedFile() file: Express.Multer.File, @CurrentUser() user: any) {
+  // same permission checks as update() (isOwner / canRecord), then:
+  // 1. load task, parse checklist JSON
+  // 2. set checklist[index].photoUrl = `/uploads/pm-checklist-photos/${file.filename}`
+  // 3. persist checklist back to the task row
+  // 4. return { photoUrl }
+}</code></pre>
+
+    <p class="note"><code>multer</code> is already a backend dependency (see <code>package.json</code>) but currently unused anywhere in <code>backend/src</code> — this would be its first wiring. Serve the <code>uploads/</code> folder as static assets via <code>app.useStaticAssets()</code> in <code>main.ts</code> so the returned <code>photoUrl</code> is directly usable as an <code>&lt;img src&gt;</code>, same as today.</p>
+
+    <div class="warn-box">
+      <strong>Auth:</strong> apply the same permission logic as <code>update()</code> in <code>pm-tasks.controller.ts</code> (owner/assignee/delegation checks) before accepting an upload for a task — don't let this become an unauthenticated file-drop endpoint.
+    </div>
+  </div>
+
+  <h2 id="notes">4. Implementation Notes / Edge Cases</h2>
+  <div class="card">
+    <ul>
+      <li><strong>Backward compatible:</strong> <code>photoUrl</code> stays a plain string either way (base64 data URL today, disk-relative URL later) — no schema change, no frontend change needed when this ships beyond swapping which value populates <code>photoUrl</code>.</li>
+      <li><strong>Migration:</strong> existing base64 photos already saved on historical tasks don't need to be migrated — they'll keep rendering fine as <code>&lt;img&gt;</code> src values indefinitely.</li>
+      <li><strong>Storage growth:</strong> disk-based storage needs a retention/cleanup policy decision (not addressed here) since photos currently have no expiry.</li>
+      <li><strong>HTTPS:</strong> unrelated to this endpoint (multipart upload works fine over plain HTTP) — only the alternative live in-app camera view (§1) needs HTTPS.</li>
+    </ul>
+  </div>
+
+</div>
+</body>
+</html>

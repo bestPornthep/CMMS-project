@@ -34,6 +34,11 @@ export const routes: Routes = [
         data: { permission: 'pm.create.view', section: 'PM Work', title: 'Create PM' }
       },
       {
+        path: 'pm-machines',
+        loadComponent: () => import('./pages/pm-machines/pm-machines.component').then(m => m.PmMachinesComponent),
+        data: { permission: 'pm.create.view', section: 'PM Work', title: 'Manage Machines' }
+      },
+      {
         path: 'pm-assign',
         loadComponent: () => import('./pages/pm-assign/pm-assign.component').then(m => m.PmAssignComponent),
         data: { permission: 'pm.assign.view', section: 'PM Work', title: 'Assign PM' }
@@ -54,9 +59,24 @@ export const routes: Routes = [
         data: { permission: 'pm.reports.view', section: 'PM Work', title: 'PM Reports' }
       },
       {
+        path: 'pm-master-plan',
+        loadComponent: () => import('./pages/pm-master-plan/pm-master-plan.component').then(m => m.PmMasterPlanComponent),
+        data: { permission: 'pm.reports.view', section: 'PM Work', title: 'PM Master Plan' }
+      },
+      {
+        path: 'pm-approvals',
+        loadComponent: () => import('./pages/pm-approvals/pm-approvals.component').then(m => m.PmApprovalsComponent),
+        data: { permission: 'pm.masterplan.approve', section: 'PM Work', title: 'PM Master Plan Approvals' }
+      },
+      {
         path: 'pm-audit',
         loadComponent: () => import('./pages/pm-audit/pm-audit.component').then(m => m.PmAuditComponent),
         data: { permission: 'pm.audit.view', section: 'Administration', title: 'Audit Log' }
+      },
+      {
+        path: 'profile-config',
+        loadComponent: () => import('./pages/profile-config/profile-config.component').then(m => m.ProfileConfigComponent),
+        data: { permission: 'pm.users.manage', section: 'Administration', title: 'Profile Config' }
       }
     ]
   },

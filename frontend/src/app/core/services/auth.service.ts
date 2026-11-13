@@ -50,9 +50,15 @@ export class AuthService {
     localStorage.removeItem(AUTH_KEY);
   }
 
+  // Re-pulls the user list from the backend so newly created/edited users show up immediately.
+  async refreshUsers(): Promise<void> {
+    const users = await this.api.getAllUsers();
+    this.usersCache.set(users);
+  }
+
   // ── Permission checks (synchronous — uses cached user) ──────────────────
 
-  private readonly ROLE_DEFAULTS: Record<string, string[]> = {
+  readonly ROLE_DEFAULTS: Record<string, string[]> = {
     technician: [
       'pm.dashboard.view', 'pm.record.view', 'pm.record.submit', 'pm.calendar.view',
     ],
@@ -68,6 +74,9 @@ export class AuthService {
     const user = this.currentUser();
     if (!user) return false;
 
+    if (permission === 'pm.users.manage') {
+      return user.baseRole === 'admin';
+    }
     if (permission === 'pm.audit.view') {
       return user.baseRole === 'engineer' || user.baseRole === 'manager';
     }

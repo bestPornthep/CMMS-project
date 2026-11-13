@@ -17,8 +17,8 @@ export class ProductsController {
 
   @Post()
   async create(@Body() body: any, @CurrentUser() user: any) {
-    if (user.baseRole !== 'admin' && user.baseRole !== 'manager') {
-      throw new ForbiddenException('Only admin or manager can create products');
+    if (!['admin', 'manager', 'engineer'].includes(user.baseRole)) {
+      throw new ForbiddenException('Only admin, manager or engineer can create products');
     }
 
     const existing = await this.prisma.product.findUnique({

@@ -1,11 +1,13 @@
 import { Component, computed, inject, signal, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
-import { PmService } from '../../core/services/pm.service';
+import { ActivatedRoute, Router } from '@angular/router';
+import { PmStore } from '../../core/services/pm-store.service';
+import { TemplateService } from '../../core/services/template.service';
+import { MasterPlanService } from '../../core/services/master-plan.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
-import { PMTaskFrequency, PMTaskStatus, Template } from '../../core/models/pm.model';
+import { NewPmTypeDetail, PMTaskFrequency, Template } from '../../core/models/pm.model';
 import { TranslatePipe } from '../../shared/pipes/translate.pipe';
 
 @Component({
@@ -16,16 +18,24 @@ import { TranslatePipe } from '../../shared/pipes/translate.pipe';
   styleUrl: './pm-create.component.scss'
 })
 export class PmCreateComponent {
-  private pmService = inject(PmService);
+  private pmStore = inject(PmStore);
+  private templateService = inject(TemplateService);
+  private masterPlan = inject(MasterPlanService);
   private authService = inject(AuthService);
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
   private toast = inject(ToastService);
 
   // Form Model
   pmType: PMTaskFrequency = 'Monthly';
   customDurationValue: number = 1;
-  customDurationUnit: string = 'month(s)';
-  
+  customDurationUnit: string = 'Month(s)';
+
+  // ISO yyyy-MM-dd, local-date (not UTC) so it matches the user's actual "today"
+  // regardless of timezone offset — bound directly to the native date input.
+  startDate: string = this.toIsoDate(new Date());
+  readonly minStartDate = this.startDate;
+
   isRecurring: boolean = true;
   isGenerating = signal(false);
 
@@ -47,13 +57,47 @@ export class PmCreateComponent {
     if (!this.canChangeDept && this.currentUser?.department) {
       this.department = this.currentUser.department;
     }
+
+    // A link such as /pm-create?machine=CNC-014 (used by the machine detail window) preselects that machine.
+    const machineId = this.route.snapshot.queryParamMap.get('machine');
+    if (machineId) this.preselectMachine(machineId);
+  }
+
+  // Fills customer, department and machine from a link. An unknown, inactive or inaccessible machine is
+  // ignored with a message and the form stays as it was: a link must never pick a machine the picker would not offer.
+  private preselectMachine(id: string) {
+    const machine = this.pmStore.assets().find(a => a.id === id);
+    if (!machine) {
+      this.toast.error('Machine not found.');
+      return;
+    }
+    const customerOk = this.products().some(p => p.toLowerCase() === (machine.location || '').toLowerCase());
+    const departmentOk = this.canChangeDept || (machine.department || '').toLowerCase() === (this.currentUser?.department || '').toLowerCase();
+    if (!customerOk || !departmentOk) {
+      this.toast.error('You cannot create PM types for this machine.');
+      return;
+    }
+    if (machine.isActive === false) {
+      this.toast.error('Reactivate this machine before adding PM types.');
+      return;
+    }
+    this.productId = machine.location;
+    this.department = machine.department;
+    this.assetId = machine.id;
+  }
+
+  private toIsoDate(d: Date): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
   }
 
   // Dynamic Lists
-  checklist = signal<{ text: string, requiresPhoto: boolean }[]>([
-    { text: 'Inspect bearing assembly', requiresPhoto: false },
-    { text: 'Check lubrication levels', requiresPhoto: false },
-    { text: 'Test pressure relief valve', requiresPhoto: false }
+  checklist = signal<{ text: string, requiresPhoto: boolean, requiresValue: boolean }[]>([
+    { text: 'Inspect bearing assembly', requiresPhoto: false, requiresValue: false },
+    { text: 'Check lubrication levels', requiresPhoto: false, requiresValue: false },
+    { text: 'Test pressure relief valve', requiresPhoto: false, requiresValue: false }
   ]);
   newChecklistItem = '';
 
@@ -65,12 +109,12 @@ export class PmCreateComponent {
   showManageTemplateModal = false;
   newTemplateName = '';
   defaultTemplates = computed(() => {
-    const all = this.pmService.templates();
+    const all = this.templateService.templates();
     return all.filter(t => t.isDefault && (this.canChangeDept || t.department === 'All' || t.department === this.currentUser?.department));
   });
 
   personalTemplates = computed(() => {
-    const all = this.pmService.templates();
+    const all = this.templateService.templates();
     return all.filter(t => !t.isDefault && t.createdBy === this.currentUser?.employeeId);
   });
 
@@ -95,7 +139,7 @@ export class PmCreateComponent {
     this.productId = p;
     // If Product changes, reset Asset if it does not belong to the new Product.
     if (this.assetId) {
-      const asset = this.pmService.assets().find(a => a.id === this.assetId);
+      const asset = this.pmStore.assets().find(a => a.id === this.assetId);
       if (asset && asset.location.toLowerCase() !== p.toLowerCase()) {
         this.assetId = '';
       }
@@ -107,7 +151,7 @@ export class PmCreateComponent {
     event.stopPropagation();
     this.department = d;
     if (this.assetId) {
-      const asset = this.pmService.assets().find(a => a.id === this.assetId);
+      const asset = this.pmStore.assets().find(a => a.id === this.assetId);
       if (asset && asset.department.toLowerCase() !== d.toLowerCase()) {
         this.assetId = '';
       }
@@ -119,7 +163,7 @@ export class PmCreateComponent {
     event.stopPropagation();
     this.assetId = a;
     if (a) {
-      const asset = this.pmService.assets().find(x => x.id === a);
+      const asset = this.pmStore.assets().find(x => x.id === a);
       if (asset) {
         this.productId = asset.location;
         this.department = asset.department;
@@ -131,6 +175,17 @@ export class PmCreateComponent {
     event.stopPropagation();
     this.pmType = t as PMTaskFrequency; 
     this.openDropdown = null;
+  }
+
+  private getEffectiveFrequency(): PMTaskFrequency {
+    return this.pmType === 'Custom' ? `${this.customDurationValue} ${this.customDurationUnit}` : this.pmType;
+  }
+
+  // Hard block: an asset may only ever have one PM of a given frequency, regardless of status.
+  // Drafts and preview tasks count too.
+  isDuplicatePm(): boolean {
+    if (!this.assetId || !this.pmType) return false;
+    return this.masterPlan.hasPmType(this.assetId, this.getEffectiveFrequency());
   }
 
   togglePart(part: string, event: Event) {
@@ -162,7 +217,9 @@ export class PmCreateComponent {
     const filterProd = this.productId?.toLowerCase() || '';
     const filterDept = this.department?.toLowerCase() || '';
 
-    return this.pmService.assets().filter(a => {
+    // Only active machines are offered here — deactivated machines must be reactivated
+    // from the Machines page before a new PM can be created for them.
+    return this.pmStore.activeAssets().filter(a => {
       const aLoc = a.location?.toLowerCase() || '';
       const aDept = a.department?.toLowerCase() || '';
 
@@ -195,7 +252,7 @@ export class PmCreateComponent {
   // Checklist Methods
   addChecklistItem() {
     if (this.newChecklistItem.trim()) {
-      this.checklist.update(list => [...list, { text: this.newChecklistItem.trim(), requiresPhoto: false }]);
+      this.checklist.update(list => [...list, { text: this.newChecklistItem.trim(), requiresPhoto: false, requiresValue: false }]);
       this.newChecklistItem = '';
     }
   }
@@ -216,6 +273,14 @@ export class PmCreateComponent {
     this.checklist.update(list => {
       const newList = [...list];
       newList[index] = { ...newList[index], requiresPhoto: !newList[index].requiresPhoto };
+      return newList;
+    });
+  }
+
+  toggleValueRequirement(index: number) {
+    this.checklist.update(list => {
+      const newList = [...list];
+      newList[index] = { ...newList[index], requiresValue: !newList[index].requiresValue };
       return newList;
     });
   }
@@ -244,8 +309,8 @@ export class PmCreateComponent {
   loadTemplate(tpl: Template) {
     this.loadedTemplateId = tpl.id || null;
     this.loadedTemplateName = tpl.name;
-    // Make sure we have proper boolean for requiresPhoto when loading
-    const mapped = tpl.checklist.map(item => ({ text: item.text, requiresPhoto: !!item.requiresPhoto }));
+    // Make sure we have proper boolean for requiresPhoto/requiresValue when loading
+    const mapped = tpl.checklist.map(item => ({ text: item.text, requiresPhoto: !!item.requiresPhoto, requiresValue: !!item.requiresValue }));
     this.checklist.set([...mapped]);
     this.dropdownOpen = false;
   }
@@ -263,7 +328,7 @@ export class PmCreateComponent {
     if (!tpl) return;
     
     try {
-      await this.pmService.updateTemplate({
+      await this.templateService.updateTemplate({
         ...tpl,
         checklist: [...this.checklist()]
       });
@@ -276,7 +341,7 @@ export class PmCreateComponent {
 
   saveTemplate() {
     if (!this.newTemplateName.trim()) return;
-    this.pmService.saveTemplate({
+    this.templateService.saveTemplate({
       name: this.newTemplateName,
       department: this.department || 'All',
       checklist: [...this.checklist()]
@@ -294,13 +359,26 @@ export class PmCreateComponent {
       this.loadedTemplateId = null;
       this.loadedTemplateName = null;
     }
-    this.pmService.deleteTemplate(tpl);
+    this.templateService.deleteTemplate(tpl);
   }
 
   // Submit
   async submitForm() {
+    if (this.isGenerating()) return;
     if (!this.productId || !this.department || !this.assetId || !this.pmType) {
       this.toast.error('Please fill out all required fields (Product, Dept, Asset, Type).');
+      return;
+    }
+
+    // Hard block: one PM per asset+frequency, ever — regardless of status.
+    if (this.isDuplicatePm()) {
+      const freq = this.getEffectiveFrequency();
+      this.toast.error(`This asset already has a ${freq} PM. You cannot create another PM of the same type for this asset.`);
+      return;
+    }
+
+    if (this.masterPlan.findPendingPmAdd(this.assetId, this.getEffectiveFrequency())) {
+      this.toast.error(`A ${this.getEffectiveFrequency()} PM for this asset is already waiting for approval.`);
       return;
     }
 
@@ -310,111 +388,75 @@ export class PmCreateComponent {
       return;
     }
 
+    // Start date must be today or later — no backdating
+    if (!this.startDate || this.startDate < this.minStartDate) {
+      this.toast.error('Start date cannot be in the past.');
+      return;
+    }
+
     // Warn but don't block if checklist is empty
     if (this.checklist().length === 0) {
       this.toast.warning('No checklist items added — technician will have no steps to follow.');
     }
 
     const isNewProduct = !this.products().includes(this.productId);
-    const selectedAsset = this.pmService.assets().find(a => a.id === this.assetId);
+    const selectedAsset = this.pmStore.assets().find(a => a.id === this.assetId);
     const isNewAsset = !selectedAsset;
 
-    if (selectedAsset) {
-      if (selectedAsset.location !== this.productId || selectedAsset.department !== this.department) {
-        this.toast.error('The selected asset does not match the chosen product or department. Action blocked.');
-        return;
-      }
+    // Machines are now created via the dedicated "Machines" page, not auto-created here.
+    if (isNewProduct || isNewAsset) {
+      this.toast.error('Unknown Product or Asset. Add the machine on the Machines page first, then create its PM here.');
+      return;
     }
 
-    // Create product first if new, then asset
-    if (isNewProduct) {
-      try {
-        await this.pmService.createProduct({ id: this.productId, name: this.productId });
-      } catch (e) {
-        this.toast.error('Failed to create new product. Please try again.');
-        return;
-      }
-    }
-    if (isNewAsset) {
-      try {
-        await this.pmService.createAsset({
-          id: this.assetId,
-          name: this.assetId,
-          location: this.productId,
-          department: this.department
-        });
-      } catch (e) {
-        this.toast.error('Failed to create new asset. Please try again.');
-        return;
-      }
+    if (selectedAsset.location !== this.productId || selectedAsset.department !== this.department) {
+      this.toast.error('The selected asset does not match the chosen product or department. Action blocked.');
+      return;
     }
 
-    const nextDueDate = new Date();
-    let finalFrequency = this.pmType;
-
-    switch (this.pmType) {
-      case 'Daily': nextDueDate.setDate(nextDueDate.getDate() + 1); break;
-      case 'Weekly': nextDueDate.setDate(nextDueDate.getDate() + 7); break;
-      case 'Monthly': nextDueDate.setDate(nextDueDate.getDate() + 30); break;
-      case 'Quarterly': nextDueDate.setDate(nextDueDate.getDate() + 90); break;
-      case 'Yearly': nextDueDate.setDate(nextDueDate.getDate() + 365); break;
-      case 'Custom': {
-        finalFrequency = `${this.customDurationValue} ${this.customDurationUnit}`;
-        const val = this.customDurationValue;
-        switch (this.customDurationUnit) {
-          case 'hour(s)': nextDueDate.setHours(nextDueDate.getHours() + val); break;
-          case 'day(s)': nextDueDate.setDate(nextDueDate.getDate() + val); break;
-          case 'month(s)': nextDueDate.setMonth(nextDueDate.getMonth() + val); break;
-          case 'Year(s)': nextDueDate.setFullYear(nextDueDate.getFullYear() + val); break;
-        }
-        break;
-      }
-    }
-
+    // Lock the button before any async work so a rapid double-click can't
+    // slip a second submission past the duplicate check above (and the guard at the top).
     this.isGenerating.set(true);
 
+    // First occurrence is due exactly on the chosen start date — no interval
+    // offset applied to it. Later occurrences (recurring only) are computed
+    // by the backend as startDate + N×frequency.
+    const nextDueDate = new Date(this.startDate);
+    const finalFrequency = this.getEffectiveFrequency();
+
     try {
-      if (this.isRecurring) {
-        await this.pmService.addPmSchedule({
-          id: '', // Will be ignored by shim
-          title: selectedAsset?.name || this.assetId,
-          description: this.description,
-          frequency: finalFrequency,
-          assetId: this.assetId,
-          productId: this.productId,
-          department: this.department,
-          estimatedHours: this.estimatedHours,
-          checklist: this.checklist().map(item => ({ text: item.text, requiresPhoto: item.requiresPhoto })),
-          partsRequired: [...this.parts()],
-          assignedTo: undefined,
-          createdBy: this.authService.currentUser()?.employeeId
-        });
-      } else {
-        try {
-          await this.pmService.addPmTask({
-            productId: this.productId,
-            department: this.department,
-            assetId: this.assetId,
-            title: selectedAsset?.name || this.assetId,
-            description: this.description,
-            frequency: finalFrequency,
-            nextDueDate: nextDueDate,
-            estimatedHours: this.estimatedHours,
-            status: 'Pending' as PMTaskStatus,
-            createdBy: this.authService.currentUser()?.employeeId,
-            checklist: this.checklist().map(item => ({ text: item.text, done: false, requiresPhoto: item.requiresPhoto })),
-            partsRequired: [...this.parts()]
-          });
-        } catch (inner) {
-          this.isGenerating.set(false);
-          this.toast.error('Failed to create PM task. Check your access and try again.');
-          return;
-        }
+      const detail: NewPmTypeDetail = {
+        title: selectedAsset.name || this.assetId,
+        description: this.description,
+        estimatedHours: this.estimatedHours,
+        partsRequired: [...this.parts()],
+        checklist: this.checklist().map(item => ({ text: item.text, requiresPhoto: item.requiresPhoto, requiresValue: item.requiresValue })),
+        startDate: nextDueDate,
+        isRecurring: this.isRecurring
+      };
+
+      // A machine that is not in the Master Plan keeps its PM types as drafts: no approval, no tasks.
+      if (!this.masterPlan.isInMasterPlan(this.assetId)) {
+        await this.masterPlan.addDraftPmType(this.assetId, finalFrequency, detail);
+        this.toast.success('PM type saved as a draft. Send the machine to the Master Plan when it is ready.');
+        this.router.navigate(['/pm-machines'], { queryParams: { machine: this.assetId } });
+        return;
       }
-      // Only navigate on actual success
-      this.router.navigate(['/pm-assign']);
-    } catch (e) {
-      this.toast.error('Failed to generate PM schedule. Please try again.');
+
+      await this.masterPlan.submitMasterPlanChange({
+        assetId: this.assetId,
+        assetName: selectedAsset.name,
+        department: this.department,
+        changes: {
+          addPmTypes: [finalFrequency],
+          newPmTypeDetails: { [finalFrequency]: detail }
+        },
+        note: this.description.trim() || `New ${finalFrequency} PM via Create PM`
+      });
+      this.toast.success(`${finalFrequency} PM for "${selectedAsset.name}" submitted for approval.`);
+      this.router.navigate([this.masterPlan.canApproveMasterPlanChange() ? '/pm-approvals' : '/dashboard']);
+    } catch (e: any) {
+      this.toast.error(e?.message || 'Failed to save the PM. Please try again.');
     } finally {
       this.isGenerating.set(false);
     }

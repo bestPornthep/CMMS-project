@@ -1,24 +1,29 @@
 import { Component, computed, inject, signal, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { RouterModule, Router, NavigationEnd, ActivatedRoute } from '@angular/router';
 import { AuthService } from '../core/services/auth.service';
-import { PmService } from '../core/services/pm.service';
+import { PmStore } from '../core/services/pm-store.service';
+import { PmTaskService } from '../core/services/pm-task.service';
+import { PMTask } from '../core/models/pm.model';
 import { TranslationService } from '../core/services/translation.service';
 import { ToastService } from '../core/services/toast.service';
 import { ThemeService } from '../core/services/theme.service';
 import { LiquidGlassToggleComponent } from '../shared/components/liquid-glass-toggle/liquid-glass-toggle.component';
+import { TranslatePipe } from '../shared/pipes/translate.pipe';
 import { filter, map, mergeMap } from 'rxjs/operators';
 
 @Component({
   selector: 'app-layout',
   standalone: true,
-  imports: [CommonModule, RouterModule, LiquidGlassToggleComponent],
+  imports: [CommonModule, FormsModule, RouterModule, LiquidGlassToggleComponent, TranslatePipe],
   templateUrl: './layout.component.html',
-  styleUrls: []
+  styleUrls: ['./layout.component.scss']
 })
 export class LayoutComponent {
   private authService = inject(AuthService);
-  private pmService = inject(PmService);
+  private pmStore = inject(PmStore);
+  private pmTaskService = inject(PmTaskService);
   public translationService = inject(TranslationService);
   private router = inject(Router);
   private activatedRoute = inject(ActivatedRoute);
@@ -35,7 +40,7 @@ export class LayoutComponent {
 
   notifications = computed(() => {
     const user = this.user();
-    const tasks = this.pmService.pmTasks();
+    const tasks = this.pmStore.pmTasks();
     if (!user) return [];
 
     let notifs: any[] = [];
@@ -170,7 +175,7 @@ export class LayoutComponent {
     const input = event.target as HTMLInputElement;
     const val = input.value.trim().toUpperCase();
     if (val) {
-      const task = this.pmService.pmTasks().find(t => t.id === val || t.id.includes(val));
+      const task = this.pmStore.pmTasks().find(t => t.id === val || t.id.includes(val));
       const user = this.user();
 
       let isAllowed = false;
@@ -221,7 +226,18 @@ export class LayoutComponent {
       }
 
       if (isAllowed && task) {
-        this.pmService.viewedTaskGlobal.set(task);
+        if (task.status === 'Done') {
+          // Done tasks are read-only — show details in the global modal.
+          this.pmStore.viewedTaskGlobal.set(task);
+        } else if (user!.baseRole === 'technician' || task.status === 'Pending Approval') {
+          // Technicians execute/view their own work in Record PM; Pending Approval
+          // always routes there regardless of role since that's where approval happens.
+          this.router.navigate(['/pm-record'], { queryParams: { task: task.id } });
+        } else {
+          // Pending / In Progress / Overdue — show details/assign in the shared
+          // modal, same as clicking the task in the calendar grid.
+          this.pmStore.viewedTaskGlobal.set(task);
+        }
       } else {
         this.toast.warning(notFoundMsg);
       }
@@ -247,6 +263,8 @@ export class LayoutComponent {
   closeDropdowns() {
     this.notificationsOpen = false;
     this.settingsOpen = false;
+    this.assignDropdownOpen = false;
+    this.reassignDropdownOpen = false;
   }
 
   readNotification(notif: any) {
@@ -261,11 +279,187 @@ export class LayoutComponent {
 
   // Global Task Details Modal logic
   get viewedTask() {
-    return this.pmService.viewedTaskGlobal();
+    return this.pmStore.viewedTaskGlobal();
   }
 
   closeTaskDetails() {
-    this.pmService.viewedTaskGlobal.set(null);
+    this.pmStore.viewedTaskGlobal.set(null);
+    this.selectedAssignTech.set('');
+    this.selectedReassignTech.set('');
+    this.reassignConfirmPending.set(false);
+    this.cancelTaskConfirmPending.set(false);
+    this.assignDropdownOpen = false;
+    this.reassignDropdownOpen = false;
+    this.editChecklistMode.set(false);
+  }
+
+  // --- Assign (Pending tasks, shown inline in the modal instead of on the Assign PM page) ---
+  selectedAssignTech = signal<string>('');
+  assignDropdownOpen = false;
+
+  toggleAssignDropdown(event: Event) {
+    event.stopPropagation();
+    this.assignDropdownOpen = !this.assignDropdownOpen;
+    this.reassignDropdownOpen = false;
+  }
+
+  canManageTask(task: PMTask): boolean {
+    return this.pmTaskService.canManageTask(task);
+  }
+
+  getAssignableTechnicians(task: PMTask) {
+    return this.pmTaskService.getAssignableTechnicians(task);
+  }
+
+  async assignFromModal(task: PMTask) {
+    const tech = this.selectedAssignTech();
+    if (!tech) {
+      this.toast.warning('Please select a technician first.');
+      return;
+    }
+    try {
+      await this.pmTaskService.assignTaskToTechnician(task, tech);
+      this.toast.success('Task assigned successfully.');
+      this.selectedAssignTech.set('');
+      // The modal holds a direct object reference — re-point it at the refreshed
+      // task (assign/reassign refetch pmTasks() internally) so fields stay in sync.
+      const updated = this.pmStore.pmTasks().find(t => t.id === task.id);
+      if (updated) this.pmStore.viewedTaskGlobal.set(updated);
+    } catch (err: any) {
+      this.toast.error(err?.message || 'Failed to assign task. Please check the server connection.');
+    }
+  }
+
+  // --- Reassign (In Progress/Overdue tasks) — inline confirm, no second stacked modal ---
+  selectedReassignTech = signal<string>('');
+  reassignConfirmPending = signal<boolean>(false);
+  reassignDropdownOpen = false;
+
+  toggleReassignDropdown(event: Event) {
+    event.stopPropagation();
+    this.reassignDropdownOpen = !this.reassignDropdownOpen;
+    this.assignDropdownOpen = false;
+  }
+
+  canReassignTask(task: PMTask): boolean {
+    return this.pmTaskService.canReassignTask(task);
+  }
+
+  getReassignableTechnicians(task: PMTask) {
+    return this.pmTaskService.getReassignableTechnicians(task);
+  }
+
+  requestReassign() {
+    if (!this.selectedReassignTech()) {
+      this.toast.warning('Please select a technician first.');
+      return;
+    }
+    this.reassignConfirmPending.set(true);
+  }
+
+  cancelReassignFromModal() {
+    this.reassignConfirmPending.set(false);
+  }
+
+  async confirmReassignFromModal(task: PMTask) {
+    const tech = this.selectedReassignTech();
+    if (!tech) return;
+    try {
+      const updated = await this.pmTaskService.reassignTask(task, tech);
+      this.toast.success('Task reassigned successfully.');
+      this.selectedReassignTech.set('');
+      this.pmStore.viewedTaskGlobal.set(updated);
+    } catch (err: any) {
+      this.toast.error(err?.message || 'Failed to reassign task. Please check the server connection.');
+    } finally {
+      this.reassignConfirmPending.set(false);
+    }
+  }
+
+  // --- Cancel (Pending/In Progress/Overdue only) — operational, no approval needed. Cancels
+  // this task and its not-yet-Done future series siblings, leaves the schedule itself active. ---
+  cancelTaskConfirmPending = signal<boolean>(false);
+
+  canCancelTask(task: PMTask): boolean {
+    return this.pmTaskService.canCancelTask(task);
+  }
+
+  requestCancelTask() {
+    this.cancelTaskConfirmPending.set(true);
+  }
+
+  cancelCancelTask() {
+    this.cancelTaskConfirmPending.set(false);
+  }
+
+  async confirmCancelTask(task: PMTask) {
+    try {
+      await this.pmTaskService.cancelPmTaskSeries(task.id);
+      this.toast.success('PM task cancelled.');
+      this.closeTaskDetails();
+    } catch (err: any) {
+      this.toast.error(err?.message || 'Failed to cancel task. Please try again.');
+      this.cancelTaskConfirmPending.set(false);
+    }
+  }
+
+  // --- Edit Checklist (recurring series only) — applies to future/not-Done occurrences,
+  // leaves Done tasks and past PM reports untouched. ---
+  editChecklistMode = signal<boolean>(false);
+  editChecklistItems = signal<{ text: string; requiresPhoto?: boolean; requiresValue?: boolean }[]>([]);
+  newChecklistItem = '';
+
+  canEditSeriesChecklist(task: PMTask): boolean {
+    return this.pmTaskService.canEditSeriesChecklist(task);
+  }
+
+  startEditChecklist(task: PMTask) {
+    this.editChecklistItems.set((task.checklist || []).map(i => ({ text: i.text, requiresPhoto: i.requiresPhoto, requiresValue: i.requiresValue })));
+    this.newChecklistItem = '';
+    this.editChecklistMode.set(true);
+  }
+
+  addEditChecklistItem() {
+    if (this.newChecklistItem.trim()) {
+      this.editChecklistItems.update(list => [...list, { text: this.newChecklistItem.trim(), requiresPhoto: false, requiresValue: false }]);
+      this.newChecklistItem = '';
+    }
+  }
+
+  removeEditChecklistItem(index: number) {
+    this.editChecklistItems.update(list => list.filter((_, i) => i !== index));
+  }
+
+  toggleEditChecklistPhoto(index: number) {
+    this.editChecklistItems.update(list => {
+      const newList = [...list];
+      newList[index] = { ...newList[index], requiresPhoto: !newList[index].requiresPhoto };
+      return newList;
+    });
+  }
+
+  toggleEditChecklistValue(index: number) {
+    this.editChecklistItems.update(list => {
+      const newList = [...list];
+      newList[index] = { ...newList[index], requiresValue: !newList[index].requiresValue };
+      return newList;
+    });
+  }
+
+  cancelEditChecklist() {
+    this.editChecklistMode.set(false);
+  }
+
+  async saveEditChecklist(task: PMTask) {
+    try {
+      await this.pmTaskService.updateSeriesChecklist(task, this.editChecklistItems());
+      this.toast.success('Checklist updated for future occurrences.');
+      this.editChecklistMode.set(false);
+      const updated = this.pmStore.pmTasks().find(t => t.id === task.id);
+      if (updated) this.pmStore.viewedTaskGlobal.set(updated);
+    } catch (err: any) {
+      this.toast.error(err?.message || 'Failed to update checklist. Please try again.');
+    }
   }
 
   getCleanDescription(desc?: string): string {
@@ -277,6 +471,13 @@ export class LayoutComponent {
     if (!employeeId || employeeId === 'CURRENT-USER' || employeeId === 'System') return 'System';
     const tech = this.authService.getAllUsers().find(u => u.employeeId === employeeId);
     return tech?.name || employeeId;
+  }
+
+  // Same lookup as getTechName, but falls back to "Unassigned" — used for the Assigned To field,
+  // which is meaningfully different from "no creator" (matches pm-assign's own getTechName convention).
+  getAssigneeName(employeeId?: string): string {
+    if (!employeeId) return 'Unassigned';
+    return this.getTechName(employeeId);
   }
 
   getParsedNotes(notes?: string): { type: string, text: string, timestamp?: Date, checklist?: any[] }[] {

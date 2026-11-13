@@ -25,6 +25,11 @@
 
       <div class="nav-label">PM Work</div>
 
+      <a class="pm-subitem" routerLink="/pm-machines" routerLinkActive="active" *ngIf="hasPermission('pm.create.view')">
+        <span class="material-symbols-outlined">precision_manufacturing</span>
+        <span>Manage Machines</span>
+      </a>
+
       <a class="pm-subitem" routerLink="/pm-create" routerLinkActive="active" *ngIf="hasPermission('pm.create.view')">
         <span class="material-symbols-outlined">add_circle</span>
         <span>Create PM</span>
@@ -45,9 +50,23 @@
         <span>PM Calendar</span>
       </a>
 
+      <div class="nav-divider"></div>
+
+      <div class="nav-label">{{ 'PM Document' | tr }}</div>
+
       <a class="pm-subitem" routerLink="/pm-reports" routerLinkActive="active" *ngIf="hasPermission('pm.reports.view')">
         <span class="material-symbols-outlined">bar_chart</span>
         <span>PM Reports</span>
+      </a>
+
+      <a class="pm-subitem" routerLink="/pm-master-plan" routerLinkActive="active" *ngIf="hasPermission('pm.reports.view')">
+        <span class="material-symbols-outlined">calendar_view_month</span>
+        <span>{{ 'PM Master Plan' | tr }}</span>
+      </a>
+
+      <a class="pm-subitem" routerLink="/pm-approvals" routerLinkActive="active" *ngIf="hasPermission('pm.masterplan.approve')">
+        <span class="material-symbols-outlined">rule</span>
+        <span>{{ 'Master Plan Approvals' | tr }}</span>
       </a>
 
       <div class="nav-divider"></div>
@@ -57,6 +76,11 @@
       <a class="pm-subitem" routerLink="/pm-audit" routerLinkActive="active" *ngIf="hasPermission('pm.audit.view')">
         <span class="material-symbols-outlined">history</span>
         <span>Audit Log</span>
+      </a>
+
+      <a class="pm-subitem" routerLink="/profile-config" routerLinkActive="active" *ngIf="hasPermission('pm.users.manage')">
+        <span class="material-symbols-outlined">manage_accounts</span>
+        <span>{{ 'Profile Config' | tr }}</span>
       </a>
     </nav>
 
@@ -127,15 +151,6 @@
           </button>
           
           <div class="dropdown-menu" *ngIf="settingsOpen" style="position: absolute; right: 0; top: 100%; margin-top: 8px; width: 200px; background: var(--color-bg-card); box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 8px; border: 1px solid var(--color-border-soft); z-index: 1000; overflow: hidden; padding: 8px 0;">
-             <div style="padding: 10px 16px; display: flex; align-items: center; gap: 10px; cursor: pointer; color: var(--color-text-primary);" onmouseover="this.style.background='var(--color-bg-hover)'" onmouseout="this.style.background='transparent'">
-                <span class="material-symbols-outlined" style="font-size: 20px; color: var(--color-text-secondary);">person</span>
-                <span style="font-size: 14px; font-weight: 500;">Profile</span>
-             </div>
-             <div style="padding: 10px 16px; display: flex; align-items: center; gap: 10px; cursor: pointer; color: var(--color-text-primary);" onmouseover="this.style.background='var(--color-bg-hover)'" onmouseout="this.style.background='transparent'">
-                <span class="material-symbols-outlined" style="font-size: 20px; color: var(--color-text-secondary);">tune</span>
-                <span style="font-size: 14px; font-weight: 500;">Preferences</span>
-             </div>
-             <div style="height: 1px; background: var(--color-border-soft); margin: 8px 0;"></div>
              <div style="padding: 10px 16px; display: flex; align-items: center; gap: 10px; cursor: pointer; color: var(--color-error-mid);" onmouseover="this.style.background='var(--color-bg-hover)'" onmouseout="this.style.background='transparent'" (click)="logout()">
                 <span class="material-symbols-outlined" style="font-size: 20px;">logout</span>
                 <span style="font-size: 14px; font-weight: 600;">Sign out</span>
@@ -178,6 +193,106 @@
             viewedTask.actualHours }} hrs</div>
         </div>
 
+        <div style="display:flex; flex-wrap: wrap; gap: 20px; font-size:13px; color:var(--color-text-secondary);">
+          <div><strong style="color:var(--color-text-primary);">{{ 'Created By' | tr }}:</strong> {{ getTechName(viewedTask.createdBy) }}</div>
+          <div *ngIf="viewedTask.createdAt"><strong style="color:var(--color-text-primary);">{{ 'Created At' | tr }}:</strong> {{ viewedTask.createdAt | date:'MMM d, y, h:mm a' }}</div>
+          <div><strong style="color:var(--color-text-primary);">{{ 'Assigned To' | tr }}:</strong> {{ getAssigneeName(viewedTask.assignedTo) }}
+            <span class="badge badge-info" *ngIf="viewedTask.reassignCount" style="margin-left:4px;">{{ 'Reassign' | tr }} #{{ viewedTask.reassignCount }}</span>
+          </div>
+          <div *ngIf="viewedTask.assignedAt"><strong style="color:var(--color-text-primary);">{{ 'Assigned At' | tr }}:</strong> {{ viewedTask.assignedAt | date:'MMM d, y, h:mm a' }}</div>
+        </div>
+
+        <!-- Assign (Pending, unassigned tasks only, and only if the current user can manage this task) -->
+        <div *ngIf="viewedTask.status === 'Pending' && !viewedTask.assignedTo && canManageTask(viewedTask)">
+          <div style="font-size:12px;font-weight:700;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;">{{ 'Assign' | tr }}</div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <div class="c-dropdown" [class.open]="assignDropdownOpen" (click)="toggleAssignDropdown($event)">
+              <div class="c-dropdown-trigger">
+                <span>{{ selectedAssignTech() ? getTechName(selectedAssignTech()) : ('Select Tech...' | tr) }}</span>
+                <span class="material-symbols-outlined">expand_more</span>
+              </div>
+              <div class="c-dropdown-menu" *ngIf="assignDropdownOpen" (click)="$event.stopPropagation()">
+                <div class="c-dropdown-item" *ngFor="let tech of getAssignableTechnicians(viewedTask)" (click)="selectedAssignTech.set(tech.employeeId!); assignDropdownOpen = false;">{{ tech.name }}</div>
+              </div>
+            </div>
+            <button class="btn btn-primary" style="padding:7px 16px; font-size:12.5px; white-space:nowrap;" (click)="assignFromModal(viewedTask)">{{ 'Assign' | tr }}</button>
+          </div>
+        </div>
+
+        <!-- Reassign (any status except Done, and only if the current user can manage this task) -->
+        <div *ngIf="canReassignTask(viewedTask)">
+          <div style="font-size:12px;font-weight:700;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;">{{ 'Reassign' | tr }}</div>
+          <div *ngIf="!reassignConfirmPending()" style="display:flex; gap:8px; align-items:center;">
+            <div class="c-dropdown" [class.open]="reassignDropdownOpen" (click)="toggleReassignDropdown($event)">
+              <div class="c-dropdown-trigger">
+                <span>{{ selectedReassignTech() ? getTechName(selectedReassignTech()) : ('Select Tech...' | tr) }}</span>
+                <span class="material-symbols-outlined">expand_more</span>
+              </div>
+              <div class="c-dropdown-menu" *ngIf="reassignDropdownOpen" (click)="$event.stopPropagation()">
+                <div class="c-dropdown-item" *ngFor="let tech of getReassignableTechnicians(viewedTask)" (click)="selectedReassignTech.set(tech.employeeId!); reassignDropdownOpen = false;">{{ tech.name }}</div>
+              </div>
+            </div>
+            <button class="btn btn-ghost" style="padding:7px 16px; font-size:12.5px; white-space:nowrap;" (click)="requestReassign()">{{ 'Reassign' | tr }}</button>
+          </div>
+          <div *ngIf="reassignConfirmPending()" style="background:var(--color-bg-card-alt); border:1px solid var(--color-border-soft); border-radius:var(--radius-md); padding:12px;">
+            <p style="margin:0 0 10px 0; font-size:13px; color:var(--color-text-secondary);">
+              {{ 'You are reassigning' | tr }} <strong style="color:var(--color-text-primary);">{{ viewedTask.id }}</strong>
+              {{ 'from' | tr }} <strong style="color:var(--color-text-primary);">{{ getAssigneeName(viewedTask.assignedTo) }}</strong>
+              {{ 'to' | tr }} <strong style="color:var(--color-text-primary);">{{ getTechName(selectedReassignTech()) }}</strong>.
+            </p>
+            <div style="display:flex; gap:8px;">
+              <button class="btn btn-primary" style="flex:1; justify-content:center; font-size:12.5px;" (click)="confirmReassignFromModal(viewedTask)">{{ 'Confirm' | tr }}</button>
+              <button class="btn btn-ghost" style="flex:1; justify-content:center; font-size:12.5px;" (click)="cancelReassignFromModal()">{{ 'Cancel' | tr }}</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cancel (Pending/In Progress only, and only if the current user can manage this task) — operational, no approval needed -->
+        <div *ngIf="canCancelTask(viewedTask)" style="margin-top:16px;">
+          <div style="font-size:12px;font-weight:700;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;">{{ 'Remove' | tr }}</div>
+          <button *ngIf="!cancelTaskConfirmPending()" class="btn btn-ghost" style="padding:7px 16px; font-size:12.5px; color:var(--color-error-mid); white-space:nowrap;" (click)="requestCancelTask()">{{ 'Cancel this PM task' | tr }}</button>
+          <div *ngIf="cancelTaskConfirmPending()" style="background:var(--color-bg-card-alt); border:1px solid var(--color-border-soft); border-radius:var(--radius-md); padding:12px;">
+            <p style="margin:0 0 10px 0; font-size:13px; color:var(--color-text-secondary);">
+              {{ 'Remove PM task for' | tr }} <strong style="color:var(--color-text-primary);">{{ viewedTask.assetId }}</strong> — {{ viewedTask.nextDueDate | date:'MMM yyyy' }}?
+              {{ 'This cancels this occurrence and any not-yet-done future occurrences in the same series. The recurring schedule itself stays active — only these already-generated tasks are removed.' | tr }}
+            </p>
+            <div style="display:flex; gap:8px;">
+              <button class="btn btn-primary" style="flex:1; justify-content:center; font-size:12.5px; background:var(--color-error-mid); border-color:var(--color-error-mid);" (click)="confirmCancelTask(viewedTask)">{{ 'Confirm' | tr }}</button>
+              <button class="btn btn-ghost" style="flex:1; justify-content:center; font-size:12.5px;" (click)="cancelCancelTask()">{{ 'Cancel' | tr }}</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Edit Checklist (recurring series only, any status except Done) — applies to future occurrences, past/Done tasks and PM reports keep their original checklist -->
+        <div *ngIf="canEditSeriesChecklist(viewedTask)" style="margin-top:16px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+            <div style="font-size:12px;font-weight:700;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:0.6px;">{{ 'Edit Checklist' | tr }}</div>
+            <button *ngIf="!editChecklistMode()" class="btn btn-ghost" style="padding:4px 10px; font-size:11.5px;" (click)="startEditChecklist(viewedTask)">{{ 'Edit' | tr }}</button>
+          </div>
+          <div *ngIf="editChecklistMode()">
+            <div *ngFor="let item of editChecklistItems(); let i = index" style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+              <span style="flex:1; font-size:13px; color:var(--color-text-primary);">{{ item.text }}</span>
+              <button class="btn btn-ghost" style="padding:4px 6px; min-width:auto;" [style.color]="item.requiresValue ? 'var(--color-blue)' : 'var(--color-text-muted)'" (click)="toggleEditChecklistValue(i)" [title]="'Require Value Record' | tr">
+                <span class="material-symbols-outlined" style="font-size:16px;" [style.font-variation-settings]="item.requiresValue ? '\'FILL\' 1' : '\'FILL\' 0'">edit_note</span>
+              </button>
+              <button class="btn btn-ghost" style="padding:4px 6px; min-width:auto;" [style.color]="item.requiresPhoto ? 'var(--color-blue)' : 'var(--color-text-muted)'" (click)="toggleEditChecklistPhoto(i)" title="Require Photo Evidence">
+                <span class="material-symbols-outlined" style="font-size:16px;" [style.font-variation-settings]="item.requiresPhoto ? '\'FILL\' 1' : '\'FILL\' 0'">photo_camera</span>
+              </button>
+              <button class="btn btn-ghost" style="padding:2px 8px; font-size:11px;" (click)="removeEditChecklistItem(i)">{{ 'Remove' | tr }}</button>
+            </div>
+            <div *ngIf="editChecklistItems().length === 0" style="font-size:12.5px; color:var(--color-text-secondary); margin-bottom:8px;">{{ 'No checklist items — type below to add' | tr }}</div>
+            <div style="display:flex; gap:8px; margin:10px 0;">
+              <input type="text" class="form-input" style="flex:1;" [(ngModel)]="newChecklistItem" [placeholder]="'Type new item...' | tr" (keyup.enter)="addEditChecklistItem()" />
+              <button class="btn btn-ghost" style="padding:6px 14px; font-size:12px;" (click)="addEditChecklistItem()">{{ 'Add' | tr }}</button>
+            </div>
+            <p style="font-size:11.5px; color:var(--color-text-secondary); margin:0 0 10px 0;">{{ 'Past completed occurrences and PM reports keep their original checklist.' | tr }}</p>
+            <div style="display:flex; gap:8px;">
+              <button class="btn btn-primary" style="flex:1; justify-content:center; font-size:12.5px;" (click)="saveEditChecklist(viewedTask)">{{ 'Save' | tr }}</button>
+              <button class="btn btn-ghost" style="flex:1; justify-content:center; font-size:12.5px;" (click)="cancelEditChecklist()">{{ 'Cancel' | tr }}</button>
+            </div>
+          </div>
+        </div>
+
         <div *ngIf="viewedTask.description"
           style="margin-top: 16px; padding: 12px; background: var(--bg-card); border-radius: 8px; font-size: 14px; color: var(--text-secondary); line-height: 1.5; white-space: pre-wrap;">
           {{ getCleanDescription(viewedTask.description) }}
@@ -196,6 +311,9 @@
               </div>
               <div style="flex:1;">
                 <span class="checkbox-label" [class.done]="item.done">{{ item.text }}</span>
+                <div *ngIf="item.value" style="margin-top: 4px; font-size: 12.5px; color: var(--color-text-secondary);">
+                  {{ 'Recorded value' | tr }}: <strong style="color: var(--color-text-primary);">{{ item.value }}</strong>
+                </div>
                 <div *ngIf="item.photoUrl" style="margin-top: 8px;">
                   <img [src]="item.photoUrl" alt="Evidence"
                     style="max-width: 100px; max-height: 100px; border-radius: 4px; border: 1px solid var(--color-border-soft); display: block;" />
