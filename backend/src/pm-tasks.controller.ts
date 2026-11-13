@@ -209,9 +209,12 @@ export class PmTasksController {
           );
         }
       } else {
-        // Approvers may do any transition except backwards from Done
+        // Approvers may do any transition except backwards from Done / Cancelled
         if (from === 'Done') {
           throw new ForbiddenException(`Cannot modify a completed task`);
+        }
+        if (from === 'Cancelled') {
+          throw new ForbiddenException(`Cannot modify a cancelled task`);
         }
       }
     }
@@ -225,6 +228,10 @@ export class PmTasksController {
     if (body.estimatedHours !== undefined) data.estimatedHours = body.estimatedHours;
     if (body.actualHours !== undefined) data.actualHours = body.actualHours;
     if (body.status !== undefined) data.status = body.status;
+    if (body.status === 'Cancelled') {
+      data.cancelledReason = body.cancelledReason ?? null;
+      data.cancelledAt = body.cancelledAt ? new Date(body.cancelledAt) : new Date();
+    }
     if (body.checklist !== undefined) data.checklist = JSON.stringify(body.checklist);
     if (body.partsRequired !== undefined) data.partsRequired = JSON.stringify(body.partsRequired);
     if (body.partsUsed !== undefined) data.partsUsed = JSON.stringify(body.partsUsed);
@@ -345,15 +352,16 @@ export class PmTasksController {
 
     const oldAssignedTo = existing.assignedTo;
 
-    // Cascade to every other still-Pending occurrence in the same series
+    // Cascade to every other still-open (Pending / Overdue) occurrence in the same series
     // (falls back to the legacy [SeriesID: xxx] description marker for
     // series created before PmSchedule rows existed); standalone tasks have
     // no series to cascade to.
     const legacySeriesId = this.cmms.extractSeriesIdFromDescription(existing.description);
+    const openStatuses = { in: ['Pending', 'Overdue'] };
     const seriesWhere = existing.scheduleId
-      ? { scheduleId: existing.scheduleId, status: 'Pending', id: { not: existing.id } }
+      ? { scheduleId: existing.scheduleId, status: openStatuses, id: { not: existing.id } }
       : legacySeriesId
-        ? { description: { contains: `[SeriesID: ${legacySeriesId}]` }, status: 'Pending', id: { not: existing.id } }
+        ? { description: { contains: `[SeriesID: ${legacySeriesId}]` }, status: openStatuses, id: { not: existing.id } }
         : null;
 
     const [updatedPrimary, cascadeCount] = await this.prisma.$transaction(async (tx) => {
@@ -540,6 +548,7 @@ export class PmTasksController {
       if (body.checklist !== undefined) scheduleData.checklist = JSON.stringify(body.checklist);
       if (body.partsRequired !== undefined) scheduleData.partsRequired = JSON.stringify(body.partsRequired);
       if (body.assignedTo !== undefined) scheduleData.assignedTo = body.assignedTo;
+      if (typeof body.isActive === 'boolean') scheduleData.isActive = body.isActive;
       if (Object.keys(scheduleData).length > 0) {
         await this.prisma.pmSchedule.update({ where: { id: seriesId }, data: scheduleData });
       }
