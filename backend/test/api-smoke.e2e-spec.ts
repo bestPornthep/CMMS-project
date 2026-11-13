@@ -338,7 +338,7 @@ describe('Full API Smoke Test (e2e)', () => {
         })
         .expect(201);
       createdTaskId = res.body.id;
-      expect(createdTaskId).toMatch(/^PM-TES-\d+$/);
+      expect(createdTaskId).toMatch(/^PM-THC-P1-01-1m-\d{2,}$/);
     });
 
     // Coverage for docs/backend_checklist_value_record.html: the whitelist

@@ -1,45 +1,47 @@
 import { Injectable, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from './prisma.service';
 import { Prisma } from '@prisma/client';
-import { addFrequency } from './frequency.util';
+import { addFrequency, periodCode } from './frequency.util';
 
 @Injectable()
 export class CmmsService {
   constructor(private prisma: PrismaService) {}
 
-  // ── PM Tasks Sequential ID (transaction + retry) ─────────────────────────
+  // ── PM Task ids: PM-{assetId}-{periodCode}-{seq} ─────────────────────────
   /**
-   * Generates a task ID and creates the task atomically inside a serializable
-   * transaction. Retries up to MAX_RETRIES times on unique-key conflicts that
-   * arise from concurrent requests racing for the same sequential ID.
+   * Reserves the next sequence number for (assetId, period) with one atomic
+   * MERGE, so concurrent creates (nightly job + manual) never get the same
+   * number. Must run inside the same transaction that creates the task: a
+   * rolled-back create then also rolls back its number, keeping the series
+   * gap-free.
    */
-  async createTaskWithRetry(data: Omit<Prisma.PmTaskCreateInput, 'id'>, maxRetries = 5) {
-    const deptPrefix = (data.department || 'Gen').substring(0, 3).toUpperCase();
+  async nextTaskId(tx: Prisma.TransactionClient, assetId: string, frequency: string): Promise<string> {
+    const code = periodCode(frequency);
+    const rows = await tx.$queryRaw<{ lastSeq: number }[]>`
+      MERGE cmms_pm_id_sequences WITH (HOLDLOCK) AS t
+      USING (SELECT ${assetId} AS asset_id, ${code} AS period_code) AS s
+        ON t.asset_id = s.asset_id AND t.period_code = s.period_code
+      WHEN MATCHED THEN UPDATE SET last_seq = t.last_seq + 1
+      WHEN NOT MATCHED THEN INSERT (asset_id, period_code, last_seq) VALUES (s.asset_id, s.period_code, 1)
+      OUTPUT INSERTED.last_seq AS lastSeq;`;
+    const seq = Number(rows[0].lastSeq);
+    return `PM-${assetId}-${code}-${String(seq).padStart(2, '0')}`;
+  }
 
+  /** Mints the id and creates the task inside the caller's transaction. */
+  async createTaskInTx(tx: Prisma.TransactionClient, data: Omit<Prisma.PmTaskCreateInput, 'id'>) {
+    const id = await this.nextTaskId(tx, data.assetId, data.frequency);
+    return tx.pmTask.create({ data: { ...data, id } });
+  }
+
+  /** Single-task create in its own transaction; retries transient conflicts. */
+  async createTaskWithRetry(data: Omit<Prisma.PmTaskCreateInput, 'id'>, maxRetries = 5) {
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
-        return await this.prisma.$transaction(async (tx) => {
-          const tasks = await tx.pmTask.findMany({
-            where: { id: { startsWith: `PM-${deptPrefix}-` } },
-            select: { id: true },
-          });
-
-          let maxNum = 0;
-          for (const t of tasks) {
-            const parts = t.id.split('-');
-            if (parts.length === 3) {
-              const num = parseInt(parts[2], 10);
-              if (!isNaN(num) && num > maxNum) maxNum = num;
-            }
-          }
-
-          const taskId = `PM-${deptPrefix}-${(maxNum + 1).toString().padStart(4, '0')}`;
-          return tx.pmTask.create({ data: { ...data, id: taskId } });
-        }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+        return await this.prisma.$transaction((tx) => this.createTaskInTx(tx, data));
       } catch (err: any) {
-        // P2002 = unique constraint violation; P2034 = serialization failure
-        const isRetryable =
-          err?.code === 'P2002' || err?.code === 'P2034';
+        // P2002 = unique constraint violation; P2034 = write conflict / deadlock
+        const isRetryable = err?.code === 'P2002' || err?.code === 'P2034';
         if (!isRetryable || attempt === maxRetries - 1) throw err;
       }
     }

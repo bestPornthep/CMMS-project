@@ -3022,6 +3022,15 @@ model PmTask {
   @@map("cmms_pm_tasks")
 }
 
+model PmIdSequence {
+  assetId    String @map("asset_id") @db.NVarChar(50)
+  periodCode String @map("period_code") @db.NVarChar(30)
+  lastSeq    Int    @default(0) @map("last_seq")
+
+  @@id([assetId, periodCode])
+  @@map("cmms_pm_id_sequences")
+}
+
 model Template {
   id         String   @id @default(uuid())
   name       String
