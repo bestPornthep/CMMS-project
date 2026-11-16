@@ -5,6 +5,7 @@ import { RouterModule, Router, NavigationEnd, ActivatedRoute } from '@angular/ro
 import { AuthService } from '../core/services/auth.service';
 import { PmStore } from '../core/services/pm-store.service';
 import { PmTaskService } from '../core/services/pm-task.service';
+import { MasterPlanService } from '../core/services/master-plan.service';
 import { PMTask } from '../core/models/pm.model';
 import { TranslationService } from '../core/services/translation.service';
 import { ToastService } from '../core/services/toast.service';
@@ -24,6 +25,7 @@ export class LayoutComponent {
   private authService = inject(AuthService);
   private pmStore = inject(PmStore);
   private pmTaskService = inject(PmTaskService);
+  private masterPlan = inject(MasterPlanService);
   public translationService = inject(TranslationService);
   private router = inject(Router);
   private activatedRoute = inject(ActivatedRoute);
@@ -37,6 +39,71 @@ export class LayoutComponent {
 
   notificationsOpen = false;
   settingsOpen = false;
+
+  // Master Plan decisions the user has already clicked, kept per employee in this browser so a
+  // decision shows in the bell once and is gone after it has been opened.
+  private seenTick = signal(0);
+
+  private seenKey(employeeId: string): string {
+    return `cmms.seenMasterPlanDecisions.${employeeId}`;
+  }
+
+  private readSeen(employeeId: string): Set<string> {
+    try {
+      const raw = localStorage.getItem(this.seenKey(employeeId));
+      return new Set<string>(raw ? JSON.parse(raw) : []);
+    } catch {
+      return new Set();
+    }
+  }
+
+  private markMasterPlanSeen(employeeId: string, id: string): void {
+    const next = this.readSeen(employeeId).add(id);
+    try {
+      localStorage.setItem(this.seenKey(employeeId), JSON.stringify([...next]));
+    } catch {
+      // Storage unavailable: the item just reappears after a reload.
+    }
+    this.seenTick.update(n => n + 1);
+  }
+
+  // Master Plan results for the sender, and the waiting queue for approvers.
+  private masterPlanNotifications(user: { employeeId: string }): Record<string, unknown>[] {
+    this.seenTick();
+    const seen = this.readSeen(user.employeeId);
+    const changes = this.masterPlan.pendingMasterPlanChanges();
+    const out: Record<string, unknown>[] = [];
+
+    for (const c of changes) {
+      if (c.status === 'pending' || c.submittedBy !== user.employeeId || seen.has(c.id)) continue;
+      const approved = c.status === 'approved';
+      out.push({
+        id: c.id,
+        type: approved ? 'masterplan-approved' : 'masterplan-rejected',
+        tone: approved ? 'success' : 'error',
+        title: approved ? `Master Plan approved: ${c.assetName}` : `Master Plan rejected: ${c.assetName}`,
+        message: approved
+          ? 'Your request was approved and applied.'
+          : `Your request was rejected${c.rejectReason ? `: ${c.rejectReason}` : '.'}`,
+        read: false
+      });
+    }
+
+    if (this.masterPlan.canApproveMasterPlanChange()) {
+      const waiting = changes.filter(c => c.status === 'pending').length;
+      if (waiting > 0) {
+        out.push({
+          id: 'masterplan-waiting',
+          type: 'masterplan-waiting',
+          tone: 'error',
+          title: 'Master Plan approvals waiting',
+          message: `${waiting} request${waiting === 1 ? '' : 's'} awaiting your decision.`,
+          read: false
+        });
+      }
+    }
+    return out;
+  }
 
   notifications = computed(() => {
     const user = this.user();
@@ -137,7 +204,8 @@ export class LayoutComponent {
       })));
     }
 
-    return notifs.slice(0, 10);
+    // Master Plan items go first so the 10-item cap never hides a decision.
+    return [...this.masterPlanNotifications(user), ...notifs].slice(0, 10);
   });
 
   hasUnreadNotifications = computed(() => {
@@ -270,6 +338,15 @@ export class LayoutComponent {
   readNotification(notif: any) {
     this.notificationsOpen = false;
     const user = this.user();
+    if (user && notif.type === 'masterplan-waiting') {
+      void this.router.navigate(['/pm-approvals']);
+      return;
+    }
+    if (user && (notif.type === 'masterplan-approved' || notif.type === 'masterplan-rejected')) {
+      this.markMasterPlanSeen(user.employeeId, notif.id);
+      void this.router.navigate(['/pm-machines']);
+      return;
+    }
     if (user && (user.baseRole === 'engineer' || user.baseRole === 'manager' || user.baseRole === 'admin') && notif.type === 'overdue') {
       this.router.navigate(['/pm-calendar'], { queryParams: { task: notif.id } });
     } else {

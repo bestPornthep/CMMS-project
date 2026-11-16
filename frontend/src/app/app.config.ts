@@ -17,10 +17,12 @@ export function initializeApp(authService: AuthService, pmStore: PmStore, themeS
     } catch (e) {
       console.error('Auth init failed', e);
     }
-    try {
-      await pmStore.loadData();
-    } catch (e) {
-      console.error('PM data load failed', e);
+    if (authService.isLoggedIn()) {
+      try {
+        await pmStore.loadData();
+      } catch (e) {
+        console.error('PM data load failed', e);
+      }
     }
   };
 }

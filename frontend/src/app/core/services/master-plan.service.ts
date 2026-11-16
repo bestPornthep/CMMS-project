@@ -109,9 +109,10 @@ export class MasterPlanService {
     return this.pendingMasterPlanChangesSignal().find(c => c.assetId === assetId && c.status === 'pending');
   }
 
-  // A new machine is created at once, with no approval: Not in plan and local-only (never sent to
-  // the backend). It joins the Master Plan later through Send to Master Plan.
-  async addMachine(input: { id: string; name: string; location: string; department: string; workCenter: string }): Promise<void> {
+  // A new machine is created at once, with no approval: Not in plan. It is saved through the API and
+  // only appears once the server accepts it (a rejected call throws, so the caller shows an error).
+  // `mock` (dev only) keeps it local. It joins the Master Plan later through Send to Master Plan.
+  async addMachine(input: { id: string; name: string; location: string; department: string; workCenter: string }, opts?: { mock?: boolean }): Promise<void> {
     const user = this.authService.currentUser();
     if (!user || !this.authService.hasPermission('pm.create.submit')) {
       throw new Error('Unauthorized to create assets.');
@@ -129,7 +130,7 @@ export class MasterPlanService {
     if (this.store.assets().some(a => a.id.toLowerCase() === machine.id.toLowerCase())) {
       throw new Error('A machine with this ID already exists. Machine IDs must be unique.');
     }
-    await this.createAsset(machine, { mock: true });
+    await this.createAsset(machine, opts);
   }
 
   // Edits a machine's own fields. Not in plan: applied at once. In plan: becomes an approval request.
@@ -138,7 +139,8 @@ export class MasterPlanService {
   async editMachine(
     assetId: string,
     fields: { name?: string; department?: string; location?: string; workCenter?: string },
-    note = 'Edited via Manage Machines'
+    note = 'Edited via Manage Machines',
+    opts?: { mock?: boolean }
   ): Promise<'applied' | 'submitted' | 'unchanged'> {
     const current = this.store.assets().find(a => a.id === assetId);
     if (!current) throw new Error('Machine not found.');
@@ -155,7 +157,7 @@ export class MasterPlanService {
     if (Object.keys(diff).length === 0) return 'unchanged';
 
     if (!this.isInMasterPlan(assetId)) {
-      await this.updateAsset(assetId, diff, { mock: true });
+      await this.updateAsset(assetId, diff, opts);
       return 'applied';
     }
     this.submitMasterPlanChange({ assetId, assetName: current.name, department: current.department, changes: { editFields: diff }, note });
@@ -163,14 +165,14 @@ export class MasterPlanService {
   }
 
   // Deactivates or reactivates a machine. Not in plan: applied at once. In plan: becomes an approval request.
-  async setMachineActive(assetId: string, active: boolean, note?: string): Promise<'applied' | 'submitted' | 'unchanged'> {
+  async setMachineActive(assetId: string, active: boolean, note?: string, opts?: { mock?: boolean }): Promise<'applied' | 'submitted' | 'unchanged'> {
     const current = this.store.assets().find(a => a.id === assetId);
     if (!current) throw new Error('Machine not found.');
     this.assertNotWaiting(assetId);
 
     if (!this.isInMasterPlan(assetId)) {
       if ((current.isActive !== false) === active) return 'unchanged';
-      await this.updateAsset(assetId, { isActive: active }, { mock: true });
+      await this.updateAsset(assetId, { isActive: active }, opts);
       return 'applied';
     }
     this.submitMasterPlanChange({

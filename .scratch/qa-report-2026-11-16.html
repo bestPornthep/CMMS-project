@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AssetIntel CMMS QA Report - 2026-11-16</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #5e6b82;
+      --line: #dce3ee;
+      --surface: #ffffff;
+      --canvas: #f4f7fb;
+      --blue: #185adb;
+      --green: #13795b;
+      --amber: #9a5b00;
+      --red: #b42318;
+      --shadow: 0 8px 24px rgba(23, 32, 51, .08);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--canvas);
+      font: 15px/1.55 "Segoe UI", Arial, sans-serif;
+    }
+    .wrap { max-width: 1180px; margin: 0 auto; padding: 32px 20px 56px; }
+    header {
+      color: #fff;
+      background: linear-gradient(135deg, #123b88, #1671c8);
+      border-radius: 18px;
+      padding: 32px;
+      box-shadow: var(--shadow);
+    }
+    h1, h2, h3 { line-height: 1.2; margin: 0 0 12px; }
+    h1 { font-size: clamp(26px, 4vw, 42px); }
+    h2 { font-size: 24px; margin-top: 34px; }
+    h3 { font-size: 17px; }
+    p { margin: 8px 0 14px; }
+    .subtitle { color: #dbeafe; font-size: 17px; }
+    .meta { display: flex; flex-wrap: wrap; gap: 10px 24px; margin-top: 22px; color: #e6f0ff; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin-top: 22px; }
+    .card, .finding, .section {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+    }
+    .card { padding: 18px; }
+    .metric { font-size: 30px; font-weight: 700; }
+    .metric-label { color: var(--muted); }
+    .section { padding: 22px; margin-top: 20px; }
+    .finding { padding: 16px 18px; margin: 12px 0; border-left: 5px solid var(--line); }
+    .finding.critical { border-left-color: var(--red); }
+    .finding.major { border-left-color: var(--amber); }
+    .finding.minor { border-left-color: var(--blue); }
+    .finding.observation { border-left-color: var(--muted); }
+    .badge {
+      display: inline-block;
+      padding: 3px 9px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .03em;
+      text-transform: uppercase;
+      background: #e8eef8;
+      color: var(--blue);
+    }
+    .badge.pass { background: #dff7ed; color: var(--green); }
+    .badge.fail { background: #fee4e2; color: var(--red); }
+    .badge.warn { background: #fff0d3; color: var(--amber); }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    th, td { padding: 11px 10px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
+    th { color: var(--muted); font-size: 12px; letter-spacing: .04em; text-transform: uppercase; }
+    tr:last-child td { border-bottom: 0; }
+    code {
+      padding: 2px 5px;
+      border-radius: 4px;
+      background: #eef2f7;
+      font-family: Consolas, monospace;
+      font-size: .92em;
+    }
+    ul { margin: 8px 0 0; padding-left: 22px; }
+    li { margin: 5px 0; }
+    .note { color: var(--muted); font-size: 13px; }
+    .good { color: var(--green); font-weight: 600; }
+    .bad { color: var(--red); font-weight: 600; }
+    footer { color: var(--muted); margin-top: 28px; font-size: 13px; }
+    @media print {
+      body { background: #fff; }
+      .wrap { max-width: none; padding: 0; }
+      header, .card, .finding, .section { box-shadow: none; }
+      .section, .finding { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <header>
+      <h1>AssetIntel CMMS QA Report</h1>
+      <p class="subtitle">Production and dev-server smoke testing, role authorization, and admin permission workflow</p>
+      <div class="meta">
+        <span><strong>Test date:</strong> 16 November 2026</span>
+        <span><strong>Production:</strong> http://10.144.15.76:4300/</span>
+        <span><strong>Dev:</strong> http://localhost:4300/</span>
+        <span><strong>Scope:</strong> critical PM lifecycle and access control</span>
+      </div>
+    </header>
+
+    <section class="grid" aria-label="Summary metrics">
+      <div class="card">
+        <div class="metric good">PASS</div>
+        <div class="metric-label">Application boot and login UI</div>
+      </div>
+      <div class="card">
+        <div class="metric good">PASS</div>
+        <div class="metric-label">Role-based route protection</div>
+      </div>
+      <div class="card">
+        <div class="metric good">PASS</div>
+        <div class="metric-label">Admin create and grant permission</div>
+      </div>
+      <div class="card">
+        <div class="metric warn">1</div>
+        <div class="metric-label">Confirmed issue fixed in source, pending production deployment</div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Executive summary</h2>
+      <p>
+        The application booted successfully, the main PM routes rendered, and tested roles were correctly
+        allowed or denied access. Admin permission management also worked: a temporary Technician account
+        received Create PM permission, could open Create PM, and was blocked from Assign PM.
+      </p>
+      <p>
+        One confirmed defect was found and fixed in the frontend source: the unauthenticated login page
+        loaded protected PM and user APIs, producing predictable 401 errors. The fix was type-checked,
+        linted, built, and verified on a local dev server. The production URL was still serving the old
+        deployed bundle at the time of retest, so deployment is still required.
+      </p>
+      <p class="note"><strong>Data safety:</strong> No existing business records were modified or deleted. A temporary test account was created and then deactivated.</p>
+    </section>
+
+    <section class="section">
+      <h2>Test matrix</h2>
+      <table>
+        <thead>
+          <tr><th>Area</th><th>Environment</th><th>Result</th><th>Evidence</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Application boot and login form</td>
+            <td>Production and dev</td>
+            <td><span class="badge pass">Passed</span></td>
+            <td>HTTP 200, correct title, login fields, password visibility control, and validation message rendered.</td>
+          </tr>
+          <tr>
+            <td>Unauthenticated startup requests</td>
+            <td>Production before fix</td>
+            <td><span class="badge fail">Fixed in source</span></td>
+            <td>Protected requests to users, assets, PM tasks, and templates returned 401 before login. The corrected local build made no such startup requests.</td>
+          </tr>
+          <tr>
+            <td>Engineer access</td>
+            <td>Production and dev</td>
+            <td><span class="badge pass">Passed</span></td>
+            <td>Dashboard and Engineer PM routes loaded; approval and profile administration routes were denied.</td>
+          </tr>
+          <tr>
+            <td>Manager access</td>
+            <td>Production</td>
+            <td><span class="badge pass">Passed</span></td>
+            <td>Dashboard, PM routes, and approvals loaded; profile administration was denied.</td>
+          </tr>
+          <tr>
+            <td>Technician access</td>
+            <td>Production</td>
+            <td><span class="badge pass">Passed</span></td>
+            <td>Dashboard, Record PM, and Calendar were available; Create, Assign, Reports, Master Plan, Approvals, Audit, and Profile Config were denied.</td>
+          </tr>
+          <tr>
+            <td>Admin user management</td>
+            <td>Dev</td>
+            <td><span class="badge pass">Passed</span></td>
+            <td>Admin opened Profile Config, created a temporary user, granted permissions, and deactivated the user.</td>
+          </tr>
+          <tr>
+            <td>Custom permission behavior</td>
+            <td>Dev</td>
+            <td><span class="badge pass">Passed</span></td>
+            <td>Temporary Technician with Create PM permission opened <code>/pm-create</code> and was redirected to <code>/unauthorized</code> for <code>/pm-assign</code>.</td>
+          </tr>
+          <tr>
+            <td>Primary route smoke test</td>
+            <td>Dev</td>
+            <td><span class="badge pass">Passed</span></td>
+            <td>Dashboard, Machines, Create, Assign, Record, Calendar, Reports, Master Plan, and Audit rendered at their expected routes.</td>
+          </tr>
+          <tr>
+            <td>Full PM lifecycle</td>
+            <td>Production</td>
+            <td><span class="badge warn">Incomplete</span></td>
+            <td>Create to approve to assign to execute to complete could not be completed reliably because navigation/session behavior became unstable. No record was created.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section">
+      <h2>Findings and status</h2>
+
+      <article class="finding major">
+        <span class="badge warn">Major - fixed in source</span>
+        <h3>Protected APIs were called before authentication</h3>
+        <p><strong>Observed:</strong> The login page requested users, assets, PM tasks, and templates before a session existed. These requests returned 401 and logged <code>PM data load failed HttpErrorResponse</code>.</p>
+        <p><strong>Fix:</strong> PM preload is now gated on an authenticated session, and the AuthService no longer preloads the user list before authentication.</p>
+        <p><strong>Retest:</strong> Corrected local dev login page loaded without unauthenticated API errors. Production still showed the old behavior because its deployed bundle had not been updated.</p>
+        <p><strong>Files:</strong> <code>frontend/src/app/app.config.ts</code> and <code>frontend/src/app/core/services/auth.service.ts</code>.</p>
+      </article>
+
+      <article class="finding observation">
+        <span class="badge">Unconfirmed / needs follow-up</span>
+        <h3>Intermittent session or navigation bounce</h3>
+        <p>One direct load of Master Plan redirected to login even though the user appeared signed in. Five later direct loads and a reload passed. The lifecycle test also experienced navigation to unrelated PM pages and could not proceed reliably.</p>
+        <p>Recommendation: repeat the full lifecycle with a clean browser session after the corrected bundle is deployed, while capturing timing and network traces.</p>
+      </article>
+
+      <article class="finding minor">
+        <span class="badge">Minor / performance</span>
+        <h3>Slow initial rendering on large PM pages</h3>
+        <p>Assign PM and Calendar initially appeared blank at approximately 3.5 seconds and rendered at approximately 6 seconds. Assign PM also produced a large page body.</p>
+      </article>
+
+      <article class="finding observation">
+        <span class="badge">Data quality / product review</span>
+        <h3>Dashboard metrics look inconsistent or static</h3>
+        <p>PM Compliance displayed 0% alongside positive trend text such as +2.4%. Other cards showed fixed-looking text such as +12% vs last month and Optimal load. Workload totals were much larger than the total work-order card.</p>
+        <p>These may be intentional mock/demo metrics, but they should be verified against the product requirement and backend data.</p>
+      </article>
+
+      <article class="finding observation">
+        <span class="badge">Data hygiene</span>
+        <h3>Test records and mock controls are visible</h3>
+        <p>Dashboard activity and overdue lists contained E2E/test records, and Mock Preview Data buttons were visible on production pages. Confirm whether these are intended for the current environment and remove or hide them before release if not.</p>
+      </article>
+
+      <article class="finding minor">
+        <span class="badge">Minor UX</span>
+        <h3>Other route and login UX observations</h3>
+        <ul>
+          <li>Unknown routes redirect to dashboard or login instead of a dedicated not-found page.</li>
+          <li>Some protected-route redirects show the original URL briefly before Unauthorized.</li>
+          <li>The login form remains reachable when already authenticated.</li>
+        </ul>
+      </article>
+    </section>
+
+    <section class="section">
+      <h2>Validation performed for the source fix</h2>
+      <table>
+        <thead><tr><th>Check</th><th>Result</th><th>Details</th></tr></thead>
+        <tbody>
+          <tr><td>Frontend application type-check</td><td><span class="badge pass">Passed</span></td><td><code>npx tsc --noEmit -p tsconfig.app.json</code></td></tr>
+          <tr><td>Frontend spec type-check</td><td><span class="badge pass">Passed</span></td><td><code>npx tsc --noEmit -p tsconfig.spec.json</code></td></tr>
+          <tr><td>Frontend lint</td><td><span class="badge pass">Passed</span></td><td>0 lint errors; existing warnings remain.</td></tr>
+          <tr><td>Frontend production build</td><td><span class="badge pass">Passed</span></td><td>Build completed successfully; an existing initial bundle budget warning was reported.</td></tr>
+          <tr><td>Local dev smoke test</td><td><span class="badge pass">Passed</span></td><td>Login, Engineer dashboard, nine primary routes, and corrected startup behavior verified.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section">
+      <h2>Recommended next actions</h2>
+      <ol>
+        <li>Deploy the corrected frontend bundle to the production web server.</li>
+        <li>Retest the production login page and confirm there are no pre-authentication 401 requests.</li>
+        <li>Repeat the complete PM lifecycle in a clean, isolated test-data scope.</li>
+        <li>Verify dashboard calculations and remove or gate mock/test data for production.</li>
+        <li>Investigate the 6-second Assign PM and Calendar initial render times.</li>
+      </ol>
+    </section>
+
+    <footer>
+      Prepared from browser smoke testing and frontend validation on 2026-11-16.
+      Test passwords and other secrets are intentionally excluded.
+    </footer>
+  </main>
+</body>
+</html>

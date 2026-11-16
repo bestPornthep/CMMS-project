@@ -121,7 +121,7 @@ export class PmMachinesComponent {
       return;
     }
 
-    const mock = this.isDevBuild && this.useMockData();
+    const mock = this.mockMode;
     const isNewProduct = !mock && !this.products().includes(productId);
 
     this.isSubmitting.set(true);
@@ -139,14 +139,14 @@ export class PmMachinesComponent {
         }
       }
 
-      await this.masterPlan.addMachine({ id: assetId, name: assetName, location: productId, department, workCenter });
+      await this.masterPlan.addMachine({ id: assetId, name: assetName, location: productId, department, workCenter }, { mock });
       this.toast.success('Machine added. It is not in the Master Plan yet: add its PM types, then send it to the Master Plan.');
       // Keep Customer/Department so adding several machines to the same customer stays quick.
       this.assetId = '';
       this.assetName = '';
       this.workCenter = '';
     } catch (e: any) {
-      this.toast.error(e?.message || 'Failed to add the machine. Please try again.');
+      this.toast.error(this.errorMessage(e, 'Failed to add the machine. Please try again.'));
     } finally {
       this.isSubmitting.set(false);
     }
@@ -334,6 +334,19 @@ export class PmMachinesComponent {
     this.editOpenDropdown = null;
   }
 
+  // Dev-only toggle: skips the API so the page can be tried without a backend. Never true in production.
+  private get mockMode(): boolean {
+    return this.isDevBuild && this.useMockData();
+  }
+
+  // Prefers the server's own message over Angular's generic "Http failure response for ..." text.
+  private errorMessage(e: unknown, fallback: string): string {
+    const err = e as { error?: { message?: string | string[] }; status?: number; message?: string } | null;
+    const server = err?.error?.message;
+    const text = Array.isArray(server) ? server.join(', ') : server;
+    return text || (err?.status ? fallback : err?.message) || fallback;
+  }
+
   async saveEdit(a: Asset) {
     try {
       const result = await this.masterPlan.editMachine(a.id, {
@@ -341,13 +354,13 @@ export class PmMachinesComponent {
         department: this.editDepartment,
         location: this.editProductId,
         workCenter: this.editWorkCenter
-      });
+      }, undefined, { mock: this.mockMode });
       if (result === 'unchanged') this.toast.show('No changes to save.');
       else this.toast.success(result === 'applied' ? 'Machine updated.' : 'Change submitted for approval.');
       this.cancelEdit();
     } catch (e: any) {
       // The edit row stays open with the user's values so nothing typed is lost.
-      this.toast.error(e?.message || 'Failed to save the change. Please try again.');
+      this.toast.error(this.errorMessage(e, 'Failed to save the change. Please try again.'));
     }
   }
 
@@ -457,13 +470,13 @@ export class PmMachinesComponent {
     const asset = this.confirmTarget;
     const activate = this.confirmAction === 'reactivate';
     try {
-      const result = await this.masterPlan.setMachineActive(asset.id, activate);
+      const result = await this.masterPlan.setMachineActive(asset.id, activate, undefined, { mock: this.mockMode });
       if (result === 'unchanged') this.toast.show('No changes to save.');
       else if (result === 'applied') this.toast.success(activate ? 'Machine reactivated.' : 'Machine deactivated.');
       else this.toast.success('Change submitted for approval.');
       this.closeConfirm();
     } catch (e: any) {
-      this.toast.error(e?.message || 'Failed to save the change. Please try again.');
+      this.toast.error(this.errorMessage(e, 'Failed to save the change. Please try again.'));
     }
   }
 }

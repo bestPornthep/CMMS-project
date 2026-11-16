@@ -514,7 +514,7 @@ export class PmRecordComponent implements OnInit, OnDestroy {
     return this.selectedTask.checklist.every(item => item.done);
   }
 
-  submitRecord() {
+  async submitRecord(): Promise<void> {
     if (!this.selectedTask) return;
     const user = this.authService.currentUser();
     if (!user) return;
@@ -543,33 +543,45 @@ export class PmRecordComponent implements OnInit, OnDestroy {
         return;
       }
       const ts = new Date().toISOString();
-      const newNote = `[Tech|${ts}]: ${this.completionNotes}`;
+      const hasNotes = this.completionNotes.trim().length > 0;
+      const newNote = hasNotes ? `[Tech|${ts}]: ${this.completionNotes}` : '';
       
       let updatedNotes = this.selectedTask.recordNotes || '';
       if (updatedNotes) {
         // Remove any existing Tech notes safely using regex split so multiline notes aren't chopped
         updatedNotes = updatedNotes.split(/\n\n(?=\[(?:Rejected|Approver|Tech)(?:\|[^\]]+)?\])/).filter(n => !n.startsWith('[Tech')).join('\n\n');
       }
+      const recordNotes = [updatedNotes, newNote].filter(Boolean).join('\n\n');
       
-      this.pmTaskService.updateTask({
-        ...this.selectedTask,
-        status: 'Pending Approval',
-        completedAt: new Date(),
-        completedBy: user.employeeId,
-        actualHours: this.actualHours,
-        recordNotes: updatedNotes ? `${updatedNotes}\n\n${newNote}` : newNote
-      });
+      try {
+        await this.pmTaskService.updateTask({
+          ...this.selectedTask,
+          status: 'Pending Approval',
+          completedAt: new Date(),
+          completedBy: user.employeeId,
+          actualHours: this.actualHours,
+          recordNotes
+        });
+      } catch (err) {
+        this.toast.error(err instanceof Error ? err.message : 'Failed to submit PM Work Order. Please check the server connection.');
+        return;
+      }
       this.toast.success('PM Work Order submitted for approval!');
     } else {
       const ts = new Date().toISOString();
       const newNote = `[Approver|${ts}]: ${this.completionNotes}`;
-      this.pmTaskService.updateTask({
-        ...this.selectedTask,
-        status: 'Done',
-        approvedAt: new Date(),
-        approvedBy: user.employeeId,
-        recordNotes: this.selectedTask.recordNotes ? `${this.selectedTask.recordNotes}\n\n${newNote}` : newNote
-      });
+      try {
+        await this.pmTaskService.updateTask({
+          ...this.selectedTask,
+          status: 'Done',
+          approvedAt: new Date(),
+          approvedBy: user.employeeId,
+          recordNotes: this.selectedTask.recordNotes ? `${this.selectedTask.recordNotes}\n\n${newNote}` : newNote
+        });
+      } catch (err) {
+        this.toast.error(err instanceof Error ? err.message : 'Failed to approve PM Work Order. Please check the server connection.');
+        return;
+      }
       this.toast.success('PM Work Order successfully approved!');
     }
     
@@ -578,7 +590,7 @@ export class PmRecordComponent implements OnInit, OnDestroy {
     this.actualHours = 0;
   }
 
-  rejectRecord() {
+  async rejectRecord(): Promise<void> {
     if (!this.selectedTask) return;
     const user = this.authService.currentUser();
     if (!user) return;
@@ -597,14 +609,19 @@ export class PmRecordComponent implements OnInit, OnDestroy {
       done: false
     })) : undefined;
 
-    this.pmTaskService.updateTask({
-      ...this.selectedTask,
-      checklist: updatedChecklist,
-      status: 'In Progress',
-      rejectedBy: user.employeeId,
-      rejectedAt: new Date(),
-      recordNotes: this.selectedTask.recordNotes ? `${this.selectedTask.recordNotes}\n\n${newNote}` : newNote
-    });
+    try {
+      await this.pmTaskService.updateTask({
+        ...this.selectedTask,
+        checklist: updatedChecklist,
+        status: 'In Progress',
+        rejectedBy: user.employeeId,
+        rejectedAt: new Date(),
+        recordNotes: this.selectedTask.recordNotes ? `${this.selectedTask.recordNotes}\n\n${newNote}` : newNote
+      });
+    } catch (err) {
+      this.toast.error(err instanceof Error ? err.message : 'Failed to reject PM Work Order. Please check the server connection.');
+      return;
+    }
     this.toast.warning('PM Work Order rejected. Sent back to technician.');
     
     this.selectedTask = null;

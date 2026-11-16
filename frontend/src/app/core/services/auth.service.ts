@@ -15,11 +15,6 @@ export class AuthService {
   readonly currentUser = computed(() => this.currentUserSignal());
   readonly isLoggedIn = computed(() => this.currentUserSignal() !== null);
 
-  constructor() {
-    // Pre-load user list so role-based lookups work immediately
-    this.api.getAllUsers().then(users => this.usersCache.set(users)).catch(() => {});
-  }
-
   async init(): Promise<void> {
     const token = localStorage.getItem(AUTH_KEY);
     if (token) {
